@@ -39,20 +39,27 @@ class Environment(object):
             # Check robot on space tile (not a wall)
             grid_val = self.get_grid_tile_for_position(robot.pos)
             if grid_val != EnvType.SPACE:
+                a1 = robot.get_last_action()
+                self.collision = (robot.id, robot.pos, a1)
                 return False
 
             # vertex conflict
             # Check that no two robots have the same position
             # by building a dict of positions, collision fails out
             if robot.pos in latest_positions:
+                other_robot = self.get_robot_by_id(self.latest_positions[robot.pos])
+                a1 = robot.get_last_action()
+                b1 = other_robot.get_last_action()
+                self.collision = (robot.id, robot.pos, a1,
+                                  other_robot.id, other_robot.pos, b1)
                 return False
             else:
-                latest_positions[robot.pos] = True
+                latest_positions[robot.pos] = robot.id
 
             # edge conflict
             # If robot is entering previously occupied cell, check if other robot moved on same edge
             if robot.pos in self.past_robot_positions:
-                other_robot = self.past_robot_positions[robot.pos]
+                other_robot = self.get_robot_by_id(self.past_robot_positions[robot.pos])
                 if other_robot == robot:
                     # Same robot, skip
                     continue
@@ -81,7 +88,7 @@ class Environment(object):
 
         self.past_robot_positions.clear()
         for robot in self.robots:
-            self.past_robot_positions[robot.pos] = robot
+            self.past_robot_positions[robot.pos] = robot.id
 
         state_changed = False
         for robot in self.robots:

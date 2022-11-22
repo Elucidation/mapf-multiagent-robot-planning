@@ -24,7 +24,7 @@ def init_viz():
     # plt.show()
 
 
-def show_state(title=''):
+def show_state(title='', pause_time=0.5):
     # print(world)
     # world.show_grid_ASCII()
     plt.clf()
@@ -50,9 +50,30 @@ def show_state(title=''):
         # Label bot
         plt.text(robot.pos[0]-0.1, robot.pos[1] -
                  0.1, robot.id, size=10, color='w')
+
+    # If invalid state, show collision/issue
+    if world.get_current_state() is False:
+        if len(world.collision) == 3:
+            # Wall collision
+            # (robot.id, robot.pos, a1)
+            rid, pos, action = world.collision
+            plt.text(pos[0]-0.1, pos[1] -
+                     0.1, f'{rid}: {action}', size=8, color='w')
+        else:
+            # Robot - Robot collision
+            # (robot.id, robot.pos, a1, other_robot.id, other_robot.pos, b1)
+            r1_id, r1_pos, r1_action, r2_id, r2_pos, r2_action = world.collision
+            plt.plot([r1_pos[0], r2_pos[0]], [
+                     r1_pos[1], r2_pos[1]], 'x--g', linewidth=8)
+            plt.text(r1_pos[0]-0.1, r1_pos[1] -
+                     0.1, f'{r1_id}: {r1_action}', size=8, color='w')
+            plt.text(r2_pos[0]-0.1, r2_pos[1] -
+                     0.1, f'{r2_id}: {r2_action}', size=8, color='w')
+            
+
     # plt.draw()
     plt.title(title)
-    plt.pause(0.05)
+    plt.pause(pause_time)
 
 
 #######################
@@ -79,17 +100,17 @@ for i in range(len(robot_starts)):
 
 init_viz()
 show_state(title='T=0')
-time_step = 0.5
+time_step = 1.0
 time.sleep(time_step)
 
 
 for i in range(1, 100):
     print(f'--- T{i}')
     state_changed = world.step()
-    show_state(title=f'T={i} Valid:{world.get_current_state()}')
     if not (world.get_current_state()):
         print(f'Invalid state! : {world} : {world.collision}')
-    time.sleep(time_step)
+    show_state(title=f'T={i} Valid:{world.get_current_state()}', pause_time=time_step)
+    # time.sleep(time_step)
     if not state_changed:
         break
 
