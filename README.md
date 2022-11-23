@@ -1,4 +1,4 @@
-# multiagent robot ims
+# Multi-Agent PathFinding (MAPF) for 2D Robots on a grid
 Re-discovering basic MAPF (Multi-Agent Path finding) algorithms, and in the process building a simulator + visualizer + robots + planning. 
 
 ![test1 animation](dev/test1.gif)
@@ -61,3 +61,9 @@ Generate tasks via inventory management system (IMS), possibly extend to ticket/
 Update CBS via:
 - A*/STA* use true-path heuristic
 - re-org code for cleanliness (separate IMS to other folder)
+
+### Lit Study
+
+- [Multi-agent path finding with mutex propagation](https://doi.org/10.1016/j.artint.2022.103766) H Zhang, J Li, P Surynek, TKS Kumar, S Koenig - Artificial Intelligence, 2022 
+- [Assignment on MAPF](http://idm-lab.org/project-p/project.html) S Koenig
+- [Cooperative Path Planning](https://www.davidsilver.uk/wp-content/uploads/2020/03/coop-path-AIWisdom.pdf) David Silver
