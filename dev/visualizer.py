@@ -26,6 +26,7 @@ class Visualizer():
         self.artists = []
         self.robots = dict()
         self.robot_names = dict()
+        self.robot_paths = dict()
 
         x_min = -0.5
         y_min = -0.5
@@ -54,6 +55,14 @@ class Visualizer():
             color = self.Colors[i % len(self.Colors)]
             self.patches.append(Rectangle((goal[0] - sz/2, goal[1] - sz/2), sz, sz, facecolor=color,
                                           edgecolor='black', alpha=0.5))
+
+        # Draw paths
+        # for i, path in enumerate(self.paths):
+        #     if not path:
+        #         continue
+        #     path = np.array(path)
+        #     color = self.Colors[i % len(self.Colors)]
+        #     self.robot_paths[i] = self.ax.plot(path[:,0], path[:,1],'-', color=color, alpha=0.1, lw=1)
 
         # Draw robots
         self.T = 0  # Total steps/time is based on longest path
@@ -95,6 +104,8 @@ class Visualizer():
     def animate(self, frame_number):
         # Animate paths
         for i, path in enumerate(self.paths):
+            if not path:
+                continue
             pos = self.interp_pos(frame_number / self.fps, path)
             self.robots[i].center = pos
             self.robot_names[i].set_position(pos)

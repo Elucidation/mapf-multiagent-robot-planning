@@ -75,7 +75,7 @@ def astar(graph, a, b, flip_row_col=False):
     return []
 
 
-def st_astar(graph, a, b, dynamic_obstacles=dict(), T=40, flip_row_col=False, maxiters=10000):
+def st_astar(graph, a, b, dynamic_obstacles=dict(), T=20, flip_row_col=False, maxiters=10000):
     # space-time astar
     # graph is NxN int array, obstacles are non-zero
     # dynamic_obstacles is a dict of (r,c,t) obstacles to avoid
@@ -95,7 +95,7 @@ def st_astar(graph, a, b, dynamic_obstacles=dict(), T=40, flip_row_col=False, ma
         # todo, use true-distance heuristic via backwards search
 
     def check_valid(n):
-        (r,c,t) = n
+        (r, c, t) = n
         R, C = graph.shape
         if(t > T):
             return False
@@ -139,7 +139,8 @@ def st_astar(graph, a, b, dynamic_obstacles=dict(), T=40, flip_row_col=False, ma
                      (r, c+1, t+1)]
         for neighbor in neighbors:
             if neighbor not in closeSet and check_valid(neighbor):
-                heapq.heappush(pq, (heuristic(neighbor[:2], b), curr, neighbor))
+                heapq.heappush(
+                    pq, (heuristic(neighbor[:2], b), curr, neighbor))
                 # closeSet.add(neighbor)
                 pathTrack[neighbor] = curr
         i += 1
@@ -150,7 +151,7 @@ def st_astar(graph, a, b, dynamic_obstacles=dict(), T=40, flip_row_col=False, ma
             if flip_row_col:
                 path.append((c[1], c[0]))
             else:
-                path.append(c[:2]) # remove time from path
+                path.append(c[:2])  # remove time from path
                 # path.append(c)
             c = pathTrack[c]
 
@@ -162,12 +163,14 @@ def st_astar(graph, a, b, dynamic_obstacles=dict(), T=40, flip_row_col=False, ma
     # No path found
     return []
 
+
 def find_all_collisions(paths):
     collisions = []
     for i in range(len(paths)):
-        for j in range(i+1,len(paths)):
+        for j in range(i+1, len(paths)):
             collisions.extend(find_collisions(paths[i], paths[j], i, j))
     return collisions
+
 
 def find_collisions(path1, path2, path1_name=0, path2_name=1):
     # Find any vertex and edge collisions, and return a list of (path_idx,r,c,t) collisions
@@ -185,7 +188,7 @@ def find_collisions(path1, path2, path1_name=0, path2_name=1):
         path2.extend((-diff)*[path2[-1]])
 
     tmax = len(path1)
-    collisions = [] # (path_name,r,c,t)
+    collisions = []  # (path_name,r,c,t)
     for t in range(tmax):
         # vertex collision
         if path1[t] == path2[t]:
@@ -201,8 +204,8 @@ def find_collisions(path1, path2, path1_name=0, path2_name=1):
                 # collisions.append([path1[t-1][0], path1[t-1][1], t])
                 # collisions.append([path1[t][0], path1[t][1], t])
 
-
     return collisions
+
 
 def MAPF0(grid, starts, goals):
     # For several robots with given start/goal locations and a grid
@@ -216,7 +219,7 @@ def MAPF0(grid, starts, goals):
     return paths
 
 
-def MAPF1(grid, starts, goals, maxiter = 5):
+def MAPF1(grid, starts, goals, maxiter=5, T=20):
     # For several robots with given start/goal locations and a grid
     # Attempt to find paths for all that don't collide
     # Attempt 1:
@@ -236,8 +239,10 @@ def MAPF1(grid, starts, goals, maxiter = 5):
     path_collisions = defaultdict(list)
     for collision in collisions:
         path_idx, r, c, t = collision
-        path_collisions[path_idx].append((r,c,t))
-        
+        path_collisions[path_idx].append((r, c, t))
+
+    if not collisions:
+        return paths
 
     # list of (path_idx, r, c, t)
     for i in range(maxiter):
@@ -249,7 +254,8 @@ def MAPF1(grid, starts, goals, maxiter = 5):
         dynamic_obstacles = path_collisions[path_idx]
         # print('Before:')
         # print(paths[path_idx])
-        paths[path_idx] = st_astar(grid, starts[path_idx], goals[path_idx], dynamic_obstacles)
+        paths[path_idx] = st_astar(
+            grid, starts[path_idx], goals[path_idx], dynamic_obstacles, T=T)
         # print('After:')
         # print(paths[path_idx])
         collisions = find_all_collisions(paths)
@@ -259,50 +265,47 @@ def MAPF1(grid, starts, goals, maxiter = 5):
         # Note: Keeps old dynamic obstacles, not optimal
         for collision in collisions:
             path_idx, r, c, t = collision
-            path_collisions[path_idx].append((r,c,t))
+            path_collisions[path_idx].append((r, c, t))
 
     return paths
 
 
 def test_find_collisions():
-    p1 = [(0,0), (0,1), (0,1), (0,2)]
-    p2 = [(1,0), (1,1), (0,1), (0,0)]
+    p1 = [(0, 0), (0, 1), (0, 1), (0, 2)]
+    p2 = [(1, 0), (1, 1), (0, 1), (0, 0)]
     # These collide at vertex at time 2
-    collisions = find_collisions(p1,p2)
+    collisions = find_collisions(p1, p2)
     assert(collisions == [[1, 0, 1, 2]])
 
 
 def test_MAPF0():
     grid, goals, starts = get_scenario('scenarios/scenario2.yaml')
     paths = MAPF0(grid, starts, goals)
-    # print(paths)
     collisions = find_all_collisions(paths)
-    # print(collisions)
     assert(collisions == [[2, 2, 5, 6]])
+    # print(paths)
+    # print(collisions)
+
 
 def test_MAPF1():
     grid, goals, starts = get_scenario('scenarios/scenario3.yaml')
-    
-    # Flip xy -> rc
-    starts = flip_tuple_lists(starts)
-    goals = flip_tuple_lists(goals)
-
     paths = MAPF1(grid, starts, goals, maxiter=100)
+    collisions = find_all_collisions(paths)
+    assert(not collisions)
     # print('---')
     # print(f'Paths: {paths}')
     # print('--')
-    collisions = find_all_collisions(paths)
     # print(f'Collisions: {collisions}')
     # print('--')
-    assert(not collisions)
 
 
 def test_single_robot_astar():
     grid, goals, starts = get_scenario('scenarios/scenario1.yaml')
-
-    path = astar(grid,starts[0], goals[0])
-    expected_path = [(1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (3, 4)]
+    path = astar(grid, starts[0], goals[0])
+    expected_path = [(1, 4), (1, 3), (1, 2), (1, 1), (2, 1),
+                     (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (3, 4)]
     assert(path == expected_path)
+
 
 if __name__ == '__main__':
     # Run tests
@@ -310,5 +313,3 @@ if __name__ == '__main__':
     test_single_robot_astar()
     test_MAPF0()
     test_MAPF1()
-
-    
