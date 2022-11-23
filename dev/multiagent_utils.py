@@ -43,21 +43,22 @@ class EnvType(Enum):
 
 
 def getWorld1():
-    W = EnvType.WALL
-    S = EnvType.SPACE
-
     # Rows is Y, Cols is X
     grid = np.array([
-        [W, W, W, W, W, W, W, W, W, W, W],
-        [W, S, S, S, S, S, S, S, S, S, W],
-        [W, S, S, S, S, S, S, S, S, S, W],
-        [W, S, S, S, W, S, W, W, S, S, W],
-        [W, S, S, S, W, S, W, W, S, S, W],
-        [W, S, S, S, W, S, W, W, S, S, W],
-        [W, S, S, S, W, S, W, W, S, S, W],
-        [W, S, S, S, W, S, W, W, S, S, W],
-        [W, S, S, S, S, S, S, S, S, S, W],
-        [W, S, S, S, S, S, S, S, S, S, W],
-        [W, W, W, W, W, W, W, W, W, W, W],
-    ], dtype=EnvType)
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    ]).astype(EnvType)
+    grid[grid==0] = EnvType(0)
+    grid[grid==1] = EnvType(1)
     return grid
+
+print(getWorld1())
