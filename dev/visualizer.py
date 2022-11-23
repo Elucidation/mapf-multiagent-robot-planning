@@ -128,8 +128,24 @@ class Visualizer():
         return (b-a) * (i-int(i)) + a
         # return path[int(i)] # for now just closest point
 
+def makeSingleRobotPath():
+    grid = np.array([
+        [1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 1],
+        [1, 0, 1, 1, 1, 1],
+        [1, 0, 1, 0, 0, 1],
+        [1, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1],
+    ])
+    start = (1,4)
+    goal = (3,4)
+    path = [(1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (3, 4)]
+    visualizer = Visualizer(grid.transpose(), [start], [goal], [path])
+    visualizer.save('astar_single.gif')
+    visualizer.show()
 
 if __name__ == '__main__':
+    # makeSingleRobotPath()
     grid = np.array([
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],

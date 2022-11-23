@@ -42,7 +42,7 @@ with con:
 #     con.executemany(sql, data)
 
 import time
-
+    
 sql = 'UPDATE Robot SET X = ?, Y = ? WHERE id = ?'
 
 for i in range(10):

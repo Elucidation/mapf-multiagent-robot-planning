@@ -336,9 +336,26 @@ def test_MAPF1():
     print(f'Collisions: {collisions}')
     print('--')
 
+
+def testSingleAstar():
+    grid = np.array([
+        [1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 1],
+        [1, 0, 1, 1, 1, 1],
+        [1, 0, 1, 0, 0, 1],
+        [1, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1],
+    ])
+    start = (1,4)
+    goal = (3,4)
+
+    path = astar(grid,start, goal)
+    # path = [(1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (3, 4)]
+
 if __name__ == '__main__':
 
     test_MAPF1()
+    # testSingleAstar()
 
     # maingrid = np.array([
     #     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
