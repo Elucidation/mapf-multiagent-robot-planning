@@ -72,6 +72,9 @@ class Visualizer():
             self.robot_names[i].set_verticalalignment('center')
             self.artists.append(self.robot_names[i])
 
+        # Add timestamp
+        # todo
+
         # Create animation
 
         self.animation = animation.FuncAnimation(self.fig, self.animate,
