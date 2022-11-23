@@ -36,6 +36,12 @@ def convert_path_to_actions(path):
 def flip_tuple(ab):
     return (ab[1], ab[0])
 
+def flip_tuple_lists(abs):
+    return [flip_tuple(x) for x in abs]
+
+def flip_tuple_list_of_lists(abss):
+    return [flip_tuple_lists(x) for x in abss]
+
 
 class EnvType(Enum):
     SPACE = 0
@@ -60,5 +66,3 @@ def getWorld1():
     grid[grid==0] = EnvType(0)
     grid[grid==1] = EnvType(1)
     return grid
-
-print(getWorld1())

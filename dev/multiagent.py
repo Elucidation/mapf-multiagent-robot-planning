@@ -12,20 +12,25 @@ from visualizer import Visualizer
 world = Environment(getWorld1(), [])
 
 
+# These positions are in x/y coords, not r,c
+# so we need to flip before passing to MAPF algorithms
 robot_starts = [(1, 1), (1, 2), (9, 4)]
 goals = [(8, 5), (5, 4), (2, 3)]
 
-# robot_starts = [(1, 1), (8, 1)]
-# goals = [(7, 2), (1, 2)]
-paths = []
+paths = pathfinding.MAPF1(world.get_int_grid(),
+    flip_tuple_lists(robot_starts),
+    flip_tuple_lists(goals)
+    )
+paths = flip_tuple_list_of_lists(paths) # Convert back to XY
 
 for i in range(len(robot_starts)):
     robot = Robot(robot_id=i, pos=robot_starts[i])
     world.add_robot(robot)
+    path = paths[i]
 
-    path = pathfinding.astar(
-        world.get_int_grid(), robot.pos, goals[i], flip_row_col=True)
-    paths.append(path)
+    # path = pathfinding.astar(
+    #     world.get_int_grid(), robot.pos, goals[i], flip_row_col=True)
+    # paths.append(path)
     actions = convert_path_to_actions(path)
     for action in actions:
         robot.add_action(action)
@@ -41,7 +46,7 @@ for i in range(1, 100):
         break
 
 visualizer = Visualizer(world.get_int_grid(), robot_starts, goals, paths)
-# visualizer.save('test1.gif')
+visualizer.save('test1.gif')
 visualizer.show()
 
 

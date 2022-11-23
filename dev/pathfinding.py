@@ -10,7 +10,7 @@ def astar(graph, a, b, flip_row_col=False):
         b = (b[1], b[0])
 
     if graph[a[0], a[1]] > 0 or graph[b[0], b[1]] > 0:
-        return False
+        raise Exception('Start/End locations in walls')
 
     def heuristic(p1, p2):
         # return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1]) # manhattan distance
@@ -158,22 +158,28 @@ def st_astar(graph, a, b, dynamic_obstacles=dict(), T=20, flip_row_col=False):
     # No path found
     return []
 
+def find_all_collisions(paths):
+    collisions = []
+    for i in range(len(paths)):
+        for j in range(i+1,len(paths)):
+            collisions.extend(find_collisions(paths[i], paths[j], i, j))
+    return collisions
 
-def find_collisions(path1, path2):
-    # Find any vertex and edge collisions, and return a list of (r,c,t) collisions
+def find_collisions(path1, path2, path1_name=0, path2_name=1):
+    # Find any vertex and edge collisions, and return a list of (path_idx,r,c,t) collisions
     # for edge collisions, obstacles are for path2 to avoid
     tmax = min(len(path1), len(path2))
-    collisions = []
+    collisions = [] # (path_name,r,c,t)
     for t in range(tmax):
         # vertex collision
         if path1[t] == path2[t]:
-            collisions.append([path1[t][0], path1[t][1], t])
+            collisions.append([path2_name, path1[t][0], path1[t][1], t])
 
         # edge collision, robots swap locations, just add all times
         if (t-1 >= 0):
             if path1[t-1] == path2[t] and path1[t] == path2[t-1]:
                 # obstacle for path 2
-                collisions.append([path2[t][0], path2[t][1], t])
+                collisions.append([path2_name, path2[t][0], path2[t][1], t])
 
                 # todo: add dynamic obstacles with path reference
                 # collisions.append([path1[t-1][0], path1[t-1][1], t])
@@ -181,6 +187,52 @@ def find_collisions(path1, path2):
 
 
     return collisions
+
+def MAPF0(grid, starts, goals):
+    # For several robots with given start/goal locations and a grid
+    # Get paths for all, do all as independent
+    #  - independent A-star for each as initial paths
+    assert len(starts) == len(goals)
+    paths = []
+    N = len(starts)
+    for i in range(N):
+        paths.append(astar(grid, starts[i], goals[i]))
+    return paths
+
+
+def MAPF1(grid, starts, goals, maxiter = 5):
+    # For several robots with given start/goal locations and a grid
+    # Attempt to find paths for all that don't collide
+    # Attempt 1:
+    #  - independent A-star for each as initial paths
+    #  - check for collisions as dynamic obstacles
+    #  - st_astar for paths (priority ordering) that collide until no collisions
+    assert len(starts) == len(goals)
+
+    paths = []
+    N = len(starts)
+
+    for i in range(N):
+        paths.append(astar(grid, starts[i], goals[i]))
+
+    collisions = find_all_collisions(paths)
+    # list of (path_idx, r, c, t)
+    for i in range(maxiter):
+        # print(f'{i} | Trying to remove collisions: {collisions}')
+        path_idx, r, c, t = collisions[0]
+
+        # Try to remove just first collision on that path
+        dynamic_obstacles = {(r,c,t) : True}
+        # print('Before:')
+        # print(paths[path_idx])
+        paths[path_idx] = st_astar(grid, starts[path_idx], goals[path_idx], dynamic_obstacles)
+        # print('After:')
+        # print(paths[path_idx])
+        collisions = find_all_collisions(paths)
+        if not collisions:
+            break
+
+    return paths
 
 
 def test_collisions():
@@ -198,16 +250,12 @@ def test_collisions():
 
     # p1 and p2 don't intersect
     # p1 and p3 cross
-    collisions = find_collisions(p1,p3)
+    collisions = find_all_collisions([p1,p2,p3])
     print(collisions)
 
 
-
-if __name__ == '__main__':
-    # test_collisions()
-
-
-    maingrid = np.array([
+def test_MAPF0():
+    grid = np.array([
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -215,12 +263,53 @@ if __name__ == '__main__':
         [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
+    robot_starts = [(1, 1), (2, 1), (4, 9)]
+    goals = [(5, 8), (4, 5), (3, 2)]
 
-    print(astar(maingrid, (1, 1), (5, 8)))
-    print('----')
-    # Confirm st_astar same path as astar with no dynamic obstacles
-    print(st_astar(maingrid, (1, 1), (5, 8)))
-    # Avoid dynamic obstacl at 1,6 at time step 5
-    print(st_astar(maingrid, (1, 1), (5, 8), dynamic_obstacles=dict({(1,6,5):True})))
+    paths = MAPF0(grid, robot_starts, goals)
+    print(paths)
+    collisions = find_all_collisions(paths)
+    print(collisions)
+
+def test_MAPF1():
+    grid = np.array([
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
+    robot_starts = [(1, 1), (2, 1), (4, 9)]
+    goals = [(5, 8), (4, 5), (3, 2)]
+
+    paths = MAPF1(grid, robot_starts, goals)
+    print('---')
+    print(f'Paths: {paths}')
+    print('--')
+    collisions = find_all_collisions(paths)
+    print(f'Collisions: {collisions}')
+    print('--')
+
+if __name__ == '__main__':
+
+    test_MAPF1()
+
+    # maingrid = np.array([
+    #     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    #     [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+    #     [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    #     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
+
+    # print('----')
+    # print(astar(maingrid, (1, 1), (5, 8)))
+    # print('----')
+    # # Confirm st_astar same path as astar with no dynamic obstacles
+    # print(st_astar(maingrid, (1, 1), (5, 8)))
+    # # Avoid dynamic obstacl at 1,6 at time step 5
+    # print(st_astar(maingrid, (1, 1), (5, 8), dynamic_obstacles=dict({(1,6,5):True})))
 
     
