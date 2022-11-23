@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from matplotlib.patches import Circle, Rectangle
 import math
-from multiagent_utils import get_scenario
+from multiagent_utils import *
 
 class Visualizer():
     """System for visualizing and animating env + robot paths."""
@@ -12,9 +12,9 @@ class Visualizer():
 
     def __init__(self, grid, starts, goals, paths, fps=15):
         self.grid = grid
-        self.starts = starts
-        self.goals = goals
-        self.paths = paths
+        self.starts = flip_tuple_lists(starts)
+        self.goals = flip_tuple_lists(goals)
+        self.paths = flip_tuple_list_of_lists(paths)
         self.fps = fps
 
         self.fig = plt.figure()
@@ -29,8 +29,8 @@ class Visualizer():
 
         x_min = -0.5
         y_min = -0.5
-        x_max = len(self.grid) - 0.5
-        y_max = len(self.grid[0]) - 0.5
+        y_max = len(self.grid) - 0.5
+        x_max = len(self.grid[0]) - 0.5
         plt.xlim(x_min, x_max)
         plt.ylim(y_min, y_max)
 
@@ -136,7 +136,7 @@ def make_single_robot_path():
     visualizer.show()
 
 if __name__ == '__main__':
-    make_single_robot_path()
+    # make_single_robot_path()
     grid = np.array([
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -156,7 +156,10 @@ if __name__ == '__main__':
     paths = [[(1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (5, 2), (6, 2), (7, 2), (8, 2), (8, 3), (8, 4), (8, 5)],
              [(1, 2), (2, 2), (3, 2), (4, 2), (5, 2), (5, 3), (5, 4)],
              [(9, 4), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (2, 3)]]
+    starts = flip_tuple_lists(starts)
+    goals = flip_tuple_lists(goals)
+    paths = flip_tuple_list_of_lists(paths)
 
     visualizer = Visualizer(grid, starts, goals, paths)
-    # visualizer.save('test1.gif')
+    # visualizer.save('mapf0.gif')
     visualizer.show()

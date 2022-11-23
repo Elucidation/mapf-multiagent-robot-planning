@@ -41,6 +41,8 @@ An algorithm to find this solution given these inputs is sometimes called a Mult
 A simple/naive first-pass we'll call MAPF0 is to use A* for each robot with no knowledge of each other, just the grid. For sparse worlds/grids this isn't a problem. One could imagine a few people standing randomly on a football field, and told to go to some other random locations on the field. The likelihood of them colliding is pretty small, even if a few obstacles were places on the field. Now if that same situation happened in a cubicle office, it's very likely there'd be collisions. The big O for this would be $O(K* 4^{MN})$ where $K=\text{number of robots}$ and $MxN = \text{grid shape}$, so linear to the number of robots.
 Of course, these solutions will rarely be valid in non-sparse grids. 
 
+![test1 animation](dev/mapf0.gif)
+
 ### MAPF1 simple Conflict-based search (CBS)
 A step up from this is first to define a method to identify collisions, we'll call `find_collisions(path1, path2) -> list of collisions` where a $collision$ is a tuple containing $(\text{path index, position, time})$, Then we iterate over all path pairs to get a list of all collisions identified. 
 
@@ -48,10 +50,10 @@ Now in a loop, we update the paths with collisions with a new A* search that als
 
 So now, we have our MAPF1 algorithm, where we start with A* paths for each robot, adding these time-based (ie. dynamic) collisions between paths, and then in a loop update those paths with our STA* algorithm, using our ever expanding list of dynamic collisions.  We keep doing this until no conflicts remain, and we have a valid solution. This is close but not always optimal, as we are arbitrarily choosing which path to update, rather than trying both options in an ever expanding binary tree to get to the optimal solution (todo).
 
-![test1 animation](dev/test1.gif)
+![test1 animation](dev/scenario4.gif)
 
 ### Next / TODO
-Scale up # of robots form handful to 100's, similarly scale up grid. This'll definitely require going closer to state-of-the-art in CBS etc.
+Scale up # of robots from handful to 100's, similarly scale up grid. This'll definitely require going closer to state-of-the-art in CBS etc.
 Then, transition from known start/goal positions to dynamic/live, ie. new start/goals are requested during computation, call these tasks. 
 
 Manage and allocate free robots to tasks as they come up, update MAPF# algorithms to work live, might transition to D* or alternative low-level path finding algorithms at this point
@@ -64,6 +66,7 @@ Update CBS via:
 
 ### Lit Study
 
+- [Conflict-based search for optimal multi-agent pathfinding](https://doi.org/10.1016/j.artint.2014.11.006) Guni Sharon, Roni Stern, Ariel Felner, Nathan R. Sturtevant - Artificial Intelligence, 2015
 - [Multi-agent path finding with mutex propagation](https://doi.org/10.1016/j.artint.2022.103766) H Zhang, J Li, P Surynek, TKS Kumar, S Koenig - Artificial Intelligence, 2022 
 - [Assignment on MAPF](http://idm-lab.org/project-p/project.html) S Koenig
 - [Cooperative Path Planning](https://www.davidsilver.uk/wp-content/uploads/2020/03/coop-path-AIWisdom.pdf) David Silver

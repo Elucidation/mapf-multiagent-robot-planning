@@ -75,7 +75,7 @@ def astar(graph, a, b, flip_row_col=False):
     return []
 
 
-def st_astar(graph, a, b, dynamic_obstacles=dict(), T=20, flip_row_col=False, maxiters=10000):
+def st_astar(graph, a, b, dynamic_obstacles=dict(), T=40, flip_row_col=False, maxiters=10000):
     # space-time astar
     # graph is NxN int array, obstacles are non-zero
     # dynamic_obstacles is a dict of (r,c,t) obstacles to avoid
@@ -175,6 +175,8 @@ def find_collisions(path1, path2, path1_name=0, path2_name=1):
 
     # extend shorter path with waits
     # tmax = min(len(path1), len(path2))
+    if not path1 or not path2:
+        return []
     diff = len(path2) - len(path1)
     if diff > 0:
         # if path 2 longer

@@ -55,14 +55,22 @@ def get_scenario(filename):
     starts = [tuple(x) for x in scenario['starts']]
     return grid, goals, starts
 
-
-def get_world_1():
-    grid, goals, starts = get_scenario('scenarios/scenario3.yaml')
-    # Rows is Y, Cols is X
+def getGridAsEnvironment(grid):
     grid = grid.astype(EnvType)
     grid[grid==0] = EnvType(0)
     grid[grid==1] = EnvType(1)
+    return grid
+
+def get_scenario_3():
+    grid, goals, starts = get_scenario('scenarios/scenario3.yaml')
+    grid = getGridAsEnvironment(grid)
     return grid, goals, starts
 
+def get_scenario_4():
+    grid, goals, starts = get_scenario('scenarios/scenario4.yaml')
+    grid = getGridAsEnvironment(grid)
+    return grid, goals, starts
+
+
 if __name__ == '__main__':
-    getScenario('scenarios/scenario1.yaml')
+    get_scenario('scenarios/scenario1.yaml')
