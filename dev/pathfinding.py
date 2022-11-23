@@ -1,5 +1,6 @@
 import numpy as np
 import heapq
+from collections import defaultdict
 
 
 def astar(graph, a, b, flip_row_col=False):
@@ -168,7 +169,17 @@ def find_all_collisions(paths):
 def find_collisions(path1, path2, path1_name=0, path2_name=1):
     # Find any vertex and edge collisions, and return a list of (path_idx,r,c,t) collisions
     # for edge collisions, obstacles are for path2 to avoid
-    tmax = min(len(path1), len(path2))
+
+    # extend shorter path with waits
+    # tmax = min(len(path1), len(path2))
+    diff = len(path2) - len(path1)
+    if diff > 0:
+        # if path 2 longer
+        path1.extend(diff*[path1[-1]])
+    elif diff < 0:
+        path2.extend((-diff)*[path2[-1]])
+
+    tmax = len(path1)
     collisions = [] # (path_name,r,c,t)
     for t in range(tmax):
         # vertex collision
@@ -216,13 +227,21 @@ def MAPF1(grid, starts, goals, maxiter = 5):
         paths.append(astar(grid, starts[i], goals[i]))
 
     collisions = find_all_collisions(paths)
+    # dict of collisions per path
+    path_collisions = defaultdict(list)
+    for collision in collisions:
+        path_idx, r, c, t = collision
+        path_collisions[path_idx].append((r,c,t))
+        
+
     # list of (path_idx, r, c, t)
     for i in range(maxiter):
         # print(f'{i} | Trying to remove collisions: {collisions}')
         path_idx, r, c, t = collisions[0]
 
-        # Try to remove just first collision on that path
-        dynamic_obstacles = {(r,c,t) : True}
+        # Add all collisions associated with this path
+        # dynamic_obstacles = {(r,c,t) : True}
+        dynamic_obstacles = path_collisions[path_idx]
         # print('Before:')
         # print(paths[path_idx])
         paths[path_idx] = st_astar(grid, starts[path_idx], goals[path_idx], dynamic_obstacles)
@@ -231,6 +250,9 @@ def MAPF1(grid, starts, goals, maxiter = 5):
         collisions = find_all_collisions(paths)
         if not collisions:
             break
+        for collision in collisions:
+            path_idx, r, c, t = collision
+            path_collisions[path_idx].append((r,c,t))
 
     return paths
 
@@ -272,18 +294,37 @@ def test_MAPF0():
     print(collisions)
 
 def test_MAPF1():
+    # grid = np.array([
+    #     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    #     [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+    #     [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    #     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
+    # robot_starts = [(1, 1), (2, 1), (4, 9)]
+    # goals = [(5, 8), (4, 5), (3, 2)]
+
+    from multiagent_utils import flip_tuple_lists
     grid = np.array([
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
         [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
-    robot_starts = [(1, 1), (2, 1), (4, 9)]
-    goals = [(5, 8), (4, 5), (3, 2)]
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    ])
+    robot_starts = [(1, 1), (1, 2), (9, 4), (5,6)]
+    goals = [(8, 5), (5, 4), (2, 3),(1,3)]
+    robot_starts = flip_tuple_lists(robot_starts)
+    goals = flip_tuple_lists(goals)
 
-    paths = MAPF1(grid, robot_starts, goals)
+    paths = MAPF1(grid, robot_starts, goals, maxiter=100)
     print('---')
     print(f'Paths: {paths}')
     print('--')

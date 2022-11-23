@@ -14,14 +14,21 @@ world = Environment(getWorld1(), [])
 
 # These positions are in x/y coords, not r,c
 # so we need to flip before passing to MAPF algorithms
-robot_starts = [(1, 1), (1, 2), (9, 4)]
-goals = [(8, 5), (5, 4), (2, 3)]
+robot_starts = [(1, 1), (1, 2), (9, 4), (5,6),(5,5)]
+goals = [(8, 5), (5, 4), (2, 3),(1,3),(3,3)]
 
 paths = pathfinding.MAPF1(world.get_int_grid(),
     flip_tuple_lists(robot_starts),
-    flip_tuple_lists(goals)
+    flip_tuple_lists(goals),
+    maxiter=100
     )
 paths = flip_tuple_list_of_lists(paths) # Convert back to XY
+collisions = pathfinding.find_all_collisions(paths)
+if not collisions:
+    print('MAPF1 Found paths without collisions')
+else:
+    print(f'MAPF1 Collisions: {collisions}')
+# print(paths)
 
 for i in range(len(robot_starts)):
     robot = Robot(robot_id=i, pos=robot_starts[i])
@@ -37,8 +44,10 @@ for i in range(len(robot_starts)):
 
 
 # TODO push invalid states into visualization
-for i in range(1, 100):
-    print(f'--- T{i}')
+
+# Confirm 
+for i in range(1, 1+max(map(len,paths))):
+    # print(f'--- T{i}')
     state_changed = world.step()
     if not (world.get_current_state()):
         print(f'Invalid state! : {world} : {world.collision}')

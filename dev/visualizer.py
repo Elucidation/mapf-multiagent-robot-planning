@@ -8,7 +8,7 @@ import math
 
 class Visualizer():
     """System for visualizing and animating env + robot paths."""
-    Colors = ['red', 'blue', 'green', 'blue', 'orange', 'yellow']
+    Colors = ['red', 'cyan', 'green', 'orange', 'yellow', 'blue', 'gray']
 
     def __init__(self, grid, starts, goals, paths, fps=15):
         self.grid = grid
@@ -42,6 +42,12 @@ class Visualizer():
             self.patches.append(
                 Rectangle((j - 0.5, i - 0.5), 1, 1, facecolor='gray', edgecolor='gray'))
 
+        # Draw starts
+        for i, start in enumerate(self.starts):
+            sz = 0.06
+            color = self.Colors[i % len(self.Colors)]
+            self.patches.append(Rectangle((start[0] - sz/2, start[1] - sz/2), sz, sz, facecolor=color,
+                                          edgecolor='black', alpha=0.5))
         # Draw goals
         for i, goal in enumerate(self.goals):
             sz = 0.25
@@ -61,7 +67,7 @@ class Visualizer():
             self.patches.append(self.robots[i])
             self.T = max(self.T, len(path) - 1)
             self.robot_names[i] = self.ax.text(
-                start[0], start[1], name, color='white')
+                start[0], start[1], name, color='black')
             self.robot_names[i].set_horizontalalignment('center')
             self.robot_names[i].set_verticalalignment('center')
             self.artists.append(self.robot_names[i])
@@ -97,7 +103,7 @@ class Visualizer():
             file_name,
             fps=self.fps * rate,
             dpi=200,
-            savefig_kwargs={"pad_inches": 0, "bbox_inches": "tight"})
+            savefig_kwargs={"pad_inches": 0})
 
     @staticmethod
     def show():
@@ -142,5 +148,5 @@ if __name__ == '__main__':
              [(9, 4), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (2, 3)]]
 
     visualizer = Visualizer(grid, starts, goals, paths)
-    visualizer.save('test1.gif')
+    # visualizer.save('test1.gif')
     visualizer.show()

@@ -47,7 +47,7 @@ class Environment(object):
             # Check that no two robots have the same position
             # by building a dict of positions, collision fails out
             if robot.pos in latest_positions:
-                other_robot = self.get_robot_by_id(self.latest_positions[robot.pos])
+                other_robot = self.get_robot_by_id(latest_positions[robot.pos])
                 a1 = robot.get_last_action()
                 b1 = other_robot.get_last_action()
                 self.collision = (robot.id, robot.pos, a1,
