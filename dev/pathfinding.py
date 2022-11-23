@@ -1,6 +1,7 @@
 import numpy as np
 import heapq
 from collections import defaultdict
+from multiagent_utils import get_scenario, flip_tuple_lists
 
 
 def astar(graph, a, b, flip_row_col=False):
@@ -261,117 +262,51 @@ def MAPF1(grid, starts, goals, maxiter = 5):
     return paths
 
 
-def test_collisions():
-
+def test_find_collisions():
     p1 = [(0,0), (0,1), (0,1), (0,2)]
     p2 = [(1,0), (1,1), (0,1), (0,0)]
     # These collide at vertex at time 2
     collisions = find_collisions(p1,p2)
-    print(collisions)
-
-
-    p1 = [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (5, 2), (6, 2), (7, 2), (8, 2), (8, 3), (8, 4), (8, 5)]
-    p2 = [(1, 2), (2, 2), (3, 2), (4, 2), (5, 2), (5, 3), (5, 4)]
-    p3 = [(9, 4), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (2, 3)]
-
-    # p1 and p2 don't intersect
-    # p1 and p3 cross
-    collisions = find_all_collisions([p1,p2,p3])
-    print(collisions)
+    assert(collisions == [[1, 0, 1, 2]])
 
 
 def test_MAPF0():
-    grid = np.array([
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
-    robot_starts = [(1, 1), (2, 1), (4, 9)]
-    goals = [(5, 8), (4, 5), (3, 2)]
-
-    paths = MAPF0(grid, robot_starts, goals)
-    print(paths)
+    grid, goals, starts = get_scenario('scenarios/scenario2.yaml')
+    paths = MAPF0(grid, starts, goals)
+    # print(paths)
     collisions = find_all_collisions(paths)
-    print(collisions)
+    # print(collisions)
+    assert(collisions == [[2, 2, 5, 6]])
 
 def test_MAPF1():
-    # grid = np.array([
-    #     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    #     [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-    #     [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    #     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
-    # robot_starts = [(1, 1), (2, 1), (4, 9)]
-    # goals = [(5, 8), (4, 5), (3, 2)]
-
-    from multiagent_utils import flip_tuple_lists
-    grid = np.array([
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ])
-    robot_starts = [(1, 1), (1, 2), (9, 4), (5,6)]
-    goals = [(8, 5), (5, 4), (2, 3),(1,3)]
-    robot_starts = flip_tuple_lists(robot_starts)
+    grid, goals, starts = get_scenario('scenarios/scenario3.yaml')
+    
+    # Flip xy -> rc
+    starts = flip_tuple_lists(starts)
     goals = flip_tuple_lists(goals)
 
-    paths = MAPF1(grid, robot_starts, goals, maxiter=100)
-    print('---')
-    print(f'Paths: {paths}')
-    print('--')
+    paths = MAPF1(grid, starts, goals, maxiter=100)
+    # print('---')
+    # print(f'Paths: {paths}')
+    # print('--')
     collisions = find_all_collisions(paths)
-    print(f'Collisions: {collisions}')
-    print('--')
+    # print(f'Collisions: {collisions}')
+    # print('--')
+    assert(not collisions)
 
 
-def testSingleAstar():
-    grid = np.array([
-        [1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 1],
-        [1, 0, 1, 1, 1, 1],
-        [1, 0, 1, 0, 0, 1],
-        [1, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1],
-    ])
-    start = (1,4)
-    goal = (3,4)
+def test_single_robot_astar():
+    grid, goals, starts = get_scenario('scenarios/scenario1.yaml')
 
-    path = astar(grid,start, goal)
-    # path = [(1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (3, 4)]
+    path = astar(grid,starts[0], goals[0])
+    expected_path = [(1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (3, 4)]
+    assert(path == expected_path)
 
 if __name__ == '__main__':
-
+    # Run tests
+    test_find_collisions()
+    test_single_robot_astar()
+    test_MAPF0()
     test_MAPF1()
-    # testSingleAstar()
-
-    # maingrid = np.array([
-    #     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    #     [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-    #     [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-    #     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    #     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
-
-    # print('----')
-    # print(astar(maingrid, (1, 1), (5, 8)))
-    # print('----')
-    # # Confirm st_astar same path as astar with no dynamic obstacles
-    # print(st_astar(maingrid, (1, 1), (5, 8)))
-    # # Avoid dynamic obstacl at 1,6 at time step 5
-    # print(st_astar(maingrid, (1, 1), (5, 8), dynamic_obstacles=dict({(1,6,5):True})))
 
     

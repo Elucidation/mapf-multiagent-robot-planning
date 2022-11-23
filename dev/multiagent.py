@@ -9,18 +9,18 @@ from environment import Environment
 import pathfinding
 from visualizer import Visualizer
 
-world = Environment(getWorld1(), [])
-
+grid, goals, starts = get_world_1()
+world = Environment(grid, [])
 
 # These positions are in x/y coords, not r,c
 # so we need to flip before passing to MAPF algorithms
-robot_starts = [
+starts = [
     (1, 6), (1, 2), (9, 4), (5, 6), (5, 5), (5, 4)]
 goals = [
     (9, 5), (5, 4), (1, 4), (1, 3), (5, 3), (1, 5)]
 
 paths = pathfinding.MAPF1(world.get_int_grid(),
-                          flip_tuple_lists(robot_starts),
+                          flip_tuple_lists(starts),
                           flip_tuple_lists(goals),
                           maxiter=100
                           )
@@ -32,8 +32,8 @@ else:
     print(f'MAPF1 Collisions: {collisions}')
 # print(paths)
 
-for i in range(len(robot_starts)):
-    robot = Robot(robot_id=i, pos=robot_starts[i])
+for i in range(len(starts)):
+    robot = Robot(robot_id=i, pos=starts[i])
     world.add_robot(robot)
     path = paths[i]
 
@@ -56,6 +56,6 @@ for i in range(1, 1+max(map(len, paths))):
     if not state_changed:
         break
 
-visualizer = Visualizer(world.get_int_grid(), robot_starts, goals, paths)
-visualizer.save('test1.gif')
-# visualizer.show()
+visualizer = Visualizer(world.get_int_grid(), starts, goals, paths)
+# visualizer.save('test1.gif')
+visualizer.show()
