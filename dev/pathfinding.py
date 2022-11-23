@@ -159,9 +159,53 @@ def st_astar(graph, a, b, dynamic_obstacles=dict(), T=20, flip_row_col=False):
     return []
 
 
+def find_collisions(path1, path2):
+    # Find any vertex and edge collisions, and return a list of (r,c,t) collisions
+    # for edge collisions, obstacles are for path2 to avoid
+    tmax = min(len(path1), len(path2))
+    collisions = []
+    for t in range(tmax):
+        # vertex collision
+        if path1[t] == path2[t]:
+            collisions.append([path1[t][0], path1[t][1], t])
+
+        # edge collision, robots swap locations, just add all times
+        if (t-1 >= 0):
+            if path1[t-1] == path2[t] and path1[t] == path2[t-1]:
+                # obstacle for path 2
+                collisions.append([path2[t][0], path2[t][1], t])
+
+                # todo: add dynamic obstacles with path reference
+                # collisions.append([path1[t-1][0], path1[t-1][1], t])
+                # collisions.append([path1[t][0], path1[t][1], t])
+
+
+    return collisions
+
+
+def test_collisions():
+
+    p1 = [(0,0), (0,1), (0,1), (0,2)]
+    p2 = [(1,0), (1,1), (0,1), (0,0)]
+    # These collide at vertex at time 2
+    collisions = find_collisions(p1,p2)
+    print(collisions)
+
+
+    p1 = [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (5, 2), (6, 2), (7, 2), (8, 2), (8, 3), (8, 4), (8, 5)]
+    p2 = [(1, 2), (2, 2), (3, 2), (4, 2), (5, 2), (5, 3), (5, 4)]
+    p3 = [(9, 4), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (2, 3)]
+
+    # p1 and p2 don't intersect
+    # p1 and p3 cross
+    collisions = find_collisions(p1,p3)
+    print(collisions)
+
 
 
 if __name__ == '__main__':
+    # test_collisions()
+
 
     maingrid = np.array([
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
