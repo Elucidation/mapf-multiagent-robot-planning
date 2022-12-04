@@ -2,7 +2,7 @@ import paho.mqtt.client as mqtt
 import time
 import json
 import datetime
-from database_order_inserter import DatabaseOrderInserter
+from database_order_inserter import DatabaseOrderInserter, Order
 
 db_orders = DatabaseOrderInserter('orders.db')
 db_orders.reset() # Clear tables
@@ -15,8 +15,10 @@ def on_message(client, userdata, message):
     timestamp = datetime.datetime.now()
     try:
         # msg = str(message.payload.decode("utf-8"))
-        order = json.loads(message.payload.decode("utf-8"))
-        order['created'] = timestamp
+        order_data = json.loads(message.payload.decode("utf-8"))
+        order_data['created'] = timestamp
+        order = Order.load_from_dict(order_data)
+
     except Exception as e:
         order = 'corrupted'
 

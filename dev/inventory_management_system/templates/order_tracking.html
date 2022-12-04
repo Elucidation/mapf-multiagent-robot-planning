@@ -1,0 +1,148 @@
+<<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title></title>
+        <style type="text/css">
+        * {
+        font-family: monospace;
+        vertical-align: top; 
+        }
+        table.outer {
+        width: 100%;
+        border-style: ridge;
+        border-width: 5;
+
+        }
+        table.subgroup {
+        width: 100%;
+        border-style: solid;
+        border-width: 1;
+        }
+        table.subgroup td {
+        vertical-align: top; 
+        border-style: solid;
+        border-width: thin;
+        background-color: lightgray;
+        text-align: center;
+        }
+        
+        table.subgroup td.incomplete {
+        border-color: darkgray;
+        color: darkgray;
+        }
+        table.subgroup td.inprogress {
+        background-color: #fee086;
+        }
+        table.subgroup td.complete {
+        background-color: lightgreen;
+        }
+        table.subgroup td.failed {
+        color: red;
+        background-color: lightred;
+        }
+        </style>
+    </head>
+    <body><table class="outer">
+        <thead>
+            <th>New Orders</th>
+            <th>Stations Processing Orders</th>
+            <th>Finished Orders</th>
+        </thead>
+        <tbody><tr>
+            <!-- Orders -->
+            <td><table class="subgroup">
+                <thead>
+                    <th>Order ID</th>
+                    <th>Items</th>
+                    <th>Status</th>
+                </thead>
+                <tbody>
+                    {% for order in orders if order.is_open() or order.is_in_progress(): %}
+                    <tr>
+                        <td>{{ order.order_id }}</td>
+                        <td>
+                            <table>
+                                <tr>
+                                    {% for item_id, quantity in order.items.items() %}
+                                    <td>{{ item_id }} x{{ quantity }}</td>
+                                    {% endfor %}
+                                </tr>
+                            </table>
+                        </td>
+                        {% if order.is_in_progress() %}
+                        <td class="inprogress">{{ order.status }}</td>
+                        {% else %}
+                        <td>{{ order.status }}</td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table></td>
+            <!-- Stations -->
+            <td><table class="subgroup">
+                <thead>
+                    <th>Station ID</th>
+                    <th>Order ID Processing</th>
+                    <th>Items</th>
+                </thead>
+                <tbody>
+                    {% for station in stations%}
+                    <tr>
+                        <td>{{ station.station_id }}</td>
+                        {% if station.is_available() %}
+                        <td>AVAILABLE</td>
+                        {% else %}
+                        <td>{{ station.partial_order.order_id }}</td>
+                        {% endif %}
+                        
+                        <td>
+                            {% if not station.is_available() %}
+                            <table>
+                                <tr>
+                                    {% for item_id, quantity in station.partial_order.items.items() %}
+                                    <td class='complete'>{{ item_id }} x{{ quantity }}</td>
+                                    {% endfor %}
+                                    {% for item_id, quantity in station.partial_order.get_missing_items().items() %}
+                                    <td class='incomplete'>{{ item_id }} x{{ quantity }}</td>
+                                    {% endfor %}
+                                </tr>
+                            </table>
+                            {% endif %}
+                            
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table></td>
+            <!-- Finished -->
+            <td><table class="subgroup">
+                <thead>
+                    <th>Order ID</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Finished</th>
+                    <th>Processing Time</th>
+                </thead>
+                <tbody>
+                    {% for order in orders if (order.is_finished()): %}
+                    <tr>
+                        <td>{{ order.order_id }}</td>
+                        {% if order.is_complete() %}
+                        <td class='complete'>{{ order.status }}</td>
+                        {% else %}
+                        <td class='failed'>{{ order.status }}</td>
+                        {% endif %}
+                        
+                        <td>{{ order.created }}</td>
+                        <td>{{ order.finished }}</td>
+                        <td>{{ order.get_time_to_complete() }}</td>
+                    </tr>
+                    {% endfor %}
+                    
+                </tbody>
+            </table></td>
+        </tr></tbody>
+    </table></body>
+</html>
