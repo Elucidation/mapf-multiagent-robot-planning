@@ -121,10 +121,13 @@ class DatabaseOrderManager:
             )
             self.con.commit()
 
-    def get_orders(self, N=49999):
+    def get_orders(self, N=49999, status=None):
         c = self.con.cursor()
         # order_id,created_by,created,finished,description,status
-        c.execute('SELECT * FROM "Order" LIMIT 0, ?', (N,))
+        if status:
+            c.execute('SELECT * FROM "Order" WHERE status=? LIMIT 0, ?', (status, N))
+        else:
+            c.execute('SELECT * FROM "Order" LIMIT 0, ?', (N,))
         orders = []
         while True:
             row = c.fetchone()
@@ -167,19 +170,47 @@ class DatabaseOrderManager:
             stations.append(station)
         return stations
 
-    def complete_order(self, order_id):
-        sql = """UPDATE "Order" SET finished=?, status="COMPLETE" WHERE order_id=?;"""
+    def set_order_status(self, order_id, status):
+        sql = """UPDATE "Order" SET finished=?, status=? WHERE order_id=?;"""
         with self.con:
             c = self.con.cursor()
-            c.execute(sql, (datetime.now(), order_id))
+            c.execute(sql, (datetime.now(), status, order_id))
             self.con.commit()
 
-    def check_stations_finished(self):
+    def set_order_in_progress(self, order_id):
+        self.set_order_status(order_id, "IN_PROGRESS")
+
+    def complete_order(self, order_id):
+        self.set_order_status(order_id, "COMPLETE")
+        self.clear_partial_order_items(order_id)
+
+    def clear_partial_order_items(self, order_id):
+        # Remove partial items associated with a given order
+        sql = """DELETE FROM "PartialOrderItem" WHERE order_id=?;"""
+        with self.con:
+            c = self.con.cursor()
+            c.execute(sql, (order_id, ))
+            self.con.commit()
+
+    def update_stations(self):
         # for each station with a partial order,
         # check if partial order has all items
         # if so, complete that order, delete all partial order items for that order
         # set the completion time
-        pass
+        stations = self.get_stations()
+        stations_by_partial_order_id = {station.order_id : station for station in stations if station.order_id is not None}
+        partial_orders = self.get_partial_orders()
+        for partial_order in partial_orders:
+            if partial_order.is_complete():
+                station = stations_by_partial_order_id[partial_order.order_id]
+                print(f'Finished {station}')
+                # Make station available
+                self.clear_station(station.station_id)
+                self.complete_order(partial_order.order_id)
+
+
+    def clear_station(self, station_id):
+        self.assign_order_to_station(None, station_id)
 
     def assign_order_to_station(self, order_id, station_id):
         sql = """UPDATE "Station" SET order_id=? WHERE station_id=?;"""
@@ -187,9 +218,31 @@ class DatabaseOrderManager:
             c = self.con.cursor()
             c.execute(sql, (order_id, station_id))
             self.con.commit()
+        self.set_order_in_progress(order_id)
+
+    def update_partial_order_item_quantity(self, order_id, item_id, quantity):
+        sql = """UPDATE "PartialOrderItem" SET quantity=? WHERE order_id=? AND item_id=?;"""
+        with self.con:
+            c = self.con.cursor()
+            c.execute(sql, (quantity, order_id, item_id))
+            self.con.commit()
+
+    def add_item_to_partial_order(self, order_id, item_id, quantity=1):
+        # 
+        sql = """SELECT quantity FROM "PartialOrderItem" WHERE order_id=? AND item_id=?;"""
+        new_quantity = quantity
+        with self.con:
+            c = self.con.cursor()
+            c.execute(sql, (order_id, item_id))
+            row = c.fetchone()
+            if row is None:
+                self.set_partial_order_items([(order_id, item_id, quantity)])
+            else:
+                self.update_partial_order_item_quantity(order_id, item_id, quantity + row[0])
 
 
-    def add_partial_order_items(self, item_list : List[tuple]):
+    def set_partial_order_items(self, item_list : List[tuple]):
+        # NOTE: Currently overwrites
         # item_list = [(order_id, item_id, quantity), ...]
         sql = """INSERT INTO "PartialOrderItem" (order_id, item_id, quantity) VALUES (?, ?, ?);"""
 
@@ -199,34 +252,20 @@ class DatabaseOrderManager:
             self.con.commit()
 
     def get_partial_orders(self):
+        # Expect all partial order items to be for orders with status IN_PROGRESS
+        in_progress_orders = self.get_orders(status="IN_PROGRESS")
+        partial_orders = dict()
+        for order in in_progress_orders:
+            order_id = order.order_id
+            partial_orders[order_id] = PartialOrder(order_id, self.get_items_for_order(order_id))
+
         c = self.con.cursor()
         #(order_id, item_id, quantity)
         c.execute('SELECT * FROM "PartialOrderItem"')
-        # partial_orders = []
-        partial_orders = dict()
         for row in c.fetchall():
             (order_id, item_id, quantity) = row
-            if order_id not in partial_orders:
-                partial_orders[order_id] = PartialOrder(order_id, self.get_items_for_order(order_id))
             partial_orders[order_id].add_item(item_id, quantity)
         return list(partial_orders.values())
-
-    # def get_partial_order(self, partial_order_id):
-    #     # Need both OrderItems for items needed
-    #     # as well as PartialOrderItems for items currently there
-    #     query = """SELECT * FROM "PartialOrder" 
-    #                INNER JOIN "OrderItem" ON "OrderItem".order_id = "Order".order_id,
-    #                INNER JOIN "PartialOrder" ON "OrderItem".order_id = "Order".order_id,
-    #                """
-    #     c = self.con.cursor()
-    #     c.execute(
-    #         'SELECT * FROM "PartialOrder" WHERE partial_order_id=? LIMIT 0, 1',
-    #         (partial_order_id,),
-    #     )
-    #     row = c.fetchone()
-    #     if row is None:
-    #         return None
-    #     return row
 
 
 if __name__ == "__main__":
@@ -247,21 +286,40 @@ if __name__ == "__main__":
 
     orders = dboi.get_orders()
     stations = dboi.get_stations()
-    dboi.assign_order_to_station(order_id=orders[0].order_id,station_id=stations[0].station_id)
+    dboi.assign_order_to_station(order_id=1,station_id=1)
+    dboi.assign_order_to_station(order_id=3, station_id=2)
     stations = dboi.get_stations()
-    print(stations)
+    print(f'Orders: {orders}')
+    print(f'Stations: {stations}')
 
-    # dboi.add_partial_order_items([(1,1,1), (1,2,1), (1,0,1)])
-    dboi.add_partial_order_items([(1,1,1), (1,2,2)])
-    # dboi.add_partial_order_items([(1,0,1), (1,4,1)])
+    # dboi.set_partial_order_items([(1,1,1), (1,2,1), (1,0,1)])
+    # Complete Order 1
+    # dboi.set_partial_order_items([(1,1,1), (1,2,2)])
+    # dboi.set_partial_order_items([(1,0,1), (1,4,1)])
+    dboi.add_item_to_partial_order(order_id=1, item_id=0, quantity=1)
+    dboi.add_item_to_partial_order(order_id=1, item_id=1, quantity=1)
+    dboi.add_item_to_partial_order(order_id=1, item_id=2, quantity=2)
+    dboi.add_item_to_partial_order(order_id=1, item_id=4, quantity=1)
+    
 
-    dboi.complete_order(orders[2].order_id)
+    # dboi.set_partial_order_items([(3,2,1), (3,4,1)])
+    dboi.add_item_to_partial_order(order_id=3, item_id=2, quantity=1)
+    dboi.add_item_to_partial_order(order_id=3, item_id=2, quantity=1)
+
+    dboi.update_stations()
+
+    # dboi.complete_order(orders[2].order_id)
     orders = dboi.get_orders()
+    stations = dboi.get_stations()
 
 
     partial_orders = dboi.get_partial_orders()
+    # complete_orders = [order for order in orders if order.status == "COMPLETE"]
 
+    print('-----')
     print(f'Orders: {orders}')
+    print(f'Stations: {stations}')
     print(f'Partial orders: {partial_orders}')
+    # print(f'Complete orders: {complete_orders}')
 
     

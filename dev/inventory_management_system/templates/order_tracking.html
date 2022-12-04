@@ -103,12 +103,14 @@
                             {% set station_partial_order = partial_orders_by_id[station.order_id] %}
                             <table>
                                 <tr>
+                                    {% if station_partial_order is defined %}
                                     {% for item_id, quantity in station_partial_order.items.items() %}
                                     <td class='complete'>{{ item_id }} x{{ quantity }}</td>
                                     {% endfor %}
                                     {% for item_id, quantity in station_partial_order.get_missing_items().items() %}
                                     <td class='incomplete'>{{ item_id }} x{{ quantity }}</td>
                                     {% endfor %}
+                                    {% endif %}
                                 </tr>
                             </table>
                             {% endif %}
