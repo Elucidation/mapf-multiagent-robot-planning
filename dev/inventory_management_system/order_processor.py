@@ -1,10 +1,10 @@
 import paho.mqtt.client as mqtt
 import time
 import json
-import datetime
-from database_order_inserter import DatabaseOrderInserter, Order
+from datetime import datetime
+from database_order_manager import DatabaseOrderManager, Order
 
-db_orders = DatabaseOrderInserter('orders.db')
+db_orders = DatabaseOrderManager('orders.db')
 db_orders.reset() # Clear tables
 
 # Read MQTT order request and insert into database
@@ -12,7 +12,7 @@ db_orders.reset() # Clear tables
 # todo: create Order class to manage labels etc.
 
 def on_message(client, userdata, message):
-    timestamp = datetime.datetime.now()
+    timestamp = datetime.now()
     try:
         # msg = str(message.payload.decode("utf-8"))
         order_data = json.loads(message.payload.decode("utf-8"))

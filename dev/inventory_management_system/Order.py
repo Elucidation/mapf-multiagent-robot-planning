@@ -1,6 +1,6 @@
 import sqlite3 as sl
 from typing import List
-import datetime
+from datetime import datetime
 from collections import Counter
 
 
@@ -16,12 +16,18 @@ class Order:
         finished=None,
     ):
         self.created_by = created_by
-        self.created = created
+        if type(created) == str:
+            self.created = datetime.strptime(created, '%Y-%m-%d %H:%M:%S.%f')
+        else:
+            self.created = created
         self.description = description
         self.items = Counter(items)
         self.order_id = order_id  # Exists after order added to database
         self.status = status  # status includes OPEN / IN_PROGRESS / FINISHED / ERROR
-        self.finished = finished
+        if type(finished) == str:
+            self.finished = datetime.strptime(finished, '%Y-%m-%d %H:%M:%S.%f')
+        else:
+            self.finished = finished
 
     @staticmethod
     def load_from_dict(order_dict: dict):
@@ -66,7 +72,7 @@ class Order:
         return self.is_complete() or self.is_error()
 
     def __repr__(self):
-        return f"Order {self.order_id} : {self.items}"
+        return f"Order {self.order_id} [{self.status}]: {self.items}"
 
 
 class PartialOrder:
@@ -82,15 +88,31 @@ class PartialOrder:
     def from_order(order: Order):
         return PartialOrder(order.order_id, Counter(order.items))
 
-    def add_item(self, item_id):
-        self.items[item_id] += 1
+    def add_item(self, item_id, quantity=1):
+        self.items[item_id] += quantity
 
     def get_missing_items(self):
         # Counter of item_id : quantity
-        return self.items_needed - self.items
+        # Note, if items > items_needed, it returns 0 still
+        # return self.items_needed - self.items
+        missing = {}
+        for item_id in self.items_needed:
+            if item_id in self.items:
+                quantity_missing = self.items_needed[item_id] - self.items[item_id]
+                if quantity_missing:
+                    missing[item_id] = quantity_missing
+            else:
+                missing[item_id] = self.items_needed[item_id]
+        return missing
+
 
     def is_complete(self):
         return self.items == self.items_needed
+
+    def __repr__(self):
+        if self.is_complete():
+            return f"Partial Order for {self.order_id} : {self.items}, Complete"
+        return f"Partial Order for {self.order_id} : {self.items}, need {self.get_missing_items()}"
 
 
 if __name__ == "__main__":

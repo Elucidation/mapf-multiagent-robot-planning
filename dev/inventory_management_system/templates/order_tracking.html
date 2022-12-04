@@ -59,7 +59,7 @@
                     <th>Status</th>
                 </thead>
                 <tbody>
-                    {% for order in orders if order.is_open() or order.is_in_progress(): %}
+                    {% for order in orders_by_id.values() if order.is_open() or order.is_in_progress(): %}
                     <tr>
                         <td>{{ order.order_id }}</td>
                         <td>
@@ -94,17 +94,19 @@
                         {% if station.is_available() %}
                         <td>AVAILABLE</td>
                         {% else %}
-                        <td>{{ station.partial_order.order_id }}</td>
+                        <td>{{ station.order_id }}</td>
                         {% endif %}
                         
                         <td>
                             {% if not station.is_available() %}
+                            {% set station_order = orders_by_id[station.order_id] %}
+                            {% set station_partial_order = partial_orders_by_id[station.order_id] %}
                             <table>
                                 <tr>
-                                    {% for item_id, quantity in station.partial_order.items.items() %}
+                                    {% for item_id, quantity in station_partial_order.items.items() %}
                                     <td class='complete'>{{ item_id }} x{{ quantity }}</td>
                                     {% endfor %}
-                                    {% for item_id, quantity in station.partial_order.get_missing_items().items() %}
+                                    {% for item_id, quantity in station_partial_order.get_missing_items().items() %}
                                     <td class='incomplete'>{{ item_id }} x{{ quantity }}</td>
                                     {% endfor %}
                                 </tr>
@@ -126,7 +128,7 @@
                     <th>Processing Time</th>
                 </thead>
                 <tbody>
-                    {% for order in orders if (order.is_finished()): %}
+                    {% for order in orders_by_id.values() if (order.is_finished()): %}
                     <tr>
                         <td>{{ order.order_id }}</td>
                         {% if order.is_complete() %}
