@@ -3,17 +3,17 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title></title>
+        <title>Order Tracking</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
         <style type="text/css">
         * {
         font-family: monospace;
-        vertical-align: top; 
+        vertical-align: top;
         }
         table.outer {
         width: 100%;
         border-style: ridge;
         border-width: 5;
-
         }
         table.subgroup {
         width: 100%;
@@ -21,7 +21,7 @@
         border-width: 1;
         }
         table.subgroup td {
-        vertical-align: top; 
+        vertical-align: top;
         border-style: solid;
         border-width: thin;
         background-color: lightgray;
@@ -52,101 +52,32 @@
         </thead>
         <tbody><tr>
             <!-- Orders -->
-            <td><table class="subgroup">
-                <thead>
-                    <th>Order ID</th>
-                    <th>Items</th>
-                    <th>Status</th>
-                </thead>
-                <tbody>
-                    {% for order in orders_by_id.values() if order.is_open() or order.is_in_progress(): %}
-                    <tr>
-                        <td>{{ order.order_id }}</td>
-                        <td>
-                            <table>
-                                <tr>
-                                    {% for item_id, quantity in order.items.items() %}
-                                    <td>{{ item_id }} x{{ quantity }}</td>
-                                    {% endfor %}
-                                </tr>
-                            </table>
-                        </td>
-                        {% if order.is_in_progress() %}
-                        <td class="inprogress">{{ order.status }}</td>
-                        {% else %}
-                        <td>{{ order.status }}</td>
-                        {% endif %}
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table></td>
+            <td id="neworders"></td>
             <!-- Stations -->
-            <td><table class="subgroup">
-                <thead>
-                    <th>Station ID</th>
-                    <th>Order ID Processing</th>
-                    <th>Items</th>
-                </thead>
-                <tbody>
-                    {% for station in stations%}
-                    <tr>
-                        <td>{{ station.station_id }}</td>
-                        {% if station.is_available() %}
-                        <td>AVAILABLE</td>
-                        {% else %}
-                        <td>{{ station.order_id }}</td>
-                        {% endif %}
-                        
-                        <td>
-                            {% if not station.is_available() %}
-                            {% set station_order = orders_by_id[station.order_id] %}
-                            {% set station_partial_order = partial_orders_by_id[station.order_id] %}
-                            <table>
-                                <tr>
-                                    {% if station_partial_order is defined %}
-                                    {% for item_id, quantity in station_partial_order.items.items() %}
-                                    <td class='complete'>{{ item_id }} x{{ quantity }}</td>
-                                    {% endfor %}
-                                    {% for item_id, quantity in station_partial_order.get_missing_items().items() %}
-                                    <td class='incomplete'>{{ item_id }} x{{ quantity }}</td>
-                                    {% endfor %}
-                                    {% endif %}
-                                </tr>
-                            </table>
-                            {% endif %}
-                            
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table></td>
+            <td id=stations></td>
             <!-- Finished -->
-            <td><table class="subgroup">
-                <thead>
-                    <th>Order ID</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Finished</th>
-                    <th>Processing Time</th>
-                </thead>
-                <tbody>
-                    {% for order in orders_by_id.values() if (order.is_finished()): %}
-                    <tr>
-                        <td>{{ order.order_id }}</td>
-                        {% if order.is_complete() %}
-                        <td class='complete'>{{ order.status }}</td>
-                        {% else %}
-                        <td class='failed'>{{ order.status }}</td>
-                        {% endif %}
-                        
-                        <td>{{ order.created }}</td>
-                        <td>{{ order.finished }}</td>
-                        <td>{{ order.get_time_to_complete() }}</td>
-                    </tr>
-                    {% endfor %}
-                    
-                </tbody>
-            </table></td>
+            <td id="finishedorders"></td>
         </tr></tbody>
-    </table></body>
+    </table>
+    <br>
+    <p id="timestamp"></p>
+    <script src="{{ url_for('static', filename='order_tracking.js') }}"></script>
+        
+    <script type="text/javascript">
+        updateNewOrders();
+        updateStations();
+        updateFinishedOrders();
+        
+        setInterval(function() {
+            // Only if window in focus
+            if ( document.hasFocus() ) {
+                $("#timestamp").text(new Date())
+                updateNewOrders();
+                updateStations();
+                updateFinishedOrders();
+            }
+        }, 1000);
+        
+    </script>
+</body>
 </html>

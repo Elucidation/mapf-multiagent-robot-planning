@@ -1,0 +1,28 @@
+<table class="subgroup">
+    <thead>
+        <th>Order ID</th>
+        <th>Items</th>
+        <th>Status</th>
+    </thead>
+    <tbody>
+        {% for order in orders: %}
+        <tr>
+            <td>{{ order.order_id }}</td>
+            <td>
+                <table>
+                    <tr>
+                        {% for item_id, quantity in order.items.items() %}
+                        <td>{{ item_id }} x{{ quantity }}</td>
+                        {% endfor %}
+                    </tr>
+                </table>
+            </td>
+            {% if order.is_in_progress() %}
+            <td class="inprogress">{{ order.status }}</td>
+            {% else %}
+            <td>{{ order.status }}</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

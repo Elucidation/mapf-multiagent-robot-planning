@@ -4,7 +4,7 @@ from Station import Station
 from datetime import datetime
 from collections import Counter
 from database_order_manager import DatabaseOrderManager
-
+import json
 
 # def get_orders():
 #     order1 = Order(
@@ -46,17 +46,43 @@ from database_order_manager import DatabaseOrderManager
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-
-dboi = DatabaseOrderManager("test2.db")
-
-orders = dboi.get_orders()
-orders_by_id = {o.order_id: o for o in orders}
-stations = dboi.get_stations()
-
-partial_orders = dboi.get_partial_orders()
-partial_orders_by_id = {p.order_id: p for p in partial_orders}
+db_name = 'test2.db'
 
 
 @app.route("/")
 def order_tracking():
+    dboi = DatabaseOrderManager(db_name)
+    orders = dboi.get_orders()
+    orders_by_id = {o.order_id: o for o in orders}
+    stations = dboi.get_stations()
+
+    partial_orders = dboi.get_partial_orders()
+    partial_orders_by_id = {p.order_id: p for p in partial_orders}
     return render_template("order_tracking.html", stations=stations, orders_by_id=orders_by_id, partial_orders_by_id=partial_orders_by_id)
+
+
+@app.route("/orders/open")
+def open_orders_html():
+    dboi = DatabaseOrderManager(db_name)
+    orders = dboi.get_orders()
+    orders = [o for o in orders if o.is_open() or o.is_in_progress()]
+    return render_template("fragment_open_orders.html", orders=orders)
+
+@app.route("/stations")
+def stations_html():
+    dboi = DatabaseOrderManager(db_name)
+    orders = dboi.get_orders()
+    orders_by_id = {o.order_id: o for o in orders}
+    stations = dboi.get_stations()
+
+    partial_orders = dboi.get_partial_orders()
+    partial_orders_by_id = {p.order_id: p for p in partial_orders}
+    return render_template("fragment_stations.html", stations=stations, orders_by_id=orders_by_id, partial_orders_by_id=partial_orders_by_id)
+
+
+@app.route("/orders/finished")
+def finished_orders_html():
+    dboi = DatabaseOrderManager(db_name)
+    orders = dboi.get_orders()
+    orders = [o for o in orders if o.is_finished()]
+    return render_template("fragment_finished_orders.html", orders=orders)

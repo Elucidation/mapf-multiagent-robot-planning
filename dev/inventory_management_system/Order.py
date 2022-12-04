@@ -17,7 +17,7 @@ class Order:
     ):
         self.created_by = created_by
         if type(created) == str:
-            self.created = datetime.strptime(created, '%Y-%m-%d %H:%M:%S.%f')
+            self.created = datetime.strptime(created, "%Y-%m-%d %H:%M:%S.%f")
         else:
             self.created = created
         self.description = description
@@ -25,7 +25,7 @@ class Order:
         self.order_id = order_id  # Exists after order added to database
         self.status = status  # status includes OPEN / IN_PROGRESS / FINISHED / ERROR
         if type(finished) == str:
-            self.finished = datetime.strptime(finished, '%Y-%m-%d %H:%M:%S.%f')
+            self.finished = datetime.strptime(finished, "%Y-%m-%d %H:%M:%S.%f")
         else:
             self.finished = finished
 
@@ -50,26 +50,41 @@ class Order:
 
     def set_open(self):
         self.status = "OPEN"
+
     def is_open(self):
         return self.status == "OPEN"
 
     def set_in_progress(self):
         self.status = "IN_PROGRESS"
+
     def is_in_progress(self):
         return self.status == "IN_PROGRESS"
 
     def set_complete(self):
         self.status = "COMPLETE"
+
     def is_complete(self):
         return self.status == "COMPLETE"
 
     def set_error(self):
         self.status = "ERROR"
+
     def is_error(self):
         return self.status == "ERROR"
 
     def is_finished(self):
         return self.is_complete() or self.is_error()
+
+    def to_json(self):
+        return {
+            "created_by": self.created_by,
+            "created": self.created,
+            "description": self.description,
+            "items": self.items,
+            "status": self.status,
+            "order_id": self.order_id,
+            "finished": self.finished,
+        }
 
     def __repr__(self):
         return f"Order {self.order_id} [{self.status}]: {self.items}"
@@ -104,7 +119,6 @@ class PartialOrder:
             else:
                 missing[item_id] = self.items_needed[item_id]
         return missing
-
 
     def is_complete(self):
         return self.items == self.items_needed

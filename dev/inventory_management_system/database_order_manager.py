@@ -4,6 +4,7 @@ from datetime import datetime
 from Order import *
 from Station import *
 from collections import Counter
+import time
 
 
 class DatabaseOrderManager:
@@ -240,6 +241,8 @@ class DatabaseOrderManager:
             else:
                 self.update_partial_order_item_quantity(order_id, item_id, quantity + row[0])
 
+        self.update_stations()
+
 
     def set_partial_order_items(self, item_list : List[tuple]):
         # NOTE: Currently overwrites
@@ -274,39 +277,46 @@ if __name__ == "__main__":
     # Since we're testing, clear tables first and start fresh
     dboi.reset()
 
+    # time.sleep(1)
+
     for i in range(3):
         order = Order(
             created_by=1,
             created=datetime.now(),
             items=Counter([1, 2, 2, 4, i]),
-            description="order with 3 items",
+            description="order with 5 items",
         )
 
         dboi.add_order(order)
+        # time.sleep(1)
 
     orders = dboi.get_orders()
     stations = dboi.get_stations()
+    # time.sleep(1)
     dboi.assign_order_to_station(order_id=1,station_id=1)
+    # time.sleep(1)
     dboi.assign_order_to_station(order_id=3, station_id=2)
+    # time.sleep(1)
     stations = dboi.get_stations()
     print(f'Orders: {orders}')
     print(f'Stations: {stations}')
 
-    # dboi.set_partial_order_items([(1,1,1), (1,2,1), (1,0,1)])
-    # Complete Order 1
-    # dboi.set_partial_order_items([(1,1,1), (1,2,2)])
-    # dboi.set_partial_order_items([(1,0,1), (1,4,1)])
+    # time.sleep(1)
     dboi.add_item_to_partial_order(order_id=1, item_id=0, quantity=1)
+    # time.sleep(1)
     dboi.add_item_to_partial_order(order_id=1, item_id=1, quantity=1)
+    # time.sleep(1)
     dboi.add_item_to_partial_order(order_id=1, item_id=2, quantity=2)
+    # time.sleep(1)
     dboi.add_item_to_partial_order(order_id=1, item_id=4, quantity=1)
+    # time.sleep(1)
     
 
     # dboi.set_partial_order_items([(3,2,1), (3,4,1)])
     dboi.add_item_to_partial_order(order_id=3, item_id=2, quantity=1)
+    # time.sleep(1)
     dboi.add_item_to_partial_order(order_id=3, item_id=2, quantity=1)
-
-    dboi.update_stations()
+    # time.sleep(1)
 
     # dboi.complete_order(orders[2].order_id)
     orders = dboi.get_orders()
