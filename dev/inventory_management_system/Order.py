@@ -110,6 +110,7 @@ class PartialOrder:
         # Counter of item_id : quantity
         # Note, if items > items_needed, it returns 0 still
         # return self.items_needed - self.items
+        # A Dict of item_id: quantity needed
         missing = {}
         for item_id in self.items_needed:
             if item_id in self.items:

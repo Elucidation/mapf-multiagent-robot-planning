@@ -17,3 +17,12 @@ class Station():
         if self.is_available():
             return f'Station {self.station_id}: AVAILABLE'
         return f'Station {self.station_id}: Order {self.order_id}'
+
+class Task():
+    """Tasks are directives of Item X to Station Y"""
+    def __init__(self, station_id, item_id):
+        self.station_id = station_id
+        self.item_id = item_id
+    
+    def __repr__(self):
+        return f'Task: Item {self.item_id} to Station {self.station_id}'

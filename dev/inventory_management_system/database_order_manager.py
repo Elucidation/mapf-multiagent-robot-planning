@@ -151,7 +151,6 @@ class DatabaseOrderManager:
 
     def get_items_for_order(self, order_id):
         c = self.con.cursor()
-
         c.execute('SELECT * FROM "OrderItem" WHERE order_id=?', (order_id,))
         # list of (order_id, item_id, quantity)
         items = Counter()
@@ -214,12 +213,17 @@ class DatabaseOrderManager:
         self.assign_order_to_station(None, station_id)
 
     def assign_order_to_station(self, order_id, station_id):
+        station_curr_order = self.get_station_order(station_id)
+        if order_id != None and station_curr_order != None:
+            print(f"Station {station_id} already has an order {station_curr_order}, not assigning order {order_id}")
+            return False
         sql = """UPDATE "Station" SET order_id=? WHERE station_id=?;"""
         with self.con:
             c = self.con.cursor()
             c.execute(sql, (order_id, station_id))
             self.con.commit()
         self.set_order_in_progress(order_id)
+        return True
 
     def update_partial_order_item_quantity(self, order_id, item_id, quantity):
         sql = """UPDATE "PartialOrderItem" SET quantity=? WHERE order_id=? AND item_id=?;"""
@@ -227,6 +231,29 @@ class DatabaseOrderManager:
             c = self.con.cursor()
             c.execute(sql, (quantity, order_id, item_id))
             self.con.commit()
+
+    def get_station_order(self, station_id):
+        # Returns order ID assigned to station or None if station is empty/available
+        c = self.con.cursor()
+        c.execute('SELECT order_id FROM "Station" WHERE station_id=?', (station_id,))
+        row = c.fetchone()
+        if row is None:
+            return None
+        return row[0] # order_id
+
+    def get_station_with_order_id(self, order_id):
+        # Returns station ID assigned to station or None if station is empty/available
+        c = self.con.cursor()
+        c.execute('SELECT station_id FROM "Station" WHERE order_id=?', (order_id,))
+        row = c.fetchone()
+        if row is None:
+            return None
+        return row[0] # station_id
+
+    def add_item_to_station(self, station_id, item_id, quantity=1):
+        order_id = self.get_station_order(station_id)
+        self.add_item_to_partial_order(order_id, item_id, quantity)
+
 
     def add_item_to_partial_order(self, order_id, item_id, quantity=1):
         # 
@@ -254,9 +281,9 @@ class DatabaseOrderManager:
             self.con.executemany(sql, item_list)
             self.con.commit()
 
-    def get_partial_orders(self):
+    def get_partial_orders(self, N=49999):
         # Expect all partial order items to be for orders with status IN_PROGRESS
-        in_progress_orders = self.get_orders(status="IN_PROGRESS")
+        in_progress_orders = self.get_orders(N=N, status="IN_PROGRESS")
         partial_orders = dict()
         for order in in_progress_orders:
             order_id = order.order_id
@@ -267,8 +294,30 @@ class DatabaseOrderManager:
         c.execute('SELECT * FROM "PartialOrderItem"')
         for row in c.fetchall():
             (order_id, item_id, quantity) = row
+            if order_id not in partial_orders:
+                # Not one of the orders we are using
+                continue
             partial_orders[order_id].add_item(item_id, quantity)
         return list(partial_orders.values())
+
+    def get_latest_tasks(self, N=1):
+        # Get first partial order
+        partial_orders = self.get_partial_orders(N=1)
+        if len(partial_orders) == 0:
+            return []
+        
+        tasks = []
+        for partial_order in partial_orders:
+            station_id = self.get_station_with_order_id(partial_order.order_id)
+            missing_items = partial_order.get_missing_items()
+            if len(missing_items) == 0:
+                return []
+            for item_id in missing_items.keys():
+                tasks.append(Task(station_id=station_id, item_id=item_id))
+                if len(tasks) >= N:
+                    return tasks
+            
+        return tasks
 
 
 if __name__ == "__main__":
@@ -300,6 +349,7 @@ if __name__ == "__main__":
     stations = dboi.get_stations()
     print(f'Orders: {orders}')
     print(f'Stations: {stations}')
+    print(f'Test: {dboi.get_station_order(2)}')
 
     # time.sleep(1)
     dboi.add_item_to_partial_order(order_id=1, item_id=0, quantity=1)
