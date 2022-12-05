@@ -2,6 +2,8 @@
 
 Prototyping of a simplified IMS system for MAPF point robots in a 2D gridworld.
 
+![IMS Web UI](ims_example.png)
+*Screenshot of live web UI for tracking orders (with items and quantities), stations and completed tasks*
 
 A Scenario has a Grid, with Robots, Robot start/wait positions, Item pickup locations, and Stations.
 Orders with multiple items will be assigned to empty stations.

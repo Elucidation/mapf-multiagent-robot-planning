@@ -158,6 +158,18 @@ class DatabaseOrderManager:
             items[row[1]] += row[2]
         return items
 
+    def get_available_stations(self, N=49999):
+        c = self.con.cursor()
+        # Find stations with unset order_id (ie. available)
+        c.execute('SELECT * FROM "Station" WHERE order_id IS ? LIMIT 0, ?', (None, N))
+        stations = []
+        for row in c.fetchall():
+            (station_id, order_id) = row
+            station = Station(station_id, order_id)
+            stations.append(station)
+        
+        return stations
+
     def get_stations(self, N=49999):
         c = self.con.cursor()
         # A limited number of stations, so get them all at once

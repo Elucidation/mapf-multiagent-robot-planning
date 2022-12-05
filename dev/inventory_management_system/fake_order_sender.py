@@ -49,7 +49,7 @@ for i in range(10):
     client.loop()
     ret.wait_for_publish(timeout=1e-6)
     print(ret)
-    delay = random.random() * 5.0  # random 0-5 second delay
+    delay = random.random() * 1.0  # random 0-5 second delay
     print(f"waiting {delay} seconds")
     time.sleep(delay)
 print("Done")

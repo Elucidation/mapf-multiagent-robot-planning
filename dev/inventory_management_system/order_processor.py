@@ -14,7 +14,7 @@ db_orders = DatabaseOrderManager("orders.db")
 
 def add_new_order(data):
     data["created"] = datetime.now()
-    order = Order.load_from_dict(order_data)
+    order = Order.load_from_dict(data)
     db_orders.add_order(order)
     print("Added order: ", order)
 
