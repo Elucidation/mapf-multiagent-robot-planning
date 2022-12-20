@@ -31,9 +31,7 @@ fixed_item_list_options = [
 
 for i in range(10):
     print(f"{i} - Sending")
-
-    # item_list = Counter(list(range(i)))
-    item_list = Counter(fixed_item_list_options[i%len(fixed_item_list_options)])
+    item_list = Counter(fixed_item_list_options[i % len(fixed_item_list_options)])
 
     # Note, # of items assumed to be low, as total message string length needs to fit MQTT message size max.
     order_request = {

@@ -6,6 +6,7 @@ from matplotlib.patches import Circle, Rectangle
 import math
 from multiagent_utils import *
 
+
 class Visualizer():
     """System for visualizing and animating env + robot paths."""
     Colors = ['red', 'cyan', 'green', 'orange', 'yellow', 'blue', 'gray']

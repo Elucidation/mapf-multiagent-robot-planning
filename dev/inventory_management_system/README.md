@@ -23,20 +23,16 @@ TABLE Order
 order_id, created_by, creation_date, destination_id, description, state
 
 TABLE Item
-item_id, item_title, item_description, item_color
+item_id, item_title, item_description, item_color, item_xy
 
 TABLE OrderItem
 order_id, item_id, quantity
 
-
 TABLE Station
-station_id, station_xy, state
+station_id, order_id, station_xy
 
-TABLE StationOrder
-station_id, order_id
-
-TABLE StationItem
-station_id, item_id
+TABLE PartialOrderItem
+order_id, item_id, quantity
 ```
 
 ## Flow
