@@ -15,8 +15,7 @@ class DatabaseOrderManager:
 
     def __init__(self, db_filename):
         self.con = sl.connect(db_filename)
-
-        self.init_tables()
+        # TODO: need to reset if new db
 
     def reset(self):
         self.delete_tables()
@@ -105,6 +104,7 @@ class DatabaseOrderManager:
         self.add_station()
 
     def add_station(self):
+        self.con.commit()
         sql = 'INSERT INTO "Station" DEFAULT VALUES;'
         with self.con:
             c = self.con.cursor()
@@ -210,16 +210,17 @@ class DatabaseOrderManager:
     def complete_order(self, order_id):
         self.set_order_status(order_id, "COMPLETE")
 
-    def update_station(self, station_id: StationId):
+    def update_station(self, station_id: StationId) -> bool:
         """Check if station has any uncomplete tasks. 
-        If all tasks are complete, complete the station order"""
-        tasks = self.get_station_tasks(station_id=station_id)
-        for task in tasks:
-            if task.status != TaskStatus.COMPLETE:
-                return
+        If all tasks are complete, complete the station order
+        returns bool if station is cleared"""
+        tasks = self.get_incomplete_station_tasks(station_id=station_id)
+        if tasks:
+            return False
         order_id = self.get_station_order(station_id)
         self.complete_order(order_id)
         self.clear_station(station_id)
+        return True
 
     def clear_station(self, station_id):
         self.assign_order_to_station(None, station_id)
@@ -234,9 +235,9 @@ class DatabaseOrderManager:
 
         # Add tasks for moving items in order to that station
         tasks = []
-        status = 'OPEN'
+        status = TaskStatus.OPEN
         for item_id, quantity in self.get_items_for_order(order_id).items():
-            tasks.append((station_id, order_id, item_id, quantity, status))
+            tasks.append((station_id, order_id, item_id, quantity, str(status)))
 
         sql = """UPDATE "Station" SET order_id=? WHERE station_id=?;"""
         tasks_sql = (
@@ -312,11 +313,12 @@ class DatabaseOrderManager:
         stations = self.get_stations()
         station_tasks = []
         for station in stations:
-            tasks = self.get_station_tasks(station.station_id)
+            tasks = self.get_incomplete_station_tasks(station.station_id)
             station_tasks.append((station, tasks))
         return station_tasks
 
-    def get_station_tasks(self, station_id: int, N=49999) -> List[Task]:
+    def get_incomplete_station_tasks(self, station_id: int, N=49999) -> List[Task]:
+        """Return incomplete tasks associated with a station"""
         c = self.con.cursor()
         c.execute(
             'SELECT station_id, order_id, item_id, quantity, status FROM "Task" WHERE station_id=? LIMIT 0, ?', (station_id, N))
@@ -325,7 +327,8 @@ class DatabaseOrderManager:
             (station_id, order_id, item_id, quantity, status) = row
             task = Task(station_id=StationId(station_id), order_id=OrderId(order_id), item_id=ItemId(item_id),
                         quantity=quantity, status=TaskStatus(status))
-            tasks.append(task)
+            if not task.is_complete():
+                tasks.append(task)
         return tasks
 
     def get_tasks(self, query_status: Optional[TaskStatus] = None, N=49999) -> List[Task]:
@@ -398,7 +401,7 @@ if __name__ == "__main__":
     stations = dboi.get_stations()
 
     tasks = dboi.get_tasks()
-    incomplete_tasks = [task for task in tasks if task.status != 'COMPLETE']
+    incomplete_tasks = [task for task in tasks if task.status != TaskStatus.COMPLETE]
     # complete_orders = [order for order in orders if order.status == "COMPLETE"]
 
     print('-----')

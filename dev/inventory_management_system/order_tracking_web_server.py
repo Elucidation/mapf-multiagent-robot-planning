@@ -1,7 +1,7 @@
 from flask import Flask, render_template
 from Order import *
 from Station import Station
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import Counter
 from database_order_manager import DatabaseOrderManager
 import json
@@ -12,6 +12,14 @@ app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 db_name = "orders.db"
+
+@app.template_filter('strftime')
+def _jinja2_filter_datetime(date: datetime):
+    return date.strftime('%H:%M:%S')
+
+@app.template_filter('strftimedelta')
+def _jinja2_filter_timedelta(delta: timedelta):
+    return f'{delta.total_seconds():0.1f}s'
 
 
 @app.route("/")
@@ -35,7 +43,6 @@ def open_orders_html():
     orders = dboi.get_orders()
     print(orders)
     orders = [o for o in orders if o.is_open() or o.is_in_progress()]
-    print(orders)
     return render_template("fragment_open_orders.html", orders=orders)
 
 

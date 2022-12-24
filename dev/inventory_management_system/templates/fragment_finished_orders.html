@@ -16,9 +16,9 @@
                     <td class='failed'>{{ order.status }}</td>
                 {% endif %}
                 
-                <td>{{ order.created }}</td>
-                <td>{{ order.finished }}</td>
-                <td>{{ order.get_time_to_complete() }}</td>
+                <td>{{ order.created | strftime }}</td>
+                <td>{{ order.finished | strftime}}</td>
+                <td>{{ order.get_time_to_complete() | strftimedelta}}</td>
             </tr>
         {% endfor %}
         

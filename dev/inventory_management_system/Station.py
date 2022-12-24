@@ -42,6 +42,9 @@ class Task():
     
     def is_complete(self):
         return self.status == TaskStatus.COMPLETE
+    
+    def is_error(self):
+        return self.status == TaskStatus.ERROR
 
     def __repr__(self):
         return f'Task [{self.status}]: Item {self.item_id}x{self.quantity} to Station {self.station_id}'

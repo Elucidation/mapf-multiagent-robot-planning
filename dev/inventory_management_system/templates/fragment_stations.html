@@ -19,9 +19,10 @@
             <table>
               <tr>
                 {% for task in tasks %}
-                  {% if task.is_complete() %}
+                  {% if task.is_error() %}
+                    <td class='failed'>I{{ task.item_id }}x{{ task.quantity }}</td>
                   {% else %}
-                    <td class='incomplete'>{{ task.item_id }} x{{ task.quantity }}</td>
+                    <td class='incomplete'>I{{ task.item_id }}x{{ task.quantity }}</td>
                   {% endif %}
                 {% endfor %}
               </tr>
