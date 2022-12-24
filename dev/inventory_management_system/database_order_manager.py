@@ -231,18 +231,18 @@ class DatabaseOrderManager:
             print(
                 f"Station {station_id} already has an order {station_curr_order}, not assigning order {order_id}")
             return False
-        
+
         # Add tasks for moving items in order to that station
         tasks = []
         status = 'OPEN'
         for item_id, quantity in self.get_items_for_order(order_id).items():
             tasks.append((station_id, order_id, item_id, quantity, status))
-        
+
         sql = """UPDATE "Station" SET order_id=? WHERE station_id=?;"""
         tasks_sql = (
             'INSERT INTO "Task" (station_id, order_id, item_id, quantity, status) values(?, ?, ?, ?, ?)'
         )
-        
+
         with self.con:
             c = self.con.cursor()
             # Assign order to station
