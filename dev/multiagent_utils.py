@@ -2,6 +2,8 @@ import numpy as np
 from enum import Enum
 import yaml
 
+
+# TODO: Move Actions to Action class
 class Actions(Enum):
     WAIT = 0
     UP = 1
@@ -9,7 +11,7 @@ class Actions(Enum):
     LEFT = 3
     RIGHT = 4
 
-
+# TODO: Make static method in Actions class
 def convert_path_to_actions(path):
     # path is a list of tuple r,c indices
     actions = []
@@ -36,16 +38,27 @@ def convert_path_to_actions(path):
 def flip_tuple(ab):
     return (ab[1], ab[0])
 
+
 def flip_tuple_lists(abs):
     return [flip_tuple(x) for x in abs]
+
 
 def flip_tuple_list_of_lists(abss):
     return [flip_tuple_lists(x) for x in abss]
 
 
+# TODO: Move scenarios to Scenario class
 class EnvType(Enum):
     SPACE = 0
     WALL = 1
+
+
+def getGridAsEnvironment(grid):
+    grid = grid.astype(EnvType)
+    grid[grid == 0] = EnvType(0)
+    grid[grid == 1] = EnvType(1)
+    return grid
+
 
 def get_scenario(filename):
     with open(filename, 'r') as f:
@@ -55,16 +68,12 @@ def get_scenario(filename):
     starts = [tuple(x) for x in scenario['starts']]
     return grid, goals, starts
 
-def getGridAsEnvironment(grid):
-    grid = grid.astype(EnvType)
-    grid[grid==0] = EnvType(0)
-    grid[grid==1] = EnvType(1)
-    return grid
 
 def get_scenario_3():
     grid, goals, starts = get_scenario('scenarios/scenario3.yaml')
     grid = getGridAsEnvironment(grid)
     return grid, goals, starts
+
 
 def get_scenario_4():
     grid, goals, starts = get_scenario('scenarios/scenario4.yaml')

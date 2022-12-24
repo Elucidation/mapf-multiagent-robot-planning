@@ -64,18 +64,12 @@
     <script src="{{ url_for('static', filename='order_tracking.js') }}"></script>
         
     <script type="text/javascript">
-        // updateNewOrders();
-        // updateStations();
-        // updateFinishedOrders();
         updateAll();
         
         setInterval(function() {
             // Only if window in focus
             if ( document.hasFocus() ) {
                 $("#timestamp").text(new Date())
-                // updateNewOrders();
-                // updateStations();
-                // updateFinishedOrders();
                 updateAll();
             }
         }, 1000);

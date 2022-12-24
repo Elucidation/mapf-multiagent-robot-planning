@@ -1,6 +1,6 @@
 import time
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt # type: ignore
 from typing import List, Tuple  # Python 3.8
 
 from multiagent_utils import *

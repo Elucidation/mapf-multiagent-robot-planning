@@ -1,7 +1,7 @@
 from database_order_manager import DatabaseOrderManager
 import time
 import random
-
+from TaskStatus import TaskStatus
 
 db_name = "orders.db"
 dboi = DatabaseOrderManager(db_name)
@@ -32,7 +32,7 @@ while True:
     fill_available_station()
 
     # Get task (item X to station Y)
-    tasks = dboi.get_latest_tasks(N=1)
+    tasks = dboi.get_tasks(query_status=TaskStatus.OPEN, N=1)
     if len(tasks) == 0:
         print(f'No Tasks at the moment, sleeping 5 seconds')
         time.sleep(no_task_delay)

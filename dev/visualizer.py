@@ -1,8 +1,8 @@
 import time
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import animation
-from matplotlib.patches import Circle, Rectangle
+import matplotlib.pyplot as plt # type: ignore
+from matplotlib import animation # type: ignore
+from matplotlib.patches import Circle, Rectangle # type: ignore
 import math
 from multiagent_utils import *
 

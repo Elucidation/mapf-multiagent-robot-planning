@@ -13,8 +13,8 @@ class Environment(object):
         self.height = self.grid.shape[0]  # Rows
         self.width = self.grid.shape[1]  # Cols
         self.robots = robots
-        self.robots_by_id = dict()
-        self.past_robot_positions = dict()
+        self.robots_by_id: dict = dict()
+        self.past_robot_positions: dict = dict()
         self.world_state = True
         self.collision = None
 
@@ -25,7 +25,7 @@ class Environment(object):
     def get_robot_by_id(self, robot_id: int):
         return self.robots[self.robots_by_id[robot_id]]
 
-    def get_grid_tile_for_position(self, pos: Tuple[int]):
+    def get_grid_tile_for_position(self, pos: Tuple[int, int]):
         # row Y, col X
         return self.grid[pos[1], pos[0]]
 
@@ -107,7 +107,7 @@ class Environment(object):
     def show_grid_ASCII(self):
 
         # Create grid string with walls or spaces
-        grid_str = np.full_like(grid, '')
+        grid_str = np.full_like(self.grid, '')
         for r in range(self.height):
             for c in range(self.width):
                 char = "W" if self.grid[r, c] == EnvType.WALL else ""
@@ -126,5 +126,5 @@ class Environment(object):
 
 
 if __name__ == '__main__':
-    world = Environment(getWorld1(), [])
+    world = Environment(get_scenario_3(), [])
     print(world)

@@ -6,6 +6,8 @@ from collections import Counter
 from database_order_manager import DatabaseOrderManager
 import json
 
+# flask.exe --app order_tracking_web_server --debug run
+
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
@@ -17,15 +19,13 @@ def order_tracking():
     dboi = DatabaseOrderManager(db_name)
     orders = dboi.get_orders()
     orders_by_id = {o.order_id: o for o in orders}
-    stations = dboi.get_stations()
+    # stations = dboi.get_stations()
 
-    partial_orders = dboi.get_partial_orders()
-    partial_orders_by_id = {p.order_id: p for p in partial_orders}
+    stations_and_tasks = dboi.get_stations_and_tasks()
     return render_template(
         "order_tracking.html",
-        stations=stations,
+        stations_and_tasks=stations_and_tasks,
         orders_by_id=orders_by_id,
-        partial_orders_by_id=partial_orders_by_id,
     )
 
 
@@ -33,7 +33,9 @@ def order_tracking():
 def open_orders_html():
     dboi = DatabaseOrderManager(db_name)
     orders = dboi.get_orders()
+    print(orders)
     orders = [o for o in orders if o.is_open() or o.is_in_progress()]
+    print(orders)
     return render_template("fragment_open_orders.html", orders=orders)
 
 
@@ -42,15 +44,12 @@ def stations_html():
     dboi = DatabaseOrderManager(db_name)
     orders = dboi.get_orders()
     orders_by_id = {o.order_id: o for o in orders}
-    stations = dboi.get_stations()
+    stations_and_tasks = dboi.get_stations_and_tasks()
 
-    partial_orders = dboi.get_partial_orders()
-    partial_orders_by_id = {p.order_id: p for p in partial_orders}
     return render_template(
         "fragment_stations.html",
-        stations=stations,
+        stations_and_tasks=stations_and_tasks,
         orders_by_id=orders_by_id,
-        partial_orders_by_id=partial_orders_by_id,
     )
 
 
@@ -67,18 +66,16 @@ def get_all_json():
     dboi = DatabaseOrderManager(db_name)
     orders = dboi.get_orders()
     orders_by_id = {o.order_id: o for o in orders}
-    stations = dboi.get_stations()
-
-    partial_orders = dboi.get_partial_orders()
-    partial_orders_by_id = {p.order_id: p for p in partial_orders}
+    stations_and_tasks = dboi.get_stations_and_tasks()
+    
     progress_orders = [o for o in orders if o.is_open() or o.is_in_progress()]
     finished_orders = [o for o in orders if o.is_finished()]
     a = render_template("fragment_open_orders.html", orders=progress_orders)
-    b = render_template("fragment_finished_orders.html", orders=finished_orders)
+    b = render_template("fragment_finished_orders.html",
+                        orders=finished_orders)
     c = render_template(
         "fragment_stations.html",
-        stations=stations,
+        stations_and_tasks=stations_and_tasks,
         orders_by_id=orders_by_id,
-        partial_orders_by_id=partial_orders_by_id,
     )
     return json.dumps({"open": a, "finished": b, "stations": c})

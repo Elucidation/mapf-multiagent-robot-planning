@@ -1,4 +1,4 @@
-import paho.mqtt.client as mqtt
+import paho.mqtt.client as mqtt # type: ignore
 import json
 import time
 import random
@@ -41,6 +41,7 @@ for i in range(10):
         "destination_id": 1,
         "description": f"lorem #{i} ipsum",
         "items": item_list,
+        "status": "OPEN",
     }
     order_request_json = json.dumps(order_request)
     ret = client.publish("order/requests", order_request_json, qos=1)

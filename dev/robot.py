@@ -6,11 +6,11 @@ from collections import deque
 class Robot(object):
     """Robot position and ID"""
 
-    def __init__(self, robot_id: int, pos: Tuple[int]):
+    def __init__(self, robot_id: int, pos: Tuple[int, int]):
         self.id = robot_id
         self.pos = pos  # (X col, Y row)
-        self.pos_history = deque(maxlen=10)
-        self.actions = deque()
+        self.pos_history: deque = deque(maxlen=10)
+        self.actions: deque = deque()
         self.last_action = None
         self.reset_position_history()
 

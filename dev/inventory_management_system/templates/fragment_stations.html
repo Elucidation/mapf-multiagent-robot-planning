@@ -1,39 +1,35 @@
 <table class="subgroup">
-    <thead>
-        <th>Station ID</th>
-        <th>Order ID Processing</th>
-        <th>Items</th>
-    </thead>
-    <tbody>
-        {% for station in stations%}
-            <tr>
-                <td>{{ station.station_id }}</td>
-                {% if station.is_available() %}
-                    <td>AVAILABLE</td>
-                {% else %}
-                    <td>{{ station.order_id }}</td>
-                {% endif %}
-                
-                <td>
-                    {% if not station.is_available() %}
-                        {% set station_order = orders_by_id[station.order_id] %}
-                        {% set station_partial_order = partial_orders_by_id[station.order_id] %}
-                        <table>
-                            <tr>
-                                {% if station_partial_order is defined %}
-                                    {% for item_id, quantity in station_partial_order.items.items() %}
-                                        <td class='complete'>{{ item_id }} x{{ quantity }}</td>
-                                    {% endfor %}
-                                    {% for item_id, quantity in station_partial_order.get_missing_items().items() %}
-                                        <td class='incomplete'>{{ item_id }} x{{ quantity }}</td>
-                                    {% endfor %}
-                                {% endif %}
-                            </tr>
-                        </table>
-                    {% endif %}
-                    
-                </td>
-            </tr>
-        {% endfor %}
-    </tbody>
+  <thead>
+    <th>Station ID</th>
+    <th>Order ID Processing</th>
+    <th>Items Needed</th>
+  </thead>
+  <tbody>
+    {% for station, tasks in stations_and_tasks %}
+      <tr>
+        <td>{{ station.station_id }}</td>
+        {% if station.is_available() %}
+          <td>AVAILABLE</td>
+        {% else %}
+          <td>{{ station.order_id }}</td>
+        {% endif %}
+
+        <td>
+          {% if station.has_order() %}
+            <table>
+              <tr>
+                {% for task in tasks %}
+                  {% if task.is_complete() %}
+                  {% else %}
+                    <td class='incomplete'>{{ task.item_id }} x{{ task.quantity }}</td>
+                  {% endif %}
+                {% endfor %}
+              </tr>
+            </table>
+          {% endif %}
+
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
 </table>

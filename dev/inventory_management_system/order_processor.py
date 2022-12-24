@@ -1,8 +1,14 @@
-import paho.mqtt.client as mqtt
+import paho.mqtt.client as mqtt  # type: ignore
 import json
 from datetime import datetime
 from database_order_manager import DatabaseOrderManager, Order
 import logging
+from collections import Counter
+import Item
+import sys
+
+from Order import OrderId
+from Station import StationId
 
 # Set up logging
 logger = logging.getLogger("order_processor_logger")
@@ -11,9 +17,6 @@ log_handler = logging.StreamHandler()
 log_handler.setLevel(logging.DEBUG)
 logger.addHandler(log_handler)
 
-
-db_orders = DatabaseOrderManager("orders.db")
-# db_orders.reset() # Clear tables
 
 # Read MQTT order request and insert into database
 
@@ -28,11 +31,12 @@ def add_new_order(order_data: dict) -> bool:
     :return: A boolean indicating the success or failure of the operation.
     :rtype: bool
     """
-    data["created"] = datetime.now()
+    order_data["created"] = datetime.now()
+    items = Item.make_counter_of_items(order_data["items"])
 
     try:
-        order = Order.load_from_dict(order_data)
-        db_orders.add_order(order)
+        order = db_orders.add_order(items=items, created_by=order_data["created_by"], created=order_data["created"],
+                                    description=order_data["description"], status=order_data["status"])
         logger.info("Added new order: %s", order)
         return True
     except Exception as e:
@@ -40,7 +44,7 @@ def add_new_order(order_data: dict) -> bool:
         return False
 
 
-def assign_order_to_station(order_id: int, station_id: int):
+def assign_order_to_station(order_id: OrderId, station_id: StationId):
     """
     Assign an order to a station.
 
@@ -124,16 +128,23 @@ def on_message(client, userdata, message):
         return False
 
 
-# Using localhost mosquitto MQTT broker (powershell: mosquitto.exe)
-mqttBroker = "localhost"
+if __name__ == '__main__':
+    db_orders = DatabaseOrderManager("orders.db")
+    
+    if 'reset' in sys.argv:
+        print('Resetting database')
+        db_orders.reset() # Clear tables
 
-client = mqtt.Client("OrderIngester")
-client.connect(mqttBroker)
+    # Using localhost mosquitto MQTT broker (powershell: mosquitto.exe)
+    mqttBroker = "localhost"
 
-client.subscribe("order/requests", qos=1)
-client.subscribe("station/add/order", qos=1)
-client.subscribe("station/add/item", qos=1)
-client.on_message = on_message
+    client = mqtt.Client("OrderIngester")
+    client.connect(mqttBroker)
 
-logger.info("Started listening...")
-client.loop_forever()  # Uses main thread
+    client.subscribe("order/requests", qos=1)
+    client.subscribe("station/add/order", qos=1)
+    client.subscribe("station/add/item", qos=1)
+    client.on_message = on_message
+
+    logger.info("Started listening...")
+    client.loop_forever()  # Uses main thread
