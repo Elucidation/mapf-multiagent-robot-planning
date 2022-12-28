@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from collections import Counter
 from database_order_manager import DatabaseOrderManager
 import json
+from Item import get_item_names
 
 # flask.exe --app order_tracking_web_server --debug run
 
@@ -22,6 +23,11 @@ def _jinja2_filter_datetime(date: datetime):
 @app.template_filter('strftimedelta')
 def _jinja2_filter_timedelta(delta: timedelta):
     return f'{delta.total_seconds():0.1f}s'
+
+item_names = get_item_names()
+@app.template_filter('get_item_name')
+def _jinja2_filter_get_item_name(item_id: ItemId):
+    return item_names[item_id]
 
 
 @app.route("/")
