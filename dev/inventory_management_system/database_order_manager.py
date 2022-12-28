@@ -25,11 +25,11 @@ class DatabaseOrderManager:
     def delete_tables(self):
         self.con.executescript(
             """
-            DROP TABLE "Order";
-            DROP TABLE "Item";
-            DROP TABLE "OrderItem";
-            DROP TABLE "Station";
-            DROP TABLE "Task";
+            DROP TABLE IF EXISTS "Order";
+            DROP TABLE IF EXISTS "Item";
+            DROP TABLE IF EXISTS "OrderItem";
+            DROP TABLE IF EXISTS "Station";
+            DROP TABLE IF EXISTS "Task";
             """
         )
 
@@ -237,7 +237,8 @@ class DatabaseOrderManager:
         tasks = []
         status = TaskStatus.OPEN
         for item_id, quantity in self.get_items_for_order(order_id).items():
-            tasks.append((station_id, order_id, item_id, quantity, str(status)))
+            tasks.append(
+                (station_id, order_id, item_id, quantity, str(status)))
 
         sql = """UPDATE "Station" SET order_id=? WHERE station_id=?;"""
         tasks_sql = (
@@ -360,8 +361,7 @@ if __name__ == "__main__":
     for i in range(3):
         order = dboi.add_order(created_by=1,
                                created=datetime.now(),
-                               items=Item.make_counter_of_items(
-                                   [1, 2, 2, 4, i]),
+                               items=ItemCounter([1, 2, 2, 4, i]),
                                description="order with 5 items")
         # time.sleep(1)
 
@@ -401,7 +401,8 @@ if __name__ == "__main__":
     stations = dboi.get_stations()
 
     tasks = dboi.get_tasks()
-    incomplete_tasks = [task for task in tasks if task.status != TaskStatus.COMPLETE]
+    incomplete_tasks = [
+        task for task in tasks if task.status != TaskStatus.COMPLETE]
     # complete_orders = [order for order in orders if order.status == "COMPLETE"]
 
     print('-----')

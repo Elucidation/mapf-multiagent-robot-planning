@@ -13,7 +13,7 @@ class Order:
     def __init__(
         self,
         order_id: OrderId,
-        items: ItemCounter = Counter(),
+        items: ItemCounter = ItemCounter(),
         created_by: Optional[int] = None,
         created: Union[str, datetime] = datetime.now(),
         description: str = '',
