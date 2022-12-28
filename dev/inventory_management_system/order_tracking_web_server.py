@@ -72,7 +72,6 @@ def finished_orders_html():
 def get_all_json():
     dboi = DatabaseOrderManager(db_name)
     orders = dboi.get_orders()
-    orders_by_id = {o.order_id: o for o in orders}
     stations_and_tasks = dboi.get_stations_and_tasks()
     
     progress_orders = [o for o in orders if o.is_open() or o.is_in_progress()]
@@ -83,6 +82,5 @@ def get_all_json():
     c = render_template(
         "fragment_stations.html",
         stations_and_tasks=stations_and_tasks,
-        orders_by_id=orders_by_id,
     )
     return json.dumps({"open": a, "finished": b, "stations": c})
