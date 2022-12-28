@@ -12,7 +12,7 @@
                 <table>
                     <tr>
                         {% for item_id, quantity in order.items.items() %}
-                        <td>I{{ item_id }}x{{ quantity }}</td>
+                        <td>I{{ item_id }}{% if quantity > 1 %}x{{quantity}}{% endif %}</td>
                         {% endfor %}
                     </tr>
                 </table>
