@@ -3,7 +3,7 @@ import json
 import time
 import random
 from collections import Counter
-from Item import ItemCounter
+from Item import ItemCounter, ItemId
 
 # Using localhost mosquitto MQTT broker (powershell: mosquitto.exe)
 mqttBroker = "localhost"
@@ -32,7 +32,7 @@ fixed_item_list_options = [
 
 for i in range(10):
     print(f"{i} - Sending")
-    item_list = ItemCounter(fixed_item_list_options[i % len(fixed_item_list_options)])
+    item_list = ItemCounter(map(ItemId,fixed_item_list_options[i % len(fixed_item_list_options)]))
 
     # Note, # of items assumed to be low, as total message string length needs to fit MQTT message size max.
     order_request = {

@@ -6,5 +6,5 @@ ItemId = NewType('ItemId', int)
 ItemCounter = typing.Counter[ItemId]
 
 if __name__ == '__main__':
-    x = ItemCounter([1, 2, 3, 2])
+    x = ItemCounter(map(ItemId,[1, 2, 3, 2]))
     print(x)

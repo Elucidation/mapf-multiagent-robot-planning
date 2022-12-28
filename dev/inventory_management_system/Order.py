@@ -84,6 +84,5 @@ class Order:
 
 
 if __name__ == "__main__":
-    order = Order(description='blah', items=Item.make_counter_of_items(
-        [1, 1, 3]), order_id=OrderId(3))
+    order = Order(description='blah', items=ItemCounter(map(ItemId,[1, 1, 3])), order_id=OrderId(3))
     print(order)
