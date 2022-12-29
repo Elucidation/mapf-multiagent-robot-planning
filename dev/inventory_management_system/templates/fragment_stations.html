@@ -20,9 +20,9 @@
               <tr>
                 {% for task in tasks %}
                   {% if task.is_error() %}
-                    <td class='failed'>I{{ task.item_id }}{% if task.quantity > 1 %}x{{task.quantity}}{% endif %}</td>
+                    <td class='failed'>{{ task.item_id | get_item_name }}{% if task.quantity > 1 %}x{{task.quantity}}{% endif %}</td>
                   {% else %}
-                    <td class='incomplete'>I{{ task.item_id }}{% if task.quantity > 1 %}x{{task.quantity}}{% endif %}</td>
+                    <td class='incomplete'>{{ task.item_id | get_item_name}}{% if task.quantity > 1 %}x{{task.quantity}}{% endif %}</td>
                   {% endif %}
                 {% endfor %}
               </tr>

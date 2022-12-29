@@ -114,6 +114,9 @@ def on_message(client, userdata, message) -> bool:
             return assign_order_to_station(data["order_id"], data["station_id"])
         elif message.topic == "station/add/item":
             return add_item_to_station(data["station_id"], data["item_id"], data["quantity"])
+        else:
+            # Unknown message
+            return True
     except Exception as e:
         logger.error("Error processing message: %s", e)
         return False

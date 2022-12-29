@@ -135,7 +135,7 @@ class DatabaseOrderManager:
             items=items,
         )
 
-    def get_orders(self, N=49999, status=None):
+    def get_orders(self, N: int=49999, status=None) -> List[Order]:
         c = self.con.cursor()
         # order_id,created_by,created,finished,description,status
         if status:
@@ -361,7 +361,7 @@ if __name__ == "__main__":
     for i in range(3):
         order = dboi.add_order(created_by=1,
                                created=datetime.now(),
-                               items=ItemCounter([1, 2, 2, 4, i]),
+                               items=ItemCounter(map(ItemId,[1, 2, 2, 4, i])),
                                description="order with 5 items")
         # time.sleep(1)
 
