@@ -39,12 +39,9 @@ server.listen(port, () => {
 
 // Database
 const database = require('./database');
-console.log(database)
+const dbm = database.dbm
+console.log(dbm)
 
-// const { readFile } = require('fs').promises;
-
-// const app = express();
-// app.get('/', async (request, response) => {
-//     response.send(await readFile('./home.html', 'utf8'));
-// });
-
+dbm.open_db();
+dbm.get_tasks();
+dbm.close_db();
