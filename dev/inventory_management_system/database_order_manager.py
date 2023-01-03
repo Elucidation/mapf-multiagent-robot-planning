@@ -21,6 +21,7 @@ class DatabaseOrderManager:
         self.delete_tables()
         self.init_tables()
         self.init_stations()
+        self.init_items()
 
     def delete_tables(self):
         self.con.executescript(
@@ -103,6 +104,17 @@ class DatabaseOrderManager:
         self.add_station()
         self.add_station()
 
+    def init_items(self):
+        item_names = Item.get_item_names()
+        item_sql = (
+            'INSERT INTO "Item" (name) values(?)'
+        )
+        item_name_data = list(map(lambda item_name: (item_name,), item_names))
+        with self.con:
+            c = self.con.cursor()
+            self.con.executemany(item_sql, item_name_data)
+            self.con.commit()
+
     def add_station(self):
         self.con.commit()
         sql = 'INSERT INTO "Station" DEFAULT VALUES;'
@@ -135,7 +147,7 @@ class DatabaseOrderManager:
             items=items,
         )
 
-    def get_orders(self, N: int=49999, status=None) -> List[Order]:
+    def get_orders(self, N: int = 49999, status=None) -> List[Order]:
         c = self.con.cursor()
         # order_id,created_by,created,finished,description,status
         if status:
@@ -361,7 +373,7 @@ if __name__ == "__main__":
     for i in range(3):
         order = dboi.add_order(created_by=1,
                                created=datetime.now(),
-                               items=ItemCounter(map(ItemId,[1, 2, 2, 4, i])),
+                               items=ItemCounter(map(ItemId, [1, 2, 2, 4, i])),
                                description="order with 5 items")
         # time.sleep(1)
 
