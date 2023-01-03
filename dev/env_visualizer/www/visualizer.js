@@ -1,59 +1,47 @@
 // @ts-check
 
+function Point(/** @type {number} */ x, /** @type {number} */ y) {
+  this.x = x;
+  this.y = y;
+}
+var grid = new Point(8, 8);
+
+// ---------------------------------------------------
+// Socket.IO related
+
 // @ts-ignore
 var socket = io();
 
-var form = document.getElementById('form');
-if (!(form instanceof HTMLFormElement))
-  throw Error('Missing form element.');
-var input = document.getElementById('input');
-
-form.addEventListener('submit', function (e) {
-  if (!(input instanceof HTMLInputElement))
-    throw Error('Missing input element.');
-  e.preventDefault();
-  if (input.value) {
-    socket.emit('chat message', input.value);
-    input.value = '';
+socket.on('set_grid', (/** @type {Point} */ msg) => {
+  console.debug('Updating grid dims', msg);
+  grid.x = msg.x;
+  grid.y = msg.y;
+  if (context == null || !(canvas instanceof HTMLCanvasElement)) {
+    console.error('Missing context or canvas elements.');
+    return;
   }
+  canvas.width = 2 + 20 * msg.x;
+  canvas.height = 2 + 20 * msg.y;
+  drawBoard();
 });
 
-
-var messages = document.getElementById('messages');
-socket.on('chat message', function (/** @type {string | null} */ msg) {
-  if (messages == null)
-    throw Error('Missing messages element.');
-  if (msg?.startsWith('test')) {
-    //ex. test 1 2 1 3 1 1 5 2 3 2 6 4
-    let parts = msg.split(' ').slice(1);
-    let vals = parts.map(x => parseInt(x));
-    console.log(parts, vals);
-    if (vals.length % 2 != 0) {
-      console.error('Wrong number of ints', vals);
-    }
-    else {
-      let positions = []
-      for (let i = 0; i < vals.length; i += 2) {
-        let pos = new Point(vals[i], vals[i+1]);
-        positions.push(pos);
-      }
-      update_positions(positions);
-    }
-  }
-  var item = document.createElement('li');
-  item.textContent = msg;
-  messages.appendChild(item);
-  window.scrollTo(0, document.body.scrollHeight);
+socket.on('update_robots', (/** @type {Point[]} */ msg) => {
+  // msg is list of x/y positions [{x:..., y:...}, ...] for each robot
+  console.debug('Updating robot positions', msg);
+  update_positions(msg);
 });
 
-var grid = { x: 8, y: 8 }
-
+// ---------------------------------------------------
+// Graphics Related
 var canvas = document.getElementById('canvas');
 if (!(canvas instanceof HTMLCanvasElement)) {
   throw Error('Missing canvas element.');
 }
 var context = canvas.getContext('2d');
 
+/**
+ * Clear canvas and draw grid.
+ */
 function drawBoard() {
   if (context == null || !(canvas instanceof HTMLCanvasElement)) {
     console.error('Missing context or canvas elements.');
@@ -66,21 +54,24 @@ function drawBoard() {
   const w = canvas.width - 2
   for (var x = 1; x < canvas.width; x += w / grid.x) {
     context.moveTo(x, 0);
-    context.lineTo(x, 400);
+    context.lineTo(x, canvas.height);
   }
 
   const h = canvas.height - 2
   for (var y = 1; y < canvas.height; y += h / grid.y) {
     context.moveTo(0, y);
-    context.lineTo(400, y);
+    context.lineTo(canvas.width, y);
   }
   context.stroke();
   context.closePath();
 }
 
 /**
+ * Draw circle on canvas
  * @param {number} r row
  * @param {number} c col
+ * @param {string} fill color hex
+ * @param {boolean} clear if true clearRect of that circle area
  */
 function drawCircle(r, c, fill = "#ff0000", clear = false) {
   if (context == null) {
@@ -104,16 +95,14 @@ function drawCircle(r, c, fill = "#ff0000", clear = false) {
   }
 }
 
-drawBoard();
-
-function Point(x, y) {
-  this.x = x;
-  this.y = y;
-}
-
+/** @type {Point[]} */
 var current_positions = [];
 
-function update_positions(new_positions) {
+/**
+ * Draw circles for given positions, clearing old ones.
+ * @param {Point[]} new_positions 
+ */
+function update_positions(/** @type {Point[]} */ new_positions) {
   current_positions.forEach(pos => {
     drawCircle(pos.x, pos.y, '', true);
   });
@@ -123,5 +112,3 @@ function update_positions(new_positions) {
   });
   current_positions = new_positions;
 }
-
-update_positions([new Point(1, 1), new Point(3, 5)]);

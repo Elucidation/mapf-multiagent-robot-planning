@@ -23,25 +23,38 @@ app.get('/', (req, res) => {
 
 
 io.on('connection', (socket) => {
-    socket.on('disconnect', () => {
-        io.emit('chat message', '-- a user disconnected');
-    });
-    socket.on('chat message', (msg) => {
-        io.emit('chat message', msg);
-    });
-    io.emit('chat message', '-- a user connected');
+    // Create arbitrary grid and initial robots.
+    io.emit('set_grid', { x: 30, y: 10 });
+    io.emit('update_robots', [{ x: 1, y: 2 }, { x: 3, y: 2 }])
 });
 
 
 server.listen(port, () => {
-    console.log(`Listening on *:${port}`);
+    console.info(`Listening on *:${port}`);
 });
 
 // Database
-const database = require('./database');
-const dbm = database.dbm
-console.log(dbm)
+const { dbm } = require('./database');
+console.info(dbm)
 
-dbm.open_db();
-dbm.get_tasks();
-dbm.close_db();
+
+let positions = [];
+/**
+ * Read X from DB and emit updated robot positions.
+ */
+async function update_latest_robot_positions() {
+    dbm.open_db();
+    let tasks = await dbm.get_tasks();
+    positions = [];
+    tasks.forEach(task => {
+        // todo: Arbitrarily create robot position based on task id and item ids.
+        positions.push({ x: task.item_id, y: task.id })
+    });
+    dbm.close_db();
+    io.emit('update_robots', positions);
+}
+
+// Update robot positions every second.
+let position_timer = setInterval(async () => {
+    update_latest_robot_positions();
+}, 1000);

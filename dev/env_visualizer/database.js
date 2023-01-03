@@ -2,7 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 /**
  * Provides accessors to Order/Station/Task Database
  */
-class DatabaseManager {    
+class DatabaseManager {
     constructor(path) {
         this.db_path = path;
     }
@@ -12,7 +12,7 @@ class DatabaseManager {
             if (err) {
                 console.error(err.message);
             }
-            console.log('Connected to the database.');
+            // console.debug('Connected to the database.');
         });
     }
 
@@ -21,14 +21,16 @@ class DatabaseManager {
             if (err) {
                 console.error(err.message);
             }
-            console.log('Closed the database connection.');
+            // console.debug('Closed the database connection.');
         })
     }
 
-    get_tasks() {
-        this.db.serialize(() => {
-            this.db.each("SELECT rowid as id, * FROM Task", (err, row) => {
-                console.log(`Task ${row.id} for Order ${row.order_id} Move item ${row.item_id} x${row.quantity} to Station ${row.station_id} [Status: ${row.status}]`);
+    async get_tasks() {
+        return new Promise((resolve, reject) => {
+            this.db.all("SELECT rowid as id, * FROM Task", (err, rows) => {
+                if (err)
+                    return reject(err);
+                resolve(rows);
             });
         });
     }
