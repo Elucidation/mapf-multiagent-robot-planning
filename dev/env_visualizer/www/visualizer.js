@@ -25,10 +25,15 @@ socket.on('set_grid', (/** @type {Point} */ msg) => {
   drawBoard();
 });
 
-socket.on('update_robots', (/** @type {Point[]} */ msg) => {
+socket.on('update', (/** @type {any} */ msg) => {
+  if (!document.hasFocus()) {
+    // Skip Updating visuals when window not in focus
+    return;
+  }
   // msg is list of x/y positions [{x:..., y:...}, ...] for each robot
-  console.debug('Updating robot positions', msg);
-  update_positions(msg);
+  console.debug('Updating world state', msg);
+  updateTime(msg.t);
+  update_positions(msg.positions);
 });
 
 // ---------------------------------------------------
@@ -38,6 +43,14 @@ if (!(canvas instanceof HTMLCanvasElement)) {
   throw Error('Missing canvas element.');
 }
 var context = canvas.getContext('2d');
+
+function updateTime(t) {
+  var tblock = document.getElementById('time');
+  if (!(tblock instanceof HTMLSpanElement)) {
+    throw Error('Missing time paragraph element.');
+  }
+  tblock.textContent = t;
+}
 
 /**
  * Clear canvas and draw grid.
