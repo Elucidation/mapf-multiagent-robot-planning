@@ -24,8 +24,7 @@ app.get('/', (req, res) => {
 
 io.on('connection', (socket) => {
     // Create arbitrary grid and initial robots.
-    io.emit('set_grid', { x: 30, y: 10 });
-    io.emit('update_robots', [{ x: 1, y: 2 }, { x: 3, y: 2 }])
+    io.emit('set_world', world);
 });
 
 
@@ -89,6 +88,12 @@ class World {
         this.t = data.t;
         /** @type {Robot[]} List of robots in this world */
         this.robots = data.robots;
+        /** @type {Point[]} Item loading positions in this world */
+        this.item_load_positions = data.item_load_positions;
+        /** @type {Point[]} Station positions in this world */
+        this.station_positions = data.station_positions;
+        /** @type {number[][]} Grid of world */
+        this.grid = data.grid;
     }
 
     step() {
@@ -96,6 +101,18 @@ class World {
             robot.step();
         });
         this.t += 1;
+    }
+
+    /**
+     * 
+     * @returns A dict with the static world info (grid, item and station positions)
+     */
+    get_world() {
+        return {
+            grid: this.grid,
+            item_load_positions: this.item_load_positions,
+            station_positions: this.station_positions
+        };
     }
 
     /**
@@ -112,7 +129,37 @@ class World {
 let r1 = new Robot({ id: 1, pos: new Point(1, 2) });
 let r2 = new Robot({ id: 2, pos: new Point(3, 5) });
 let r3 = new Robot({ id: 3, pos: new Point(2, 3) });
-let world = new World({ t: 0, robots: [r1, r2, r3] });
+
+let grid = [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+]
+
+let item_load_positions = [
+    new Point(2, 3),
+    new Point(2, 5),
+    new Point(2, 7)
+];
+let station_positions = [
+    new Point(8, 2),
+    new Point(8, 5),
+    new Point(8, 8)
+];
+let world = new World({
+    grid: grid,
+    item_load_positions: item_load_positions,
+    station_positions: station_positions,
+    t: 0,
+    robots: [r1, r2, r3]
+});
 
 r2.add_path([
     new Point(3, 5),
