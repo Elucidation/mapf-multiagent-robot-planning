@@ -70,3 +70,4 @@ Update CBS via:
 - [Multi-agent path finding with mutex propagation](https://doi.org/10.1016/j.artint.2022.103766) H Zhang, J Li, P Surynek, TKS Kumar, S Koenig - Artificial Intelligence, 2022 
 - [Assignment on MAPF](http://idm-lab.org/project-p/project.html) S Koenig
 - [Cooperative Path Planning](https://www.davidsilver.uk/wp-content/uploads/2020/03/coop-path-AIWisdom.pdf) David Silver
+- [SIPP: Safe Interval Path Planning for Dynamic Environments](https://www.cs.cmu.edu/~maxim/files/sipp_icra11.pdf)
