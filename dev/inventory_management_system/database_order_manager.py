@@ -361,6 +361,23 @@ class DatabaseOrderManager:
             tasks.append(task)
         return tasks
 
+    def fill_available_station(self) -> bool:
+        """Adds an open order to an available station if they both exist.
+
+        Returns:
+            bool: Whether an order was assigned to a station
+        """
+        stations = self.get_available_stations(N=1)
+        if len(stations) == 0:
+            return False
+        orders = self.get_orders(N=1, status='OPEN')
+        if len(orders) == 0:
+            return False
+        self.assign_order_to_station(
+            order_id=orders[0].order_id, station_id=stations[0].station_id)
+        print(f'Filled {stations[0]} with {orders[0]}')
+        return True
+
 
 if __name__ == "__main__":
     dboi = DatabaseOrderManager("test2.db")
