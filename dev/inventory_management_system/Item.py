@@ -4,7 +4,7 @@ import typing
 ItemId = NewType('ItemId', int)
 ItemCounter = typing.Counter[ItemId]
 
-# TODO: Load this from DB
+# TODO: Load this from DB / This fails from wrong directory
 def get_item_names():
     with open('item_names.txt', 'r') as f:
         item_names = [name.strip() for name in f.readlines()]
