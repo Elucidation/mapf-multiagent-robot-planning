@@ -133,7 +133,7 @@ class DatabaseOrderManager:
             self.con.commit()
 
     # TODO: type params
-    def add_order(self, items: ItemCounter, created_by: int, created: datetime = None, description: str = "", status: OrderStatus = OrderStatus.OPEN):
+    def add_order(self, items: ItemCounter, created_by: int, created: Optional[datetime] = None, description: str = "", status: OrderStatus = OrderStatus.OPEN):
         """Add a new order to the database.
 
         Args:
@@ -357,7 +357,7 @@ class DatabaseOrderManager:
         return True
 
     def update_task(self, station_id: StationId, item_id: ItemId, quantity: int, status: TaskStatus):
-        """Updates task with new quantity and status."""                
+        """Updates task with new quantity and status."""
         sql = """UPDATE "Task" SET quantity=?, status=? WHERE station_id=? AND item_id=? AND (status='OPEN' OR status='IN_PROGRESS');"""
         with self.con:
             c = self.con.cursor()

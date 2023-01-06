@@ -91,7 +91,7 @@ class Order:
                 (self.finished == o.finished)
             )
         else:
-            return NotImplementedError()
+            raise NotImplementedError()
 
 
 if __name__ == "__main__":

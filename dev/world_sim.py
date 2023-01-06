@@ -4,7 +4,8 @@ from robot import Robot, Action
 
 import numpy as np
 from typing import List, Tuple  # Python 3.8
-import socketio
+import socketio  # type: ignore
+
 
 class World(object):
     """A grid which robots can be placed and moved in."""
@@ -18,21 +19,29 @@ class World(object):
         self.past_robot_positions: dict = dict()
         self.world_state = True
         self.collision = None
+        self.init_socketio()
+        # TODO : Will time out if node socketio server not up yet.
+        self.connect_socketio()
 
-    def setup_socketio(self, address='http://localhost:3000'):
+    def init_socketio(self):
         self.sio = socketio.Client()
+
         @self.sio.event
         def connect():
             print('Connected')
+
         @self.sio.event
         def disconnect():
             print('Disconnected')
+
         @self.sio.event
         def connect_error(data):
             print("The connection failed!")
 
+    def connect_socketio(self, address='http://localhost:3000'):
         self.sio.connect(address)
-        self.sio.emit('update',{'test':'example'})
+        # Example emit
+        self.sio.emit('update', {'test': 'example'})
 
     def add_robot(self, robot: Robot):
         self.robots_by_id[robot.id] = len(self.robots)
@@ -142,15 +151,18 @@ class World(object):
     def __repr__(self):
         return (f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}')
 
+
 class EnvType(Enum):
     SPACE = 0
     WALL = 1
+
 
 def getGridAsEnvironment(grid):
     grid = grid.astype(EnvType)
     grid[grid == 0] = EnvType(0)
     grid[grid == 1] = EnvType(1)
     return grid
+
 
 if __name__ == '__main__':
     grid, goals, starts = get_scenario('scenarios/scenario3.yaml')
