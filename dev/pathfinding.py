@@ -1,7 +1,6 @@
-import numpy as np
 import heapq
 from collections import defaultdict
-from multiagent_utils import get_scenario, flip_tuple_lists
+from multiagent_utils import get_scenario
 
 
 def astar(graph, a, b, flip_row_col=False):

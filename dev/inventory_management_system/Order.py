@@ -1,11 +1,8 @@
-import sqlite3 as sl
-import typing as tp
-from typing import List, NewType, Union, Optional
+from typing import NewType, Union, Optional
 from datetime import datetime
 from collections import Counter
 from OrderStatus import *
 from Item import ItemId, ItemCounter
-import Item
 OrderId = NewType('OrderId', int)
 
 

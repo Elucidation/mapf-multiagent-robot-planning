@@ -1,5 +1,5 @@
 from multiagent_utils import *
-from typing import List, Tuple  # Python 3.8
+from typing import Tuple  # Python 3.8
 from collections import deque
 
 

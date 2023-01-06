@@ -35,18 +35,6 @@ def convert_path_to_actions(path):
     return actions
 
 
-def flip_tuple(ab):
-    return (ab[1], ab[0])
-
-
-def flip_tuple_lists(abs):
-    return [flip_tuple(x) for x in abs]
-
-
-def flip_tuple_list_of_lists(abss):
-    return [flip_tuple_lists(x) for x in abss]
-
-
 # TODO: Move scenarios to Scenario class
 class EnvType(Enum):
     SPACE = 0

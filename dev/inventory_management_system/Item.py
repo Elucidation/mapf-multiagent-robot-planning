@@ -1,6 +1,5 @@
-from typing import NewType, List
+from typing import NewType
 import typing
-from collections import Counter
 
 ItemId = NewType('ItemId', int)
 ItemCounter = typing.Counter[ItemId]

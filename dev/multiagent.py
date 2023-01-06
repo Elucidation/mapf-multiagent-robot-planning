@@ -1,18 +1,8 @@
-import time
-import numpy as np
-import matplotlib.pyplot as plt # type: ignore
-from typing import List, Tuple  # Python 3.8
-
 from multiagent_utils import *
 from robot import *
-from environment import Environment
 import pathfinding
 from visualizer import Visualizer
 
-# grid, goals, starts = get_scenario_4()
-# grid, goals, starts = get_scenario('scenarios/scenario1.yaml')
-# grid, goals, starts = get_scenario('scenarios/scenario2.yaml')
-# grid, goals, starts = get_scenario('scenarios/scenario3.yaml')
 grid, goals, starts = get_scenario('scenarios/scenario4.yaml')
 
 paths = pathfinding.MAPF1(grid, starts, goals, maxiter=100, T=40)
