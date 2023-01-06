@@ -1,6 +1,6 @@
 from enum import Enum
 from multiagent_utils import *
-from typing import Tuple  # Python 3.8
+from typing import Tuple, NewType  # Python 3.8
 from collections import deque
 
 
@@ -35,11 +35,12 @@ class Action(Enum):
                 raise Exception(f'Path {change} not allowed')
         return actions
 
+RobotId = NewType('RobotId', int)
 
 class Robot(object):
     """Robot position and ID"""
 
-    def __init__(self, robot_id: int, pos: Tuple[int, int]):
+    def __init__(self, robot_id: RobotId, pos: Tuple[int, int]):
         self.id = robot_id
         self.pos = pos  # (X col, Y row)
         self.pos_history: deque = deque(maxlen=10)
@@ -94,5 +95,5 @@ class Robot(object):
 
 
 if __name__ == '__main__':
-    robot = Robot(robot_id=0, pos=(0, 1))
+    robot = Robot(RobotId(0), pos=(0, 1))
     print(robot)

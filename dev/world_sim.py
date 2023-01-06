@@ -1,9 +1,9 @@
 from enum import Enum
 from multiagent_utils import *
-from robot import Robot, Action
+from robot import Robot, Action, RobotId
 
 import numpy as np
-from typing import List, Tuple  # Python 3.8
+from typing import List, Tuple, Dict  # Python 3.8
 import socketio  # type: ignore
 
 from datetime import datetime
@@ -77,7 +77,7 @@ class World(object):
         return self.world_state
 
     def _check_valid_state(self) -> bool:
-        latest_positions = dict()
+        latest_positions: Dict[Tuple[int,int], RobotId] = dict()
         for robot in self.robots:
             # Check robot on space tile (not a wall)
             grid_val = self.get_grid_tile_for_position(robot.pos)
@@ -165,8 +165,8 @@ class World(object):
 
 
 if __name__ == '__main__':
-    grid, goals, starts = get_scenario('scenarios/scenario3.yaml')
-    robots = [Robot(robot_id=i, pos=start) for i, start in enumerate(starts)]
+    grid, goals, starts = get_scenario('dev/scenarios/scenario3.yaml')
+    robots = [Robot(RobotId(i), start_pos) for i, start_pos in enumerate(starts)]
     world = World(grid, robots)
     print(world)
     world.show_grid_ASCII()
