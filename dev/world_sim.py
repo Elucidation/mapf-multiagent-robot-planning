@@ -1,3 +1,4 @@
+import yaml
 from enum import Enum
 from multiagent_utils import *
 from robot import Robot, Action, RobotId
@@ -17,7 +18,7 @@ class EnvType(Enum):
 class World(object):
     """A grid which robots can be placed and moved in."""
 
-    def __init__(self, grid: np.ndarray, robots: List[Robot]):
+    def __init__(self, grid: np.ndarray, robots: List[Robot], item_load_zones: List[Tuple[int, int]] = [], station_zones: List[Tuple[int, int]] = []):
         self.grid = grid
         self.height = self.grid.shape[0]  # Rows
         self.width = self.grid.shape[1]  # Cols
@@ -26,12 +27,36 @@ class World(object):
         self.past_robot_positions: dict = dict()
         self.world_state = True
         self.collision = None
+        self.item_load_zones = item_load_zones
+        self.station_zones = station_zones
+
         self.init_socketio()
         # TODO : Will time out if node socketio server not up yet.
         if self.connect_socketio():
+            # self.send_socketio_message(
+            #     {'test': 'example', 'timestamp': str(datetime.now())})
             self.send_socketio_message(
-                {'test': 'example', 'timestamp': str(datetime.now())})
+                topic='world_sim_update',
+                data=self.get_state_emit_data())
+
             self.sio.disconnect()
+
+    def get_state_emit_data(self):
+        return {
+            'timestamp': str(datetime.now()),
+            't': 0,
+            'grid': self.grid.tolist(),
+            'item_load_positions': [{'x': c, 'y': r} for r, c in self.item_load_zones],
+            'station_positions': [{'x': c, 'y': r} for r, c in self.station_zones],
+            'robots': [r.json_data() for r in self.robots]
+        }
+        # robots: [
+        # Robot { id: 1, pos: [Point], path: [] },
+        # Robot { id: 2, pos: [Point], path: [Array] },
+        # Robot { id: 3, pos: [Point], path: [] }
+        # ],
+        # item_load_positions: [ Point { x: 2, y: 3 }, Point { x: 2, y: 5 }, Point { x: 2, y: 7 } ],
+        # station_positions: [ Point { x: 8, y: 2 }, Point { x: 8, y: 5 }, Point { x: 8, y: 8 } ],
 
     def init_socketio(self):
         self.sio = socketio.Client(logger=True)
@@ -49,16 +74,17 @@ class World(object):
             print("The connection failed!", data)
 
     def connect_socketio(self, address='http://localhost:3000') -> bool:
-        print(self.sio.sid, 'trying to connect to', address)
+        print('Trying to connect to', address)
         try:
             self.sio.connect(address)
+            print('Connected as ', self.sio.sid)
         except socketio.exceptions.ConnectionError:
             return False
         return True
 
-    def send_socketio_message(self, data):
+    def send_socketio_message(self, topic: str, data):
         # Example emit
-        self.sio.emit('update', data)
+        self.sio.emit(topic, data)
         print('Sent message to nodejs')
 
     def add_robot(self, robot: Robot):
@@ -77,7 +103,7 @@ class World(object):
         return self.world_state
 
     def _check_valid_state(self) -> bool:
-        latest_positions: Dict[Tuple[int,int], RobotId] = dict()
+        latest_positions: Dict[Tuple[int, int], RobotId] = dict()
         for robot in self.robots:
             # Check robot on space tile (not a wall)
             grid_val = self.get_grid_tile_for_position(robot.pos)
@@ -164,9 +190,25 @@ class World(object):
         return (f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}')
 
 
+# TODO: Move scenarios to Scenario class
+
+def load_warehouse_yaml(filename: str) -> Tuple[np.ndarray, List[Tuple[int, int]], List[Tuple[int, int]], List[Tuple[int, int]]]:
+    with open(filename, 'r') as f:
+        scenario = yaml.safe_load(f)
+    grid = np.array(scenario['grid'])
+    robot_home_zones = [(int(r), int(c))
+                        for (r, c) in scenario['robot_home_zones']]
+    item_load_zones = [(int(r), int(c))
+                       for (r, c) in scenario['item_load_zones']]
+    station_zones = [(int(r), int(c)) for (r, c) in scenario['station_zones']]
+    return grid, robot_home_zones, item_load_zones, station_zones
+
+
 if __name__ == '__main__':
-    grid, goals, starts = get_scenario('dev/scenarios/scenario3.yaml')
-    robots = [Robot(RobotId(i), start_pos) for i, start_pos in enumerate(starts)]
-    world = World(grid, robots)
+    grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml('dev/warehouses/warehouse1.yaml')
+    # Create robots at start positions
+    robots = [Robot(RobotId(i), start_pos)
+              for i, start_pos in enumerate(robot_home_zones)]
+    world = World(grid, robots, item_load_zones, station_zones)
     print(world)
     world.show_grid_ASCII()

@@ -35,7 +35,9 @@ class Action(Enum):
                 raise Exception(f'Path {change} not allowed')
         return actions
 
+
 RobotId = NewType('RobotId', int)
+
 
 class Robot(object):
     """Robot position and ID"""
@@ -92,6 +94,11 @@ class Robot(object):
 
     def __repr__(self):
         return (f'Robot_{self.id} : {self.pos}')
+
+    def json_data(self):
+        # TODO : get path.
+        r,c = self.pos # x,y = c,r
+        return {'id': self.id, 'pos': {'x': c, 'y': r}, 'path': []}
 
 
 if __name__ == '__main__':

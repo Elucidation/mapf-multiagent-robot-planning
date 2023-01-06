@@ -30,10 +30,10 @@ socket.on('set_world', (/** @type {any} */ msg) => {
 });
 
 socket.on('update', (/** @type {any} */ msg) => {
-  if (!document.hasFocus()) {
-    // Skip Updating visuals when window not in focus
-    return;
-  }
+  // if (!document.hasFocus()) {
+  //   // Skip Updating visuals when window not in focus
+  //   return;
+  // }
   // msg is list of x/y positions [{x:..., y:...}, ...] for each robot
   console.debug('Updating world state', msg);
   updateTime(msg.t);
