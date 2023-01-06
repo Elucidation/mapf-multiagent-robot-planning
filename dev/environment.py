@@ -1,5 +1,6 @@
+from enum import Enum
 from multiagent_utils import *
-from robot import Robot
+from robot import Robot, Action
 
 import numpy as np
 from typing import List, Tuple  # Python 3.8
@@ -59,7 +60,8 @@ class Environment(object):
             # edge conflict
             # If robot is entering previously occupied cell, check if other robot moved on same edge
             if robot.pos in self.past_robot_positions:
-                other_robot = self.get_robot_by_id(self.past_robot_positions[robot.pos])
+                other_robot = self.get_robot_by_id(
+                    self.past_robot_positions[robot.pos])
                 if other_robot == robot:
                     # Same robot, skip
                     continue
@@ -67,11 +69,12 @@ class Environment(object):
                 b1 = other_robot.get_last_action()
 
                 # Check for the two types of edge collisions, left/right and up/down
-                if ((a1 == Actions.LEFT and b1 == Actions.RIGHT) or
-                    (a1 == Actions.RIGHT and b1 == Actions.LEFT) or
-                    (a1 == Actions.UP and b1 == Actions.DOWN) or
-                        (a1 == Actions.DOWN and b1 == Actions.UP)):
-                    print(f'Edge collision [{robot}] {a1} <-> [{other_robot}] {b1}')
+                if ((a1 == Action.LEFT and b1 == Action.RIGHT) or
+                    (a1 == Action.RIGHT and b1 == Action.LEFT) or
+                    (a1 == Action.UP and b1 == Action.DOWN) or
+                        (a1 == Action.DOWN and b1 == Action.UP)):
+                    print(
+                        f'Edge collision [{robot}] {a1} <-> [{other_robot}] {b1}')
                     self.collision = (robot.id, robot.pos, a1,
                                       other_robot.id, other_robot.pos, b1)
                     return False
@@ -105,26 +108,41 @@ class Environment(object):
         return ngrid
 
     def show_grid_ASCII(self):
-
         # Create grid string with walls or spaces
         grid_str = np.full_like(self.grid, '')
         for r in range(self.height):
             for c in range(self.width):
-                char = "W" if self.grid[r, c] == EnvType.WALL else ""
+                char = "W" if self.grid[r, c] == EnvType.WALL else " "
                 grid_str[r, c] += char
 
         # Place robots in grid_str
         for robot in self.robots:
-            grid_str[robot.pos[1], robot.pos[0]] += 'R'
+            r, c = robot.pos
+            grid_str[r, c] = (grid_str[r, c] + 'R').strip()
         print("---")
         # Print grid flipped vertically so up down match
         print(np.flipud(grid_str))
         print("---")
 
     def __repr__(self):
-        return(f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}')
+        return (f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}')
 
+class EnvType(Enum):
+    SPACE = 0
+    WALL = 1
+
+def getGridAsEnvironment(grid):
+    grid = grid.astype(EnvType)
+    grid[grid == 0] = EnvType(0)
+    grid[grid == 1] = EnvType(1)
+    return grid
 
 if __name__ == '__main__':
-    world = Environment(get_scenario_3(), [])
+    grid, goals, starts = get_scenario('scenarios/scenario3.yaml')
+    robots = []
+    for i, start in enumerate(starts):
+        robots.append(Robot(robot_id=i, pos=start))
+    grid = getGridAsEnvironment(grid)
+    world = Environment(grid, robots)
     print(world)
+    world.show_grid_ASCII()

@@ -1,7 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt # type: ignore
-from matplotlib import animation # type: ignore
-from matplotlib.patches import Circle, Rectangle # type: ignore
+import matplotlib.pyplot as plt  # type: ignore
+from matplotlib import animation  # type: ignore
+from matplotlib.patches import Circle, Rectangle  # type: ignore
 import math
 from multiagent_utils import *
 
@@ -12,9 +12,9 @@ class Visualizer():
 
     def __init__(self, grid, starts, goals, paths, fps=15):
         self.grid = grid
-        self.starts = flip_tuple_lists(starts)
-        self.goals = flip_tuple_lists(goals)
-        self.paths = flip_tuple_list_of_lists(paths)
+        self.starts = starts
+        self.goals = goals
+        self.paths = paths
         self.fps = fps
 
         self.fig = plt.figure()
@@ -47,13 +47,13 @@ class Visualizer():
         for i, start in enumerate(self.starts):
             sz = 0.06
             color = self.Colors[i % len(self.Colors)]
-            self.patches.append(Rectangle((start[0] - sz/2, start[1] - sz/2), sz, sz, facecolor=color,
+            self.patches.append(Rectangle((start[1] - sz/2, start[0] - sz/2), sz, sz, facecolor=color,
                                           edgecolor='black', alpha=0.5))
         # Draw goals
         for i, goal in enumerate(self.goals):
             sz = 0.25
             color = self.Colors[i % len(self.Colors)]
-            self.patches.append(Rectangle((goal[0] - sz/2, goal[1] - sz/2), sz, sz, facecolor=color,
+            self.patches.append(Rectangle((goal[1] - sz/2, goal[0] - sz/2), sz, sz, facecolor=color,
                                           edgecolor='black', alpha=0.5))
 
         # Draw paths
@@ -62,7 +62,7 @@ class Visualizer():
         #         continue
         #     path = np.array(path)
         #     color = self.Colors[i % len(self.Colors)]
-        #     self.robot_paths[i] = self.ax.plot(path[:,0], path[:,1],'-', color=color, alpha=0.1, lw=1)
+        #     self.robot_paths[i] = self.ax.plot(path[:,1], path[:,0],'-', color=color, alpha=0.1, lw=1)
 
         # Draw robots
         self.T = 0  # Total steps/time is based on longest path
@@ -71,12 +71,12 @@ class Visualizer():
             start = starts[i]
             color = self.Colors[i % len(self.Colors)]
             self.robots[i] = Circle(
-                (start[0], start[1]), 0.3, facecolor=color, edgecolor='black')
+                (start[1], start[0]), 0.3, facecolor=color, edgecolor='black')
             self.robots[i].original_face_color = color
             self.patches.append(self.robots[i])
             self.T = max(self.T, len(path) - 1)
             self.robot_names[i] = self.ax.text(
-                start[0], start[1], name, color='black')
+                start[1], start[0], name, color='black')
             self.robot_names[i].set_horizontalalignment('center')
             self.robot_names[i].set_verticalalignment('center')
             self.artists.append(self.robot_names[i])
@@ -107,6 +107,8 @@ class Visualizer():
             if not path:
                 continue
             pos = self.interp_pos(frame_number / self.fps, path)
+            # Converting from r,c to x,y for drawing
+            pos = (pos[1], pos[0])
             self.robots[i].center = pos
             self.robot_names[i].set_position(pos)
 
@@ -139,12 +141,15 @@ class Visualizer():
         return (b-a) * (i-int(i)) + a
         # return path[int(i)] # for now just closest point
 
+
 def make_single_robot_path():
     grid, goals, starts = get_scenario('scenarios/scenario1.yaml')
     path = [(1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (3, 4)]
-    visualizer = Visualizer(grid.transpose(), starts, goals, [path])
+
+    visualizer = Visualizer(grid, starts, goals, [path])
     # visualizer.save('astar_single.gif')
     visualizer.show()
+
 
 if __name__ == '__main__':
     # make_single_robot_path()
@@ -152,24 +157,24 @@ if __name__ == '__main__':
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1],
         [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
         [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
         [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
         [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     ])
 
-    starts = [(1, 1), (1, 2), (9, 4)]
-    goals = [(8, 5), (5, 4), (2, 3)]
-    paths = [[(1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (5, 2), (6, 2), (7, 2), (8, 2), (8, 3), (8, 4), (8, 5)],
-             [(1, 2), (2, 2), (3, 2), (4, 2), (5, 2), (5, 3), (5, 4)],
-             [(9, 4), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (2, 3)]]
-    starts = flip_tuple_lists(starts)
-    goals = flip_tuple_lists(goals)
-    paths = flip_tuple_list_of_lists(paths)
+    starts = [(1, 1), (2, 1), (4, 9)]
+    goals = [(5, 8), (4, 5), (3, 2)]
+    paths = [[(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (2, 7), (2, 8), (3, 8), (4, 8), (5, 8)],
+             [(2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (3, 5), (4, 5)],
+             [(4, 9), (4, 8), (3, 8), (2, 8), (2, 7), (2, 6), (2, 5), (2, 4), (2, 3), (2, 2), (3, 2)]]
+    starts = starts
+    goals = goals
+    paths = paths
 
     visualizer = Visualizer(grid, starts, goals, paths)
     # visualizer.save('mapf0.gif')

@@ -312,3 +312,4 @@ if __name__ == '__main__':
     test_single_robot_astar()
     test_MAPF0()
     test_MAPF1()
+    print('Done')
