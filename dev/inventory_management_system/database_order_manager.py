@@ -329,7 +329,7 @@ class DatabaseOrderManager:
         Returns:
             bool: success or failure
         """
-        sql = """SELECT quantity, status FROM "Task" WHERE station_id=? AND item_id=? AND (status='OPEN' OR status='IN_PROGRESS');"""
+        sql = """SELECT quantity FROM "Task" WHERE station_id=? AND item_id=? AND (status='OPEN' OR status='IN_PROGRESS');"""
         new_quantity = quantity
         with self.con:
             c = self.con.cursor()
@@ -339,26 +339,29 @@ class DatabaseOrderManager:
                 logger.info(
                     f'Task {item_id} -> station {station_id} not found, ignoring')
                 return False
-            task_quantity, task_status = row
-            new_quantity = task_quantity - quantity
-            if new_quantity == 0:
-                # Finish task since all items moved
-                new_status = 'COMPLETE'
-            elif new_quantity < 0:
-                # Error task since too many items moved
-                new_status = 'ERROR'
-            else:
-                # Make task available again
-                new_status = 'OPEN'
+            current_quantity = row[0]
+        new_quantity = current_quantity - quantity
+        if new_quantity == 0:
+            # Finish task since all items moved
+            new_status = TaskStatus.COMPLETE
+        elif new_quantity < 0:
+            # Error task since too many items moved
+            new_status = TaskStatus.ERROR
+        else:
+            # Make task available again
+            new_status = TaskStatus.OPEN
         self.update_task(station_id, item_id, new_quantity, new_status)
-        self.update_station(station_id)
+        if new_status == TaskStatus.COMPLETE:
+            # Check if station has any tasks left or update if it's complete
+            self.update_station(station_id)
         return True
 
-    def update_task(self, station_id: int, item_id: int, quantity: int, status: str):
+    def update_task(self, station_id: StationId, item_id: ItemId, quantity: int, status: TaskStatus):
+        """Updates task with new quantity and status."""                
         sql = """UPDATE "Task" SET quantity=?, status=? WHERE station_id=? AND item_id=? AND (status='OPEN' OR status='IN_PROGRESS');"""
         with self.con:
             c = self.con.cursor()
-            c.execute(sql, (quantity, status, station_id, item_id))
+            c.execute(sql, (quantity, status.value, station_id, item_id))
             self.con.commit()
 
     def get_stations_and_tasks(self) -> List[Tuple[Station, List[Task]]]:
