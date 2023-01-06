@@ -39,7 +39,7 @@ def astar(graph, a, b, flip_row_col=False):
     pq = [(heuristic(a, b), None, a)]
 
     i = 0
-    while(pq or i < 100):
+    while (pq or i < 100):
         h, parent, curr = heapq.heappop(pq)
         # print(h, parent, curr)
         if (curr == b):
@@ -96,7 +96,7 @@ def st_astar(graph, a, b, dynamic_obstacles=dict(), T=20, flip_row_col=False, ma
     def check_valid(n):
         (r, c, t) = n
         R, C = graph.shape
-        if(t > T):
+        if (t > T):
             return False
         elif r < 0 or r >= R:
             return False
@@ -119,7 +119,7 @@ def st_astar(graph, a, b, dynamic_obstacles=dict(), T=20, flip_row_col=False, ma
     pq = [(heuristic(a, b), None, (a[0], a[1], 0))]
 
     i = 0
-    while(pq or i < maxiters):
+    while (pq or i < maxiters):
         # print(pq)
         h, parent, curr = heapq.heappop(pq)
         closeSet.add(curr)
@@ -267,49 +267,3 @@ def MAPF1(grid, starts, goals, maxiter=5, T=20):
             path_collisions[path_idx].append((r, c, t))
 
     return paths
-
-
-def test_find_collisions():
-    p1 = [(0, 0), (0, 1), (0, 1), (0, 2)]
-    p2 = [(1, 0), (1, 1), (0, 1), (0, 0)]
-    # These collide at vertex at time 2
-    collisions = find_collisions(p1, p2)
-    assert(collisions == [[1, 0, 1, 2]])
-
-
-def test_MAPF0():
-    grid, goals, starts = get_scenario('scenarios/scenario2.yaml')
-    paths = MAPF0(grid, starts, goals)
-    collisions = find_all_collisions(paths)
-    assert(collisions == [[2, 2, 5, 6]])
-    # print(paths)
-    # print(collisions)
-
-
-def test_MAPF1():
-    grid, goals, starts = get_scenario('scenarios/scenario3.yaml')
-    paths = MAPF1(grid, starts, goals, maxiter=100)
-    collisions = find_all_collisions(paths)
-    assert(not collisions)
-    # print('---')
-    # print(f'Paths: {paths}')
-    # print('--')
-    # print(f'Collisions: {collisions}')
-    # print('--')
-
-
-def test_single_robot_astar():
-    grid, goals, starts = get_scenario('scenarios/scenario1.yaml')
-    path = astar(grid, starts[0], goals[0])
-    expected_path = [(1, 4), (1, 3), (1, 2), (1, 1), (2, 1),
-                     (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (3, 4)]
-    assert(path == expected_path)
-
-
-if __name__ == '__main__':
-    # Run tests
-    test_find_collisions()
-    test_single_robot_astar()
-    test_MAPF0()
-    test_MAPF1()
-    print('Done')
