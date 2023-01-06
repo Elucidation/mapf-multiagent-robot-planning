@@ -24,7 +24,11 @@ app.get('/', (req, res) => {
 
 io.on('connection', (socket) => {
     // Create arbitrary grid and initial robots.
-    io.emit('set_world', world);
+    socket.emit('set_world', world);    
+    socket.on('update', (data) => {
+        // TODO (#16)
+        console.info('Got message', data);
+    })
 });
 
 
@@ -181,7 +185,7 @@ console.log(world);
 //         positions.push({ x: task.item_id, y: task.id })
 //     });
 //     dbm.close_db();
-//     io.emit('update_robots', positions);
+//     socket.emit('update_robots', positions);
 // }
 
 // Update robot positions every second.

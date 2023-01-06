@@ -4,9 +4,9 @@ from robot import Robot, Action
 
 import numpy as np
 from typing import List, Tuple  # Python 3.8
+import socketio
 
-
-class Environment(object):
+class World(object):
     """A grid which robots can be placed and moved in."""
 
     def __init__(self, grid: np.ndarray, robots: List[Robot]):
@@ -18,6 +18,21 @@ class Environment(object):
         self.past_robot_positions: dict = dict()
         self.world_state = True
         self.collision = None
+
+    def setup_socketio(self, address='http://localhost:3000'):
+        self.sio = socketio.Client()
+        @self.sio.event
+        def connect():
+            print('Connected')
+        @self.sio.event
+        def disconnect():
+            print('Disconnected')
+        @self.sio.event
+        def connect_error(data):
+            print("The connection failed!")
+
+        self.sio.connect(address)
+        self.sio.emit('update',{'test':'example'})
 
     def add_robot(self, robot: Robot):
         self.robots_by_id[robot.id] = len(self.robots)
@@ -143,6 +158,6 @@ if __name__ == '__main__':
     for i, start in enumerate(starts):
         robots.append(Robot(robot_id=i, pos=start))
     grid = getGridAsEnvironment(grid)
-    world = Environment(grid, robots)
+    world = World(grid, robots)
     print(world)
     world.show_grid_ASCII()
