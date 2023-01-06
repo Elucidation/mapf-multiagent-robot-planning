@@ -21,11 +21,11 @@ class Order:
         finished: Union[None, str, datetime] = None,
     ):
         self.created_by = created_by
-        
+
         self.created = created
         if type(created) == str:
             self.created = datetime.strptime(created, "%Y-%m-%d %H:%M:%S.%f")
-        
+
         self.description = description
         self.items = Counter(items)
         self.order_id = order_id  # Exists after order added to database
@@ -70,19 +70,34 @@ class Order:
 
     def to_json(self):
         return {
+            "order_id": self.order_id,
+            "items": self.items,
             "created_by": self.created_by,
             "created": self.created,
             "description": self.description,
-            "items": self.items,
             "status": self.status,
-            "order_id": self.order_id,
             "finished": self.finished,
         }
 
     def __repr__(self):
         return f"Order {self.order_id} [{self.status}]: {self.items}"
 
+    def __eq__(self, o: object) -> bool:
+        if type(o) == Order:
+            return (
+                (self.order_id == o.order_id) and
+                (sorted(self.items.items()) == sorted(o.items.items())) and
+                (self.created_by == o.created_by) and
+                (self.created == o.created) and
+                (self.description == o.description) and
+                (self.status == o.status) and
+                (self.finished == o.finished)
+            )
+        else:
+            return NotImplementedError()
+
 
 if __name__ == "__main__":
-    order = Order(description='blah', items=ItemCounter(map(ItemId,[1, 1, 3])), order_id=OrderId(3))
+    order = Order(description='blah', items=ItemCounter(
+        map(ItemId, [1, 1, 3])), order_id=OrderId(3))
     print(order)

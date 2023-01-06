@@ -1,6 +1,5 @@
 import sqlite3 as sl
-from typing import List, Tuple, cast
-import typing
+from typing import List, Tuple
 from datetime import datetime
 from Order import *
 from Station import *
@@ -8,10 +7,20 @@ from TaskStatus import TaskStatus
 from Item import ItemId
 import Item
 from collections import Counter
+import logging
+
+MAIN_DB = "orders.db"
+
+# Set up logging
+logger = logging.getLogger("database_order_manager")
+logger.setLevel(logging.DEBUG)
+log_handler = logging.StreamHandler()
+log_handler.setLevel(logging.DEBUG)
+logger.addHandler(log_handler)
 
 
 class DatabaseOrderManager:
-    """DB Manager for Order interactions"""
+    """Manager for interacting with the Order/Station/Item/Task database"""
 
     def __init__(self, db_filename):
         self.con = sl.connect(db_filename)
@@ -124,11 +133,25 @@ class DatabaseOrderManager:
             self.con.commit()
 
     # TODO: type params
-    def add_order(self, items: ItemCounter, created_by: int, created: datetime, description: str, status: OrderStatus = OrderStatus.OPEN):
+    def add_order(self, items: ItemCounter, created_by: int, created: datetime = None, description: str = "", status: OrderStatus = OrderStatus.OPEN):
+        """Add a new order to the database.
+
+        Args:
+            items (ItemCounter): Counter of Item ids
+            created_by (int): User id (todo: unused)
+            created (datetime, optional): Creation date. Defaults to now.
+            description (str, optional): Order description. Defaults to "".
+            status (OrderStatus, optional): Order status. Defaults to OrderStatus.OPEN.
+
+        Returns:
+            bool: Success or failure to add new order
+        """
         order_sql = 'INSERT INTO "Order" (created_by, created, description, status) values(?, ?, ?, ?)'
         order_item_sql = (
             'INSERT INTO "OrderItem" (order_id, item_id, quantity) values(?, ?, ?)'
         )
+        if created is None:
+            created = datetime.now()  # Use current time if none provided.
         with self.con:
             c = self.con.cursor()
             c.execute(order_sql, (created_by, created,
@@ -237,11 +260,19 @@ class DatabaseOrderManager:
     def clear_station(self, station_id):
         self.assign_order_to_station(None, station_id)
 
-    def assign_order_to_station(self, order_id: OrderId, station_id: StationId):
-        """Assign order to station, and add all tasks of items to station"""
+    def assign_order_to_station(self, order_id: OrderId, station_id: StationId) -> bool:
+        """Assign an order to a station, and add all tasks of items to station. 
+
+        Args:
+            order_id (OrderId): The ID of the order to be assigned.
+            station_id (StationId): The ID of the station to assign the order to.
+
+        Returns:
+            bool: success or failure
+        """
         station_curr_order = self.get_station_order(station_id)
         if order_id != None and station_curr_order != None:
-            print(
+            logger.info(
                 f"Station {station_id} already has an order {station_curr_order}, not assigning order {order_id}")
             return False
 
@@ -288,8 +319,16 @@ class DatabaseOrderManager:
         return row[0]  # station_id
 
     def add_item_to_station(self, station_id: StationId, item_id: ItemId, quantity=1) -> bool:
-        """Updates or Completes Task for adding items to a station.
-        Returns bool on success or failure"""
+        """Add items to a station: Updates or Completes Task and Station associated.
+
+        Args:
+            station_id (StationId): The ID of the station to add the items to.
+            item_id (ItemId): The ID of the item to be added.
+            quantity (int): The number of items to be added.
+
+        Returns:
+            bool: success or failure
+        """
         sql = """SELECT quantity, status FROM "Task" WHERE station_id=? AND item_id=? AND (status='OPEN' OR status='IN_PROGRESS');"""
         new_quantity = quantity
         with self.con:
@@ -297,7 +336,7 @@ class DatabaseOrderManager:
             c.execute(sql, (station_id, item_id))
             row = c.fetchone()
             if row is None:
-                print(
+                logger.info(
                     f'Task {item_id} -> station {station_id} not found, ignoring')
                 return False
             task_quantity, task_status = row
@@ -375,69 +414,5 @@ class DatabaseOrderManager:
             return False
         self.assign_order_to_station(
             order_id=orders[0].order_id, station_id=stations[0].station_id)
-        print(f'Filled {stations[0]} with {orders[0]}')
+        logger.info(f'Filled {stations[0]} with {orders[0]}')
         return True
-
-
-if __name__ == "__main__":
-    dboi = DatabaseOrderManager("test2.db")
-
-    # Since we're testing, clear tables first and start fresh
-    dboi.reset()
-
-    # time.sleep(1)
-
-    for i in range(3):
-        order = dboi.add_order(created_by=1,
-                               created=datetime.now(),
-                               items=ItemCounter(map(ItemId, [1, 2, 2, 4, i])),
-                               description="order with 5 items")
-        # time.sleep(1)
-
-    orders = dboi.get_orders()
-    stations = dboi.get_stations()
-    # time.sleep(1)
-    dboi.assign_order_to_station(OrderId(1), StationId(1))
-    # time.sleep(1)
-    dboi.assign_order_to_station(OrderId(3), StationId(2))
-    # time.sleep(1)
-    stations = dboi.get_stations()
-    print('----')
-    print(f'Orders: {orders}')
-    print(f'Stations: {stations}')
-    print('----')
-
-    # time.sleep(1)
-    dboi.add_item_to_station(StationId(1), ItemId(0), quantity=1)
-    # time.sleep(1)
-    dboi.add_item_to_station(StationId(1), ItemId(1), quantity=1)
-    # time.sleep(1)
-    dboi.add_item_to_station(StationId(1), ItemId(2), quantity=2)
-    # time.sleep(1)
-    dboi.add_item_to_station(StationId(1), ItemId(4), quantity=1)
-    # time.sleep(1)
-
-    dboi.add_item_to_station(StationId(2), ItemId(2), quantity=1)
-    # time.sleep(1)
-    dboi.add_item_to_station(StationId(2), ItemId(2), quantity=1)
-    # dboi.add_item_to_station(StationId(2), ItemId(2), quantity=1)
-    # dboi.add_item_to_station(StationId(2), ItemId(1), quantity=1)
-    # dboi.add_item_to_station(StationId(2), ItemId(4), quantity=1)
-    # time.sleep(1)
-
-    # dboi.complete_order(orders[2].order_id)
-    orders = dboi.get_orders()
-    stations = dboi.get_stations()
-
-    tasks = dboi.get_tasks()
-    incomplete_tasks = [
-        task for task in tasks if task.status != TaskStatus.COMPLETE]
-    # complete_orders = [order for order in orders if order.status == "COMPLETE"]
-
-    print('-----')
-    print(f'Orders: {orders}')
-    print(f'Stations: {stations}')
-    print(f'Tasks: {tasks}')
-    print(f'Incomplete Tasks: {incomplete_tasks}')
-    print('-----')
-    # print(f'Complete orders: {complete_orders}')

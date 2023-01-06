@@ -12,7 +12,7 @@ Also to give reasons for paths, might build an inventory management system with 
 - A* planner / Space-Time A* planner (STA*) / Conflict Based Search (CBS)
 - Matplotlib live visualization + animation
 - sqlite3 database inventory management
-- MQTT message passing using local MQTT broker 
+- ~~MQTT message passing using local MQTT broker~~ *No longer needed*
 
 # Ideation
 

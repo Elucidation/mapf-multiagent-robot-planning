@@ -13,9 +13,6 @@ task_complete_delay = [0.2, 0.6]
 no_task_delay = 5
 
 while True:
-    # TODO(#13): move filling station logic to order processor or similar.
-    dboi.fill_available_station()
-
     # Get task (item X to station Y)
     tasks = dboi.get_tasks(query_status=TaskStatus.OPEN, N=1)
     if len(tasks) == 0:

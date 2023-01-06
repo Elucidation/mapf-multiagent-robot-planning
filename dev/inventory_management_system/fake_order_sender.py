@@ -1,21 +1,17 @@
-import paho.mqtt.client as mqtt  # type: ignore
-import json
 import time
 import random
-from collections import Counter
 from Item import ItemCounter, ItemId
+from database_order_manager import DatabaseOrderManager, MAIN_DB
+import logging
 
-# Using localhost mosquitto MQTT broker (powershell: mosquitto.exe)
-mqttBroker = "localhost"
-client = mqtt.Client("FakeOrderSender")
-client.connect(mqttBroker)
+# Set up logging
+logger = logging.getLogger("fake_order_sender")
+logger.setLevel(logging.DEBUG)
+log_handler = logging.StreamHandler()
+log_handler.setLevel(logging.DEBUG)
+logger.addHandler(log_handler)
 
-# def on_publish(client,userdata,result):
-#     pass
-# client.on_publish = on_publish
-
-
-# client.loop_start() # start on separate thread
+dbm = DatabaseOrderManager(MAIN_DB)
 
 fixed_item_list_options = [
     [1, 1, 2, 3],
@@ -31,25 +27,11 @@ fixed_item_list_options = [
 ]
 
 for i in range(10):
-    print(f"{i} - Sending")
     item_list = ItemCounter(map(ItemId,fixed_item_list_options[i % len(fixed_item_list_options)]))
-
-    # Note, # of items assumed to be low, as total message string length needs to fit MQTT message size max.
-    order_request = {
-        # 'order_id': auto_generated
-        "created_by": 1,  # user id
-        # 'created': auto_generated
-        "destination_id": 1,
-        "description": f"lorem #{i} ipsum",
-        "items": item_list,
-        "status": "OPEN",
-    }
-    order_request_json = json.dumps(order_request)
-    ret = client.publish("order/requests", order_request_json, qos=1)
-    client.loop()
-    ret.wait_for_publish(timeout=1e-6)
-    print(ret)
+    order = dbm.add_order(item_list, created_by=1)
+    logger.info(f'{i} - Added new order {order}')
+    
     delay = random.random() * 1.0  # random 0-5 second delay
-    print(f"waiting {delay} seconds")
+    logger.info(f" waiting {delay:.2f} seconds")
     time.sleep(delay)
 print("Done")
