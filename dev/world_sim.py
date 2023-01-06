@@ -6,6 +6,13 @@ import numpy as np
 from typing import List, Tuple  # Python 3.8
 import socketio  # type: ignore
 
+from datetime import datetime
+
+
+class EnvType(Enum):
+    SPACE = 0
+    WALL = 1
+
 
 class World(object):
     """A grid which robots can be placed and moved in."""
@@ -21,10 +28,13 @@ class World(object):
         self.collision = None
         self.init_socketio()
         # TODO : Will time out if node socketio server not up yet.
-        self.connect_socketio()
+        if self.connect_socketio():
+            self.send_socketio_message(
+                {'test': 'example', 'timestamp': str(datetime.now())})
+            self.sio.disconnect()
 
     def init_socketio(self):
-        self.sio = socketio.Client()
+        self.sio = socketio.Client(logger=True)
 
         @self.sio.event
         def connect():
@@ -36,12 +46,20 @@ class World(object):
 
         @self.sio.event
         def connect_error(data):
-            print("The connection failed!")
+            print("The connection failed!", data)
 
-    def connect_socketio(self, address='http://localhost:3000'):
-        self.sio.connect(address)
+    def connect_socketio(self, address='http://localhost:3000') -> bool:
+        print(self.sio.sid, 'trying to connect to', address)
+        try:
+            self.sio.connect(address)
+        except socketio.exceptions.ConnectionError:
+            return False
+        return True
+
+    def send_socketio_message(self, data):
         # Example emit
-        self.sio.emit('update', {'test': 'example'})
+        self.sio.emit('update', data)
+        print('Sent message to nodejs')
 
     def add_robot(self, robot: Robot):
         self.robots_by_id[robot.id] = len(self.robots)
@@ -50,15 +68,15 @@ class World(object):
     def get_robot_by_id(self, robot_id: int):
         return self.robots[self.robots_by_id[robot_id]]
 
-    def get_grid_tile_for_position(self, pos: Tuple[int, int]):
+    def get_grid_tile_for_position(self, pos: Tuple[int, int]) -> EnvType:
         # row Y, col X
-        return self.grid[pos[1], pos[0]]
+        return EnvType(self.grid[pos[1], pos[0]])
 
-    def get_current_state(self):
+    def get_current_state(self) -> bool:
         # True if valid, false if collision occurred in last step
         return self.world_state
 
-    def _check_valid_state(self):
+    def _check_valid_state(self) -> bool:
         latest_positions = dict()
         for robot in self.robots:
             # Check robot on space tile (not a wall)
@@ -108,7 +126,7 @@ class World(object):
         self.collision = None
         return True
 
-    def step(self):
+    def step(self) -> bool:
         # For every robot in environment, pop an action and apply it
         # check that final state has no robots colliding with walls or
         # each other
@@ -125,18 +143,12 @@ class World(object):
 
         return state_changed
 
-    def get_int_grid(self):
-        ngrid = np.zeros_like(self.grid, dtype=int)
-        ngrid[self.grid == EnvType.WALL] = 1
-        # ngrid[self.grid == EnvType.SPACE] = 0
-        return ngrid
-
     def show_grid_ASCII(self):
         # Create grid string with walls or spaces
-        grid_str = np.full_like(self.grid, '')
+        grid_str = np.full_like(self.grid, dtype=str, fill_value='')
         for r in range(self.height):
             for c in range(self.width):
-                char = "W" if self.grid[r, c] == EnvType.WALL else " "
+                char = "W" if self.grid[r, c] == EnvType.WALL.value else " "
                 grid_str[r, c] += char
 
         # Place robots in grid_str
@@ -152,24 +164,9 @@ class World(object):
         return (f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}')
 
 
-class EnvType(Enum):
-    SPACE = 0
-    WALL = 1
-
-
-def getGridAsEnvironment(grid):
-    grid = grid.astype(EnvType)
-    grid[grid == 0] = EnvType(0)
-    grid[grid == 1] = EnvType(1)
-    return grid
-
-
 if __name__ == '__main__':
     grid, goals, starts = get_scenario('scenarios/scenario3.yaml')
-    robots = []
-    for i, start in enumerate(starts):
-        robots.append(Robot(robot_id=i, pos=start))
-    grid = getGridAsEnvironment(grid)
+    robots = [Robot(robot_id=i, pos=start) for i, start in enumerate(starts)]
     world = World(grid, robots)
     print(world)
     world.show_grid_ASCII()

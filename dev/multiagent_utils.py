@@ -1,8 +1,9 @@
 import numpy as np
 import yaml
+from typing import List, Tuple
 
 # TODO: Move scenarios to Scenario class
-def get_scenario(filename):
+def get_scenario(filename: str) -> Tuple[np.ndarray, List[Tuple[int, int]], List[Tuple[int, int]]]:
     with open(filename, 'r') as f:
         scenario = yaml.safe_load(f)
     grid = np.array(scenario['grid'])
