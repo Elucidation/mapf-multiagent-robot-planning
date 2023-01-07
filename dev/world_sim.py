@@ -1,13 +1,15 @@
+from threading import Thread
 import yaml
 from enum import Enum
 from multiagent_utils import *
 from robot import Robot, Action, RobotId
 
 import numpy as np
-from typing import List, Tuple, Dict  # Python 3.8
+from typing import List, Tuple, Dict, Optional, Any  # Python 3.8
 import socketio  # type: ignore
 
 from datetime import datetime
+from time import sleep
 
 
 class EnvType(Enum):
@@ -22,41 +24,41 @@ class World(object):
         self.grid = grid
         self.height = self.grid.shape[0]  # Rows
         self.width = self.grid.shape[1]  # Cols
-        self.robots = robots
+        self.robots: List[Robot] = []
         self.robots_by_id: dict = dict()
+        for robot in robots:
+            self.add_robot(robot)
+
         self.past_robot_positions: dict = dict()
         self.world_state = True
-        self.collision = None
+        self.collision: Optional[Any] = None
         self.item_load_zones = item_load_zones
         self.station_zones = station_zones
 
+        self.t = 0 # world time T
+        self.ended = False
+
         self.init_socketio()
-        # TODO : Will time out if node socketio server not up yet.
-        if self.connect_socketio():
-            # self.send_socketio_message(
-            #     {'test': 'example', 'timestamp': str(datetime.now())})
-            self.send_socketio_message(
-                topic='world_sim_update',
-                data=self.get_state_emit_data())
 
-            self.sio.disconnect()
+        # Start a thread to try and repeatedly connet to socketio
+        self.thread = self.connect_socketio()
 
-    def get_state_emit_data(self):
+    def get_all_state_data(self):
         return {
             'timestamp': str(datetime.now()),
-            't': 0,
+            't': self.t,
             'grid': self.grid.tolist(),
             'item_load_positions': [{'x': c, 'y': r} for r, c in self.item_load_zones],
             'station_positions': [{'x': c, 'y': r} for r, c in self.station_zones],
             'robots': [r.json_data() for r in self.robots]
         }
-        # robots: [
-        # Robot { id: 1, pos: [Point], path: [] },
-        # Robot { id: 2, pos: [Point], path: [Array] },
-        # Robot { id: 3, pos: [Point], path: [] }
-        # ],
-        # item_load_positions: [ Point { x: 2, y: 3 }, Point { x: 2, y: 5 }, Point { x: 2, y: 7 } ],
-        # station_positions: [ Point { x: 8, y: 2 }, Point { x: 8, y: 5 }, Point { x: 8, y: 8 } ],
+
+    def get_position_update_data(self):
+        return {
+            'timestamp': str(datetime.now()),
+            't': self.t,
+            'robots': [r.json_data() for r in self.robots]
+        }
 
     def init_socketio(self):
         self.sio = socketio.Client(logger=True)
@@ -71,16 +73,24 @@ class World(object):
 
         @self.sio.event
         def connect_error(data):
-            print("The connection failed!", data)
+            print("-Connect error-")
 
-    def connect_socketio(self, address='http://localhost:3000') -> bool:
+    def connect_socketio(self, address='http://localhost:3000') -> Thread:
+        def wait_till_socketio_connected():
+            while not self.ended:
+                try:
+                    self.sio.connect(address)
+                    print('SIO - Connected as ', self.sio.sid)
+                    break
+                except socketio.exceptions.ConnectionError:
+                    if self.ended:
+                        break
+                    print('SIO - No connection yet, Sleeping...')
+                    self.sio.sleep(5)
+
         print('Trying to connect to', address)
-        try:
-            self.sio.connect(address)
-            print('Connected as ', self.sio.sid)
-        except socketio.exceptions.ConnectionError:
-            return False
-        return True
+        thread = self.sio.start_background_task(wait_till_socketio_connected)
+        return thread
 
     def send_socketio_message(self, topic: str, data):
         # Example emit
@@ -166,6 +176,7 @@ class World(object):
             state_changed |= robot.do_next_action()
 
         self.world_state = self._check_valid_state()
+        self.t += 1
 
         return state_changed
 
@@ -189,6 +200,11 @@ class World(object):
     def __repr__(self):
         return (f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}')
 
+    def __del__(self):
+        self.ended = True
+        del self.sio
+        del self.thread
+
 
 # TODO: Move scenarios to Scenario class
 
@@ -205,10 +221,34 @@ def load_warehouse_yaml(filename: str) -> Tuple[np.ndarray, List[Tuple[int, int]
 
 
 if __name__ == '__main__':
-    grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml('dev/warehouses/warehouse1.yaml')
+    grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
+        'dev/warehouses/warehouse1.yaml')
     # Create robots at start positions
     robots = [Robot(RobotId(i), start_pos)
               for i, start_pos in enumerate(robot_home_zones)]
     world = World(grid, robots, item_load_zones, station_zones)
     print(world)
     world.show_grid_ASCII()
+
+    try:
+        first_time = True
+        while True:
+            # Arbitrarily change robot positions
+            print('Main loop ...')
+            world.robots[0].add_action(Action.RIGHT if world.t % 2 == 0 else Action.LEFT)
+            world.step()
+            if world.sio.connected:
+                if first_time:
+                    world.send_socketio_message(
+                        topic='world_sim_static_update',
+                        data=world.get_all_state_data())
+                    first_time = False
+
+                world.send_socketio_message(
+                    topic='world_sim_robot_update',
+                    data=world.get_position_update_data())
+            sleep(10)
+    except KeyboardInterrupt:
+        print('Breaking out')
+        world.ended = True
+        world.sio.disconnect()

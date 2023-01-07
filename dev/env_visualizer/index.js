@@ -25,16 +25,23 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
     // Create arbitrary grid and initial robots.
     socket.emit('set_world', world);
+    socket.emit('update', world);
     
-    // When world_sim.py client emits update
-    socket.on('world_sim_update', (data) => {
+    // When world_sim.py client emits static update t/robots/grid/etc.
+    socket.on('world_sim_static_update', (data) => {
         // TODO (#16)
-        console.info('Got message', data);
+        console.info('Got world_sim_static_update', data.t, data.timestamp);
         world = data;
         io.emit('set_world', data);
-        let pos_data = {t:data.t}
-        pos_data.positions = data.robots.map((r) => r.pos);
-        io.emit('update', pos_data);
+        io.emit('update', data);
+        return true;
+    })
+
+    // When world_sim.py client emits update t/robots
+    socket.on('world_sim_robot_update', (data) => {
+        // TODO (#16)
+        console.info('Got world_sim_robot_update', data.t, data.timestamp);
+        io.emit('update', data);
         return true;
     })
 });
@@ -172,43 +179,3 @@ let world = new World({
     t: 0,
     robots: [r1, r2, r3]
 });
-
-r2.add_path([
-    new Point(3, 5),
-    new Point(4, 5),
-    new Point(5, 5)
-])
-
-console.log(world);
-// let positions = [];
-/**
- * Read X from DB and emit updated robot positions.
- */
-// async function update_latest_robot_positions() {
-//     dbm.open_db();
-//     let tasks = await dbm.get_tasks();
-//     positions = [];
-//     tasks.forEach(task => {
-//         // todo: Arbitrarily create robot position based on task id and item ids.
-//         positions.push({ x: task.item_id, y: task.id })
-//     });
-//     dbm.close_db();
-//     socket.emit('update_robots', positions);
-// }
-
-// Update robot positions every second.
-// let position_timer = setInterval(async () => {
-//     // update_latest_robot_positions();
-//     world.step();
-//     let data = world.get();
-//     io.emit('update', data);
-// }, 1000);
-
-// setTimeout(() => {
-//     r2.add_path([
-//         new Point(5, 5),
-//         new Point(5, 6),
-//         new Point(5, 7),
-//         new Point(5, 8),
-//     ])
-// }, 5000);

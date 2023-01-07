@@ -37,7 +37,8 @@ socket.on('update', (/** @type {any} */ msg) => {
   // msg is list of x/y positions [{x:..., y:...}, ...] for each robot
   console.debug('Updating world state', msg);
   updateTime(msg.t);
-  update_positions(msg.positions);
+  let positions = msg.robots.map((r) => r.pos);
+  update_positions(positions);
 });
 
 // ---------------------------------------------------
