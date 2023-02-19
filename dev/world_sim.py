@@ -1,7 +1,6 @@
 from threading import Thread
 import yaml
 from enum import Enum
-from multiagent_utils import *
 from robot import Robot, Action, RobotId
 
 import numpy as np

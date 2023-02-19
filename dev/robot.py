@@ -1,5 +1,4 @@
 from enum import Enum
-from multiagent_utils import *
 from typing import Tuple, NewType  # Python 3.8
 from collections import deque
 
