@@ -8,6 +8,7 @@ import yaml
 def get_scenario(filename: str) -> tuple[np.ndarray, list[tuple[int, int]], list[tuple[int, int]]]:
     with open(filename, 'r', encoding='utf8') as filestream:
         scenario = yaml.safe_load(filestream)
+    # pylint: disable=redefined-outer-name
     grid = np.array(scenario['grid'])
     goals = [(int(r), int(c)) for (r, c) in scenario['goals']]
     starts = [(int(r), int(c)) for (r, c) in scenario['starts']]

@@ -10,6 +10,7 @@ class Visualizer():
     """System for visualizing and animating env + robot paths."""
     Colors = ['red', 'cyan', 'green', 'orange', 'yellow', 'blue', 'gray']
 
+    # pylint: disable=redefined-outer-name,too-many-locals
     def __init__(self, grid, starts, goals, paths, fps=15):
         self.grid = grid
         self.starts = starts
@@ -45,16 +46,16 @@ class Visualizer():
 
         # Draw starts
         for i, start in enumerate(self.starts):
-            sz = 0.06
+            size = 0.06
             color = self.Colors[i % len(self.Colors)]
-            self.patches.append(Rectangle((start[1] - sz/2, start[0] - sz/2), sz, sz, facecolor=color,
-                                          edgecolor='black', alpha=0.5))
+            self.patches.append(Rectangle(
+                (start[1] - size/2, start[0] - size/2), size, size, facecolor=color, edgecolor='black', alpha=0.5))
         # Draw goals
         for i, goal in enumerate(self.goals):
-            sz = 0.25
+            size = 0.25
             color = self.Colors[i % len(self.Colors)]
-            self.patches.append(Rectangle((goal[1] - sz/2, goal[0] - sz/2), sz, sz, facecolor=color,
-                                          edgecolor='black', alpha=0.5))
+            self.patches.append(Rectangle(
+                (goal[1] - size/2, goal[0] - size/2), size, size, facecolor=color, edgecolor='black', alpha=0.5))
 
         # Draw paths
         # for i, path in enumerate(self.paths):
@@ -65,7 +66,7 @@ class Visualizer():
         #     self.robot_paths[i] = self.ax.plot(path[:,1], path[:,0],'-', color=color, alpha=0.1, lw=1)
 
         # Draw robots
-        self.T = 0  # Total steps/time is based on longest path
+        self.t = 0  # Total steps/time is based on longest path
         for i, path in enumerate(self.paths):
             name = str(i)
             start = starts[i]
@@ -74,22 +75,19 @@ class Visualizer():
                 (start[1], start[0]), 0.3, facecolor=color, edgecolor='black')
             self.robots[i].original_face_color = color
             self.patches.append(self.robots[i])
-            self.T = max(self.T, len(path) - 1)
+            self.t = max(self.t, len(path) - 1)
             self.robot_names[i] = self.ax.text(
                 start[1], start[0], name, color='black')
             self.robot_names[i].set_horizontalalignment('center')
             self.robot_names[i].set_verticalalignment('center')
             self.artists.append(self.robot_names[i])
 
-        # Add timestamp
-        # todo
-
         # Create animation
 
         self.animation = animation.FuncAnimation(self.fig, self.animate,
                                                  init_func=self.init,
                                                  frames=self.fps *
-                                                 (self.T + 1),
+                                                 (self.t + 1),
                                                  interval=10,  # speed
                                                  blit=True)
 
@@ -162,9 +160,6 @@ if __name__ == '__main__':
     paths = [[(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (2, 7), (2, 8), (3, 8), (4, 8), (5, 8)],
              [(2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (3, 5), (4, 5)],
              [(4, 9), (4, 8), (3, 8), (2, 8), (2, 7), (2, 6), (2, 5), (2, 4), (2, 3), (2, 2), (3, 2)]]
-    starts = starts
-    goals = goals
-    paths = paths
 
     visualizer = Visualizer(grid, starts, goals, paths)
     # visualizer.save('mapf0.gif')
