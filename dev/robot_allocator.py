@@ -26,11 +26,7 @@ from Item import ItemId
 
 from robot import Robot, RobotId
 
-import sqlite3 as sl
-
-
-DB_NAME = "robot_task_allocations.db"
-con = sl.connect(DB_NAME)
+from db_robot_task import DatabaseRobotTaskManager
 
 # Checks for any tasks, completes the latest one
 step_delay = [0.2, 0.8]
@@ -48,7 +44,7 @@ def get_world_robots():
 
 robots = get_world_robots()
 
-radb = RobotAllocationDB('robot_allocations.db')
+radb = DatabaseRobotTaskManager()
 
 def find_available_robot():
     # todo, check robot assigned table
