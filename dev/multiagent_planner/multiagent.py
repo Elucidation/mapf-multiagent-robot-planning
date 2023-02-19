@@ -1,5 +1,4 @@
-from multiagent_utils import *
-from robot import *
+from multiagent_utils import get_scenario
 import pathfinding
 from visualizer import Visualizer
 
