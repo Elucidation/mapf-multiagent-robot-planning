@@ -78,12 +78,13 @@ class DatabaseOrderManager:
                     FOREIGN KEY("order_id") REFERENCES "Order"("order_id")
                 );
                 CREATE TABLE IF NOT EXISTS "Task" (
+                    "task_id" INTEGER NOT NULL,
                     "station_id"  INTEGER NOT NULL,
                     "order_id"  INTEGER NOT NULL,
                     "item_id"  INTEGER NOT NULL,
                     "quantity"  INTEGER NOT NULL,
                     "status"   TEXT,
-                    PRIMARY KEY("station_id", "order_id", "item_id"),
+                    PRIMARY KEY("task_id" AUTOINCREMENT),
                     FOREIGN KEY("station_id") REFERENCES "Station"("station_id"),
                     FOREIGN KEY("order_id") REFERENCES "Order"("order_id")
                     FOREIGN KEY("item_id") REFERENCES "Item"("item_id")
