@@ -2,6 +2,7 @@
 import logging
 import sqlite3 as sl
 
+
 class DatabaseRobotTaskManager:
     """Manager for interacting with the Robot/Task Allocation database"""
     DB_NAME = "robot_task_allocations.db"
@@ -42,6 +43,31 @@ class DatabaseRobotTaskManager:
             PRIMARY KEY("allocation_id" AUTOINCREMENT)
             );
             """)
+
+    def get_task(self, task_id):
+        # return task with task_id
+        pass
+
+    def get_current_allocations(self, ):
+        # Return incomplete entries
+        pass
+
+    def set_task_item_picked(self, task_id, state):
+        # Update task_id entry with item_picked = state
+        pass
+
+    def set_task_item_dropped(self, task_id, state):
+        # Update task_id entry with item_dropped = state
+        pass
+
+    def set_task_robot_returned(self, task_id, state):
+        # Update task_id entry with robot_returned = state
+        pass
+
+    def set_task_complete(self, task_id, state):
+        # Update task_id entry with complete = state
+        pass
+
 
 if __name__ == "__main__":
     db_rtm = DatabaseRobotTaskManager()

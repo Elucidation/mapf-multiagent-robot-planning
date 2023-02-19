@@ -34,11 +34,6 @@ task_complete_delay = [0.2, 0.6]
 no_task_delay = 5
 no_robot_delay = 1
 
-class RobotAllocationDB:
-    def __init__(self, db_filename: str):
-        self.db_filename: str = db_filename
-
-
 def get_world_robots():
     return [Robot(RobotId(0), (0, 0))]
 
@@ -54,7 +49,8 @@ robot_task_allocations: list[tuple[Robot, Task]] = [()]
 
 while True:
     ## Check for any finished robot/tasks: make robot open, make task finished
-    for robot,task in robot_task_allocations:
+    allocations = radb.get_current_allocations()
+    for entry in allocations:
         if not task:
             continue
         radb.check_task_state(robot.id, task)
@@ -67,7 +63,7 @@ while True:
     fake_task = Task(StationId(0), OrderId(0), ItemId(0), 1, TaskStatus.OPEN)
     tasks = [fake_task]
     if len(tasks) == 0:
-        print(f'No Tasks at the moment, sleeping 5 seconds')
+        print('No Tasks at the moment, sleeping 5 seconds')
         time.sleep(no_task_delay)
         continue
 

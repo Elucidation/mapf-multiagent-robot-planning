@@ -1,178 +1,201 @@
+"""A* and STA* pathfinding algorithms."""
 import heapq
 from collections import defaultdict
-from multiagent_utils import get_scenario
+from typing import Optional
+
+# Type Aliases
+Position = tuple[int, int]  # (row, col)
+PositionST = tuple[int, int, int]  # (row, col, time)
+Collision = tuple[int, int, int, int]  # (path_idx, row, col, time)
 
 
-def astar(graph, a, b, flip_row_col=False):
+def astar(graph, pos_a: Position, pos_b: Position) -> list[Position]:
+    """A* search through graph from p
+
+    Args:
+        graph (2D np array): The grid to path through
+        pos_a (Position): Start position
+        pos_b (Position): Finish position
+
+    Raises:
+        ValueError: If start/end positions are in walls or out of grid
+
+    Returns:
+        list[Position]: path from start to finish, or empty list.
+    """
     # graph is NxN int array, obstacles are non-zero
-    # a and b are tuple positions (r,c) in graph
-    if flip_row_col:
-        a = (a[1], a[0])
-        b = (b[1], b[0])
+    # pos_a and pos_b are tuple positions (row,col) in graph
 
-    if graph[a[0], a[1]] > 0 or graph[b[0], b[1]] > 0:
-        raise Exception('Start/End locations in walls')
+    if graph[pos_a[0], pos_a[1]] > 0 or graph[pos_b[0], pos_b[1]] > 0:
+        raise ValueError('Start/End locations in walls')
 
-    def heuristic(p1, p2):
-        # return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1]) # manhattan distance
-        return (p1[0] - p2[0])**2 + (p1[1] - p2[1])**2  # squared distance
+    def heuristic(pos_a: Position, pos_b: Position) -> float:
+        # return abs(pos_a[0] - pos_b[0]) + abs(pos_a[1] - pos_b[1]) # manhattan distance
+        # squared distance
+        return (pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2
 
-    def check_valid(n):
-        R, C = graph.shape
-        if n[0] < 0 or n[0] >= R:
+    def check_valid(pos: Position) -> bool:
+        max_row, max_col = graph.shape
+        if pos[0] < 0 or pos[0] >= max_row:
             return False
-        elif n[1] < 0 or n[1] >= C:
+        if pos[1] < 0 or pos[1] >= max_col:
             return False
-        elif graph[n[0], n[1]] > 0:
+        if graph[pos[0], pos[1]] > 0:
             return False
         return True
 
-    closeSet = set()
-    pathTrack = dict()  # coord -> parent
-    pathTrack[a] = None
-    closeSet.add(a)
-
-    path = []
+    close_set = set()
+    path_track: dict[Position, Optional[Position]] = {}  # coord -> parent
+    path_track[pos_a] = None
+    close_set.add(pos_a)
 
     # priority queue via heapq
     # heuristc_score, parent, pos
-    pq = [(heuristic(a, b), None, a)]
+    priority_queue: list[tuple[float, Optional[Position], Position]] = [
+        (heuristic(pos_a, pos_b), None, pos_a)]
 
     i = 0
-    while (pq or i < 100):
-        h, parent, curr = heapq.heappop(pq)
-        # print(h, parent, curr)
-        if (curr == b):
-            # print('Found it!')
+    while (priority_queue or i < 100):
+        _, _, curr = heapq.heappop(priority_queue)
+        if curr == pos_b:
             break
 
-        r, c = curr
-
-        neighbors = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
+        row, col = curr
+        neighbors: list[Position] = [
+            (row-1, col), (row+1, col), (row, col-1), (row, col+1)]
         for neighbor in neighbors:
-            if neighbor not in closeSet and check_valid(neighbor):
-                heapq.heappush(pq, (heuristic(neighbor, b), curr, neighbor))
-                closeSet.add(neighbor)
-                pathTrack[neighbor] = curr
+            if neighbor not in close_set and check_valid(neighbor):
+                new_node = (heuristic(neighbor, pos_b), curr, neighbor)
+                heapq.heappush(priority_queue, new_node)
+                close_set.add(neighbor)
+                path_track[neighbor] = curr
         i += 1
 
-    def get_path(c):
+    def get_path(curr_node):
         path = []
-        while c:
-            if flip_row_col:
-                path.append((c[1], c[0]))
-            else:
-                path.append(c)
-            c = pathTrack[c]
+        while curr_node:
+            path.append(curr_node)
+            curr_node = path_track[curr_node]
 
         return list(reversed(path))
 
     # If path was found
-    if curr == b:
+    if curr == pos_b:
         return get_path(curr)
     # No path found
     return []
 
 
-def st_astar(graph, a, b, dynamic_obstacles=dict(), T=20, flip_row_col=False, maxiters=10000):
-    # space-time astar
-    # graph is NxN int array, obstacles are non-zero
-    # dynamic_obstacles is a dict of (r,c,t) obstacles to avoid
-    # each tile is position
-    # convert to NxNxT loaf (where T = time) with cells as position at a time
-    # a and b are tuple positions (r,c) in graph
-    if flip_row_col:
-        a = (a[1], a[0])
-        b = (b[1], b[0])
+def st_astar(graph, pos_a: Position, pos_b: Position,
+             dynamic_obstacles: dict, max_time=20, maxiters=10000):
+    """Space-Time A* search.
 
-    if graph[a[0], a[1]] > 0 or graph[b[0], b[1]] > 0:
-        raise Exception('Start/End locations in walls')
+    Each tile is position.
+    Look at graph as an NxNxT loaf (where T = time) with cells as position at a time,
+    pos_a and pos_b are tuple positions (row,col) in graph.
 
-    def heuristic(p1, p2):
-        return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])  # manhattan distance
-        # return (p1[0] - p2[0])**2 + (p1[1] - p2[1])**2  # squared distance
+    Args:
+        graph (_type_): NxN int array, obstacles are non-zero
+        pos_a (Position): _description_
+        pos_b (Position): _description_
+        dynamic_obstacles (dict): dict of (row,col,t) obstacles to avoid. Defaults to dict().
+        max_time (int, optional): max time to search up to. Defaults to 20.
+        maxiters (int, optional): _description_. Defaults to 10000.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    if graph[pos_a[0], pos_a[1]] > 0 or graph[pos_b[0], pos_b[1]] > 0:
+        raise ValueError('Start/End locations in walls')
+
+    def heuristic(pos_a: Position, pos_b: Position) -> float:
+        # manhattan distance
+        return abs(pos_a[0] - pos_b[0]) + abs(pos_a[1] - pos_b[1])
+        # return (pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2  # squared distance
         # todo, use true-distance heuristic via backwards search
 
-    def check_valid(n):
-        (r, c, t) = n
-        R, C = graph.shape
-        if (t > T):
+    def check_valid(stpos: PositionST) -> bool:
+        (row, col, t) = stpos
+        max_row, max_col = graph.shape
+        if t > max_time:
             return False
-        elif r < 0 or r >= R:
+        if row < 0 or row >= max_row:
             return False
-        elif c < 0 or c >= C:
+        if col < 0 or col >= max_col:
             return False
-        elif graph[r, c] > 0:
+        if graph[row, col] > 0:
             return False
-        elif n in dynamic_obstacles:
+        if stpos in dynamic_obstacles:
             return False
         return True
 
-    closeSet = set()
-    pathTrack = dict()  # coord -> parent
-    curr = (a[0], a[1], 0)
-    pathTrack[curr] = None
-    closeSet.add(curr)
+    close_set = set()
+    path_track: dict[PositionST, Optional[PositionST]] = {}  # coord -> parent
+    curr: PositionST = (pos_a[0], pos_a[1], 0)
+    path_track[curr] = None
+    close_set.add(curr)
 
     # priority queue via heapq
     # heuristc_score, parent, pos, time
-    pq = [(heuristic(a, b), None, (a[0], a[1], 0))]
+    priority_queue: list[tuple[float, Optional[PositionST], PositionST]] = [
+        (heuristic(pos_a, pos_b), None, (pos_a[0], pos_a[1], 0))]
 
     i = 0
-    while (pq or i < maxiters):
-        # print(pq)
-        h, parent, curr = heapq.heappop(pq)
-        closeSet.add(curr)
-        # print(h, parent, curr)
-        if (curr == (b[0], b[1], T)):
-            # print('Found it!')
+    while (priority_queue or i < maxiters):
+        # print(priority_queue)
+        _, _, curr = heapq.heappop(priority_queue)
+        close_set.add(curr)
+        if curr == (pos_b[0], pos_b[1], max_time):
             break
 
-        r, c, t = curr
+        row, col, t = curr
 
         # next cell one time step forward
-        neighbors = [(r, c, t+1),
-                     (r-1, c, t+1),
-                     (r+1, c, t+1),
-                     (r, c-1, t+1),
-                     (r, c+1, t+1)]
+        neighbors: list[PositionST] = [(row, col, t+1),
+                                       (row-1, col, t+1),
+                                       (row+1, col, t+1),
+                                       (row, col-1, t+1),
+                                       (row, col+1, t+1)]
         for neighbor in neighbors:
-            if neighbor not in closeSet and check_valid(neighbor):
+            if neighbor not in close_set and check_valid(neighbor):
+                new_node: tuple[float, PositionST, PositionST] = (
+                    heuristic(neighbor[:2], pos_b), curr, neighbor)
                 heapq.heappush(
-                    pq, (heuristic(neighbor[:2], b), curr, neighbor))
-                # closeSet.add(neighbor)
-                pathTrack[neighbor] = curr
+                    priority_queue, new_node)
+                # close_set.add(neighbor)
+                path_track[neighbor] = curr
         i += 1
 
-    def get_path(c):
+    def get_path(col):
         path = []
-        while c:
-            if flip_row_col:
-                path.append((c[1], c[0]))
-            else:
-                path.append(c[:2])  # remove time from path
-                # path.append(c)
-            c = pathTrack[c]
+        while col:
+            path.append(col[:2])  # remove time from path
+            col = path_track[col]
 
         return list(reversed(path))
 
     # If path was found
-    if curr[:2] == b:
+    if curr[:2] == pos_b:
         return get_path(curr)
     # No path found
     return []
 
 
-def find_all_collisions(paths):
+def find_all_collisions(paths: list[list[Position]]):
     collisions = []
-    for i in range(len(paths)):
+    for i, path_i in enumerate(paths):
         for j in range(i+1, len(paths)):
-            collisions.extend(find_collisions(paths[i], paths[j], i, j))
+            collisions.extend(find_collisions(path_i, paths[j], label=j))
     return collisions
 
 
-def find_collisions(path1, path2, path1_name=0, path2_name=1):
-    # Find any vertex and edge collisions, and return a list of (path_idx,r,c,t) collisions
+def find_collisions(path1: list[Position],
+                    path2: list[Position], label: int = 1) -> list[Collision]:
+    # Find any vertex and edge collisions, and return a list of (path_idx,row,col,t) collisions
     # for edge collisions, obstacles are for path2 to avoid
 
     # extend shorter path with waits
@@ -187,38 +210,36 @@ def find_collisions(path1, path2, path1_name=0, path2_name=1):
         path2.extend((-diff)*[path2[-1]])
 
     tmax = len(path1)
-    collisions = []  # (path_name,r,c,t)
+    collisions: list[Collision] = []  # (path_name,row,col,t)
     for t in range(tmax):
         # vertex collision
         if path1[t] == path2[t]:
-            collisions.append([path2_name, path1[t][0], path1[t][1], t])
+            collisions.append((label, path1[t][0], path1[t][1], t))
 
         # edge collision, robots swap locations, just add all times
-        if (t-1 >= 0):
-            if path1[t-1] == path2[t] and path1[t] == path2[t-1]:
-                # obstacle for path 2
-                collisions.append([path2_name, path2[t][0], path2[t][1], t])
+        if (t-1 >= 0) and path1[t-1] == path2[t] and path1[t] == path2[t-1]:
+            # obstacle for path 2
+            collisions.append((label, path2[t][0], path2[t][1], t))
 
-                # todo: add dynamic obstacles with path reference
-                # collisions.append([path1[t-1][0], path1[t-1][1], t])
-                # collisions.append([path1[t][0], path1[t][1], t])
+            # todo: add dynamic obstacles with path reference
+            # collisions.append([path1[t-1][0], path1[t-1][1], t])
+            # collisions.append([path1[t][0], path1[t][1], t])
 
     return collisions
 
 
-def MAPF0(grid, starts, goals):
+def mapf0(grid, starts, goals):
     # For several robots with given start/goal locations and a grid
     # Get paths for all, do all as independent
     #  - independent A-star for each as initial paths
     assert len(starts) == len(goals)
     paths = []
-    N = len(starts)
-    for i in range(N):
-        paths.append(astar(grid, starts[i], goals[i]))
+    for i, start in enumerate(starts):
+        paths.append(astar(grid, start, goals[i]))
     return paths
 
 
-def MAPF1(grid, starts, goals, maxiter=5, T=20):
+def mapf1(grid, starts, goals, maxiter=5, max_time=20):
     # For several robots with given start/goal locations and a grid
     # Attempt to find paths for all that don't collide
     # Attempt 1:
@@ -226,35 +247,32 @@ def MAPF1(grid, starts, goals, maxiter=5, T=20):
     #  - check for collisions as dynamic obstacles
     #  - st_astar for paths (priority ordering) that collide until no collisions
     assert len(starts) == len(goals)
-
     paths = []
-    N = len(starts)
-
-    for i in range(N):
-        paths.append(astar(grid, starts[i], goals[i]))
+    for i, start in enumerate(starts):
+        paths.append(astar(grid, start, goals[i]))
 
     collisions = find_all_collisions(paths)
     # dict of collisions per path
     path_collisions = defaultdict(list)
     for collision in collisions:
-        path_idx, r, c, t = collision
-        path_collisions[path_idx].append((r, c, t))
+        path_idx, row, col, t = collision
+        path_collisions[path_idx].append((row, col, t))
 
     if not collisions:
         return paths
 
-    # list of (path_idx, r, c, t)
+    # list of (path_idx, row, col, t)
     for i in range(maxiter):
         # print(f'{i} | Trying to remove collisions: {collisions}')
-        path_idx, r, c, t = collisions[0]
+        path_idx, row, col, t = collisions[0]
 
         # Add all collisions associated with this path
-        # dynamic_obstacles = {(r,c,t) : True}
+        # dynamic_obstacles = {(row,col,t) : True}
         dynamic_obstacles = path_collisions[path_idx]
         # print('Before:')
         # print(paths[path_idx])
         paths[path_idx] = st_astar(
-            grid, starts[path_idx], goals[path_idx], dynamic_obstacles, T=T)
+            grid, starts[path_idx], goals[path_idx], dynamic_obstacles, max_time=max_time)
         # print('After:')
         # print(paths[path_idx])
         collisions = find_all_collisions(paths)
@@ -263,7 +281,7 @@ def MAPF1(grid, starts, goals, maxiter=5, T=20):
 
         # Note: Keeps old dynamic obstacles, not optimal
         for collision in collisions:
-            path_idx, r, c, t = collision
-            path_collisions[path_idx].append((r, c, t))
+            path_idx, row, col, t = collision
+            path_collisions[path_idx].append((row, col, t))
 
     return paths

@@ -1,9 +1,9 @@
+"""Visualizer class for showing animated multiagent plans."""
+import math
 import numpy as np
 import matplotlib.pyplot as plt  # type: ignore
 from matplotlib import animation  # type: ignore
 from matplotlib.patches import Circle, Rectangle  # type: ignore
-import math
-from multiagent_utils import *
 
 
 class Visualizer():
@@ -142,17 +142,7 @@ class Visualizer():
         # return path[int(i)] # for now just closest point
 
 
-def make_single_robot_path():
-    grid, goals, starts = get_scenario('scenarios/scenario1.yaml')
-    path = [(1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (3, 4)]
-
-    visualizer = Visualizer(grid, starts, goals, [path])
-    # visualizer.save('astar_single.gif')
-    visualizer.show()
-
-
 if __name__ == '__main__':
-    # make_single_robot_path()
     grid = np.array([
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
