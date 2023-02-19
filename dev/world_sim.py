@@ -61,17 +61,20 @@ class World(object):
         }
 
     def init_socketio(self):
-        self.sio = socketio.Client(logger=True)
+        # Client sends messages to NodeJs web server
+        self.sio_client = socketio.Client(logger=True)
+        # Server listens for Robot allocator client
+        self.sio_server = socketio.Server(logger=True)
 
-        @self.sio.event
+        @self.sio_client.event
         def connect():
             print('Connected')
 
-        @self.sio.event
+        @self.sio_client.event
         def disconnect():
             print('Disconnected')
 
-        @self.sio.event
+        @self.sio_client.event
         def connect_error(data):
             print("-Connect error-")
 
@@ -79,22 +82,22 @@ class World(object):
         def wait_till_socketio_connected():
             while not self.ended:
                 try:
-                    self.sio.connect(address)
-                    print('SIO - Connected as ', self.sio.sid)
+                    self.sio_client.connect(address)
+                    print('SIO - Connected as ', self.sio_client.sid)
                     break
                 except socketio.exceptions.ConnectionError:
                     if self.ended:
                         break
                     print('SIO - No connection yet, Sleeping...')
-                    self.sio.sleep(5)
+                    self.sio_client.sleep(5)
 
         print('Trying to connect to', address)
-        thread = self.sio.start_background_task(wait_till_socketio_connected)
+        thread = self.sio_client.start_background_task(wait_till_socketio_connected)
         return thread
 
     def send_socketio_message(self, topic: str, data):
         # Example emit
-        self.sio.emit(topic, data)
+        self.sio_client.emit(topic, data)
         print('Sent message to nodejs')
 
     def add_robot(self, robot: Robot):
@@ -202,7 +205,7 @@ class World(object):
 
     def __del__(self):
         self.ended = True
-        del self.sio
+        del self.sio_client
         del self.thread
 
 
@@ -232,12 +235,13 @@ if __name__ == '__main__':
 
     try:
         first_time = True
+        print('Main loop start...')
         while True:
             # Arbitrarily change robot positions
-            print('Main loop ...')
             world.robots[0].add_action(Action.RIGHT if world.t % 2 == 0 else Action.LEFT)
             world.step()
-            if world.sio.connected:
+            print(f'Step {world.t}')
+            if world.sio_client.connected:
                 if first_time:
                     world.send_socketio_message(
                         topic='world_sim_static_update',
@@ -251,4 +255,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print('Breaking out')
         world.ended = True
-        world.sio.disconnect()
+        world.sio_client.disconnect()
