@@ -4,7 +4,7 @@ from collections import deque
 
 
 class Action(Enum):
-    # TODO: Move Actions to Action class
+    """Robot move actions in world and helper methods."""
     WAIT = 0
     UP = 1
     DOWN = 2
@@ -31,7 +31,7 @@ class Action(Enum):
             elif change == (0, 0):
                 actions.append(Action.WAIT)
             else:
-                raise Exception(f'Path {change} not allowed')
+                raise ValueError(f'Path {change} not allowed')
         return actions
 
 
@@ -86,7 +86,7 @@ class Robot(object):
         elif action == Action.WAIT:
             pass
         else:
-            raise Exception(f'Unexpected action {action}')
+            raise ValueError(f'Unexpected action {action}')
 
         self.pos_history.append(self.pos)
         return action != Action.WAIT

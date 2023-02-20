@@ -1,17 +1,21 @@
+"""Simulate world grid and robots, push socket updates to web server."""
 from threading import Thread
-import yaml
 from enum import Enum
-from robot import Robot, Action, RobotId
-
-import numpy as np
 from typing import List, Tuple, Dict, Optional, Any  # Python 3.8
-import socketio  # type: ignore
-
 from datetime import datetime
 from time import sleep
+import numpy as np
+import yaml
+from robot import Robot, Action, RobotId
+import socketio  # type: ignore
+# pylint: disable=redefined-outer-name
+
+
+Position = Tuple[int, int]
 
 
 class EnvType(Enum):
+    """grid labels for obstacles and spaces."""
     SPACE = 0
     WALL = 1
 
@@ -19,7 +23,8 @@ class EnvType(Enum):
 class World(object):
     """A grid which robots can be placed and moved in."""
 
-    def __init__(self, grid: np.ndarray, robots: List[Robot], item_load_zones: List[Tuple[int, int]] = [], station_zones: List[Tuple[int, int]] = []):
+    def __init__(self, grid: np.ndarray, robots: List[Robot],
+                 item_load_zones: List[Position] = [], station_zones: List[Position] = []):
         self.grid = grid
         self.height = self.grid.shape[0]  # Rows
         self.width = self.grid.shape[1]  # Cols
@@ -34,7 +39,7 @@ class World(object):
         self.item_load_zones = item_load_zones
         self.station_zones = station_zones
 
-        self.t = 0 # world time T
+        self.t = 0  # world time T
         self.ended = False
 
         self.init_socketio()
@@ -91,7 +96,8 @@ class World(object):
                     self.sio_client.sleep(5)
 
         print('Trying to connect to', address)
-        thread = self.sio_client.start_background_task(wait_till_socketio_connected)
+        thread = self.sio_client.start_background_task(
+            wait_till_socketio_connected)
         return thread
 
     def send_socketio_message(self, topic: str, data):
@@ -106,7 +112,7 @@ class World(object):
     def get_robot_by_id(self, robot_id: int):
         return self.robots[self.robots_by_id[robot_id]]
 
-    def get_grid_tile_for_position(self, pos: Tuple[int, int]) -> EnvType:
+    def get_grid_tile_for_position(self, pos: Position) -> EnvType:
         # row Y, col X
         return EnvType(self.grid[pos[1], pos[0]])
 
@@ -115,7 +121,7 @@ class World(object):
         return self.world_state
 
     def _check_valid_state(self) -> bool:
-        latest_positions: Dict[Tuple[int, int], RobotId] = dict()
+        latest_positions: Dict[Position, RobotId] = dict()
         for robot in self.robots:
             # Check robot on space tile (not a wall)
             grid_val = self.get_grid_tile_for_position(robot.pos)
@@ -209,9 +215,8 @@ class World(object):
 
 
 # TODO: Move scenarios to Scenario class
-
-def load_warehouse_yaml(filename: str) -> Tuple[np.ndarray, List[Tuple[int, int]], List[Tuple[int, int]], List[Tuple[int, int]]]:
-    with open(filename, 'r') as f:
+def load_warehouse_yaml(filename: str) -> Tuple[np.ndarray, List[Position], List[Position], List[Position]]:
+    with open(filename, 'r', encoding='utf8') as f:
         scenario = yaml.safe_load(f)
     grid = np.array(scenario['grid'])
     robot_home_zones = [(int(r), int(c))
@@ -233,11 +238,13 @@ if __name__ == '__main__':
     world.show_grid_ASCII()
 
     try:
+        # pylint: disable=invalid-name
         first_time = True
         print('Main loop start...')
         while True:
             # Arbitrarily change robot positions
-            world.robots[0].add_action(Action.RIGHT if world.t % 2 == 0 else Action.LEFT)
+            world.robots[0].add_action(
+                Action.RIGHT if world.t % 2 == 0 else Action.LEFT)
             world.step()
             print(f'Step {world.t}')
             if world.sio_client.connected:

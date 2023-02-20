@@ -1,4 +1,4 @@
-# Helper script to create or clear the Robot Task Allocation DB
+"""Helper script to create or clear the Robot Task Allocation DB."""
 import logging
 import sqlite3 as sl
 
@@ -11,7 +11,6 @@ class DatabaseRobotTaskManager:
         self.db_filename = db_filename
         self.con = sl.connect(db_filename)
         self.init_logging()
-        # TODO: need to reset if new db
         self.reset()
 
     def init_logging(self):
