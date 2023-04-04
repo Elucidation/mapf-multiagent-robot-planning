@@ -7,6 +7,7 @@ from time import sleep
 import numpy as np
 import yaml
 from robot import Robot, Action, RobotId
+from world_db import WorldDatabaseManager
 import socketio  # type: ignore
 # pylint: disable=redefined-outer-name
 
@@ -45,7 +46,12 @@ class World(object):
         self.init_socketio()
 
         # Start a thread to try and repeatedly connet to socketio
-        self.thread = self.connect_socketio()
+        # self.thread = self.connect_socketio()
+        
+        world_db_filename = 'world.db' # TODO Move this to config param
+        self.wdb = WorldDatabaseManager(world_db_filename)
+        self.wdb.reset()
+        self.wdb.add_robots(self.robots)
 
     def get_all_state_data(self):
         return {
@@ -186,6 +192,10 @@ class World(object):
         self.world_state = self._check_valid_state()
         self.t += 1
 
+        if state_changed:
+            self.wdb.update_robot_states(self.robots)
+
+        # Return if any robot has moved or not
         return state_changed
 
     def show_grid_ASCII(self):
@@ -211,7 +221,7 @@ class World(object):
     def __del__(self):
         self.ended = True
         del self.sio_client
-        del self.thread
+        # del self.thread
 
 
 # TODO: Move scenarios to Scenario class
@@ -257,8 +267,8 @@ if __name__ == '__main__':
                 world.send_socketio_message(
                     topic='world_sim_robot_update',
                     data=world.get_position_update_data())
-            sleep(10)
+            sleep(1)
     except KeyboardInterrupt:
         print('Breaking out')
         world.ended = True
-        world.sio_client.disconnect()
+        # world.sio_client.disconnect()
