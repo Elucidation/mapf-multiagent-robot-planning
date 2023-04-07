@@ -15,6 +15,7 @@ log_handler = logging.StreamHandler()
 log_handler.setLevel(logging.DEBUG)
 logger.addHandler(log_handler)
 
+# TODO : Add general stats to world like timestamp etc.
 
 class WorldDatabaseManager:
     """DB Manager for world state"""

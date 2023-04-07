@@ -193,7 +193,7 @@ def load_warehouse_yaml(filename: str) -> Tuple[np.ndarray, List[Position], List
 
 if __name__ == '__main__':
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
-        'dev/warehouses/warehouse1.yaml')
+        'warehouses/warehouse1.yaml')
     # Create robots at start positions
     robots = [Robot(RobotId(i), start_pos)
               for i, start_pos in enumerate(robot_home_zones)]

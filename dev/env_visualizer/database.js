@@ -12,7 +12,6 @@ class DatabaseManager {
             if (err) {
                 console.error(err.message);
             }
-            // console.debug('Connected to the database.');
         });
     }
 
@@ -21,7 +20,6 @@ class DatabaseManager {
             if (err) {
                 console.error(err.message);
             }
-            // console.debug('Closed the database connection.');
         })
     }
 
@@ -36,4 +34,40 @@ class DatabaseManager {
     }
 }
 
+/**
+ * Provides accessors to Robot Position Database
+ */
+class RobotDatabaseManager {
+    constructor(path) {
+        this.db_path = path;
+    }
+
+    open_db() {
+        this.db = new sqlite3.Database(this.db_path, sqlite3.OPEN_READONLY, (err) => {
+            if (err) {
+                console.error(err.message);
+            }
+        });
+    }
+
+    close_db() {
+        this.db.close((err) => {
+            if (err) {
+                console.error(err.message);
+            }
+        })
+    }
+
+    async get_robots() {
+        return new Promise((resolve, reject) => {
+            this.db.all("SELECT * FROM Robot", (err, rows) => {
+                if (err)
+                    return reject(err);
+                resolve(rows);
+            });
+        });
+    }
+}
+
 exports.dbm = new DatabaseManager('../inventory_management_system/orders.db');
+exports.robot_dbm = new RobotDatabaseManager('../world.db');

@@ -1,4 +1,4 @@
-// @ts-check 
+// @ts-check
 
 // TODO: Serve a web page that shows a live view of the robots
 // TODO: Show orders too?
@@ -15,31 +15,6 @@ const io = new Server(server);
 const port = process.env.PORT || 3000;
 const yaml = require('js-yaml');
 const fs = require('fs');
-
-
-function load_warehouse(warehouse_path) {
-    /** @type {dict} : Warehouse yaml */
-    const warehouse = yaml.load(fs.readFileSync(warehouse_path, 'utf8'));
-    // Warehouse positions are using row, col units
-    // For Points, we use x/y, x = col, y = row
-
-    let item_load_zones = warehouse.item_load_zones.map(rc => new Point(rc[1], rc[0]));
-    let station_zones = warehouse.station_zones.map(rc => new Point(rc[1], rc[0]));
-    let robots = [];
-    for (let i = 0; i < warehouse.robot_home_zones.length; i++) {
-        const robot_home_zone = warehouse.robot_home_zones[i];
-        robots.push(new Robot({ id: i, pos: new Point(robot_home_zone[1], robot_home_zone[0])}))
-    }
-
-    let world = new World({
-        grid: warehouse.grid,
-        item_load_positions: item_load_zones,
-        station_positions: station_zones,
-        t: 0,
-        robots: robots
-    });
-    return world;
-}
 
 
 app.use(express.static(path.join(__dirname, "www")));
@@ -70,9 +45,9 @@ server.listen(port, () => {
 });
 
 // Task Database (unneeded)
-// const { dbm } = require('./database');
-// dbm.open_db()
-// dbm.get_tasks().then((x) => console.info(x))
+const { robot_dbm } = require('./database');
+robot_dbm.open_db()
+// robot_dbm.get_robots().then((x) => console.info(x))
 
 // World
 
@@ -93,52 +68,32 @@ class Robot {
         this.id = data.id;
         /** @type {Point} Current robot position*/
         this.pos = data.pos;
-        /** @type {Point[]} Current path for robot */
-        this.path = [];
-    }
-
-    step() {
-        // Update position to next point on the path if it exists, 
-        // stay in the same position otherwise.
-        let next_pos = this.path.shift();
-        if (next_pos) {
-            this.pos = next_pos;
-        }
-    }
-
-    add_path(/** @type {Point[]} */ path) {
-        let next_pos = this.pos;
-        if (this.path.length > 0) {
-            next_pos = this.path[-1];
-        }
-        if (!path[0].equals(next_pos)) {
-            console.error('Tried to add path not beginning at current final robot position:', next_pos, path);
-            return;
-        }
-        this.path = this.path.concat(path);
-        console.debug('Added path', path)
     }
 }
 
 class World {
     constructor(data) {
+        // Warehouse data positions are using row, col units
+        // For Points, we use x/y, x = col, y = row
+
         /** @type {number} The current time step (discrete, increments) */
-        this.t = data.t;
+        this.t = 0;
         /** @type {Robot[]} List of robots in this world */
-        this.robots = data.robots;
+        this.robots = [];
+        for (let i = 0; i < data.robot_home_zones.length; i++) {
+            const robot_home_zone = data.robot_home_zones[i];
+            this.robots.push(new Robot({ id: i, pos: new Point(robot_home_zone[1], robot_home_zone[0])}))
+        }
         /** @type {Point[]} Item loading positions in this world */
-        this.item_load_positions = data.item_load_positions;
+        this.item_load_positions = data.item_load_zones.map(rc => new Point(rc[1], rc[0]));
         /** @type {Point[]} Station positions in this world */
-        this.station_positions = data.station_positions;
+        this.station_positions = data.station_zones.map(rc => new Point(rc[1], rc[0]));
         /** @type {number[][]} Grid of world */
         this.grid = data.grid;
     }
 
-    step() {
-        this.robots.forEach(robot => {
-            robot.step();
-        });
-        this.t += 1;
+    static from_yaml(/** @type {string} */ warehouse_path) {
+        return new World(yaml.load(fs.readFileSync(warehouse_path, 'utf8')));
     }
 
     /**
@@ -165,4 +120,21 @@ class World {
 }
 
 
-let world = load_warehouse('../warehouses/warehouse1.yaml')
+let world = World.from_yaml('../warehouses/warehouse1.yaml')
+
+
+// Update robot positions every second
+setInterval(update_robots, 1000); // 1 second
+function update_robots() {
+    robot_dbm.get_robots().then((robots, idx) => {
+        // console.info(x)
+        let msg = {};
+        msg.robots = [];
+        robots.forEach(robot => {
+            let pos = robot.position.split(',').map(c => parseInt(c))
+            msg.robots.push({id:robot.robot_id, pos:{x:pos[0], y:pos[1]}, state:robot.state, held_item_id:robot.held_item_id})
+        });
+        // msg is {robots: [{id, pos},...], t:timestamp}, pos is list of x/y positions [{x:..., y:...}, ...] for each robot}
+        io.emit('update', msg);
+    })
+}
