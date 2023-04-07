@@ -5,7 +5,6 @@
 // TODO: Animate robot motion
 // TODO: socket.io push state updates
 
-// const express = require('express');
 const express = require('express');
 const app = express();
 const http = require('http');
@@ -14,6 +13,34 @@ const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 const port = process.env.PORT || 3000;
+const yaml = require('js-yaml');
+const fs = require('fs');
+
+
+function load_warehouse(warehouse_path) {
+    /** @type {dict} : Warehouse yaml */
+    const warehouse = yaml.load(fs.readFileSync(warehouse_path, 'utf8'));
+    // Warehouse positions are using row, col units
+    // For Points, we use x/y, x = col, y = row
+
+    let item_load_zones = warehouse.item_load_zones.map(rc => new Point(rc[1], rc[0]));
+    let station_zones = warehouse.station_zones.map(rc => new Point(rc[1], rc[0]));
+    let robots = [];
+    for (let i = 0; i < warehouse.robot_home_zones.length; i++) {
+        const robot_home_zone = warehouse.robot_home_zones[i];
+        robots.push(new Robot({ id: i, pos: new Point(robot_home_zone[1], robot_home_zone[0])}))
+    }
+
+    let world = new World({
+        grid: warehouse.grid,
+        item_load_positions: item_load_zones,
+        station_positions: station_zones,
+        t: 0,
+        robots: robots
+    });
+    return world;
+}
+
 
 app.use(express.static(path.join(__dirname, "www")));
 
@@ -27,23 +54,14 @@ io.on('connection', (socket) => {
     socket.emit('set_world', world);
     socket.emit('update', world);
     
-    // When world_sim.py client emits static update t/robots/grid/etc.
-    socket.on('world_sim_static_update', (data) => {
-        // TODO (#16)
-        console.info('Got world_sim_static_update', data.t, data.timestamp);
-        world = data;
-        io.emit('set_world', data);
-        io.emit('update', data);
-        return true;
-    })
-
-    // When world_sim.py client emits update t/robots
-    socket.on('world_sim_robot_update', (data) => {
-        // TODO (#16)
-        console.info('Got world_sim_robot_update', data.t, data.timestamp);
-        io.emit('update', data);
-        return true;
-    })
+    // TODO : Poll the DB containing robot positions and update from that instead
+    // // When world_sim.py client emits update t/robots
+    // socket.on('world_sim_robot_update', (data) => {
+    //     // TODO (#16)
+    //     console.info('Got world_sim_robot_update', data.t, data.timestamp);
+    //     io.emit('update', data);
+    //     return true;
+    // })
 });
 
 
@@ -51,9 +69,10 @@ server.listen(port, () => {
     console.info(`Listening on *:${port}`);
 });
 
-// Database
-const { dbm } = require('./database');
-console.info(dbm)
+// Task Database (unneeded)
+// const { dbm } = require('./database');
+// dbm.open_db()
+// dbm.get_tasks().then((x) => console.info(x))
 
 // World
 
@@ -145,37 +164,5 @@ class World {
     }
 }
 
-let r1 = new Robot({ id: 1, pos: new Point(1, 2) });
-let r2 = new Robot({ id: 2, pos: new Point(3, 5) });
-let r3 = new Robot({ id: 3, pos: new Point(2, 3) });
 
-let grid = [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-]
-
-let item_load_positions = [
-    new Point(2, 3),
-    new Point(2, 5),
-    new Point(2, 7)
-];
-let station_positions = [
-    new Point(8, 2),
-    new Point(8, 5),
-    new Point(8, 8)
-];
-let world = new World({
-    grid: grid,
-    item_load_positions: item_load_positions,
-    station_positions: station_positions,
-    t: 0,
-    robots: [r1, r2, r3]
-});
+let world = load_warehouse('../warehouses/warehouse1.yaml')

@@ -1,5 +1,4 @@
-"""Simulate world grid and robots, push socket updates to web server."""
-from threading import Thread
+"""Simulate world grid and robots, updating DB that web server sees."""
 from enum import Enum
 from typing import List, Tuple, Dict, Optional, Any  # Python 3.8
 from datetime import datetime
@@ -44,9 +43,6 @@ class World(object):
         self.ended = False
 
         self.init_socketio()
-
-        # Start a thread to try and repeatedly connet to socketio
-        # self.thread = self.connect_socketio()
         
         world_db_filename = 'world.db' # TODO Move this to config param
         self.wdb = WorldDatabaseManager(world_db_filename)
@@ -71,45 +67,8 @@ class World(object):
         }
 
     def init_socketio(self):
-        # Client sends messages to NodeJs web server
-        self.sio_client = socketio.Client(logger=True)
-        # Server listens for Robot allocator client
+        # TODO : Server listens for Robot allocator client
         self.sio_server = socketio.Server(logger=True)
-
-        @self.sio_client.event
-        def connect():
-            print('Connected')
-
-        @self.sio_client.event
-        def disconnect():
-            print('Disconnected')
-
-        @self.sio_client.event
-        def connect_error(data):
-            print("-Connect error-")
-
-    def connect_socketio(self, address='http://localhost:3000') -> Thread:
-        def wait_till_socketio_connected():
-            while not self.ended:
-                try:
-                    self.sio_client.connect(address)
-                    print('SIO - Connected as ', self.sio_client.sid)
-                    break
-                except socketio.exceptions.ConnectionError:
-                    if self.ended:
-                        break
-                    print('SIO - No connection yet, Sleeping...')
-                    self.sio_client.sleep(5)
-
-        print('Trying to connect to', address)
-        thread = self.sio_client.start_background_task(
-            wait_till_socketio_connected)
-        return thread
-
-    def send_socketio_message(self, topic: str, data):
-        # Example emit
-        self.sio_client.emit(topic, data)
-        print('Sent message to nodejs')
 
     def add_robot(self, robot: Robot):
         self.robots_by_id[robot.id] = len(self.robots)
@@ -198,7 +157,7 @@ class World(object):
         # Return if any robot has moved or not
         return state_changed
 
-    def show_grid_ASCII(self):
+    def show_grid_ascii(self):
         # Create grid string with walls or spaces
         grid_str = np.full_like(self.grid, dtype=str, fill_value='')
         for r in range(self.height):
@@ -217,11 +176,6 @@ class World(object):
 
     def __repr__(self):
         return (f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}')
-
-    def __del__(self):
-        self.ended = True
-        del self.sio_client
-        # del self.thread
 
 
 # TODO: Move scenarios to Scenario class
@@ -245,30 +199,15 @@ if __name__ == '__main__':
               for i, start_pos in enumerate(robot_home_zones)]
     world = World(grid, robots, item_load_zones, station_zones)
     print(world)
-    world.show_grid_ASCII()
+    world.show_grid_ascii()
 
-    try:
-        # pylint: disable=invalid-name
-        first_time = True
-        print('Main loop start...')
-        while True:
-            # Arbitrarily change robot positions
-            world.robots[0].add_action(
-                Action.RIGHT if world.t % 2 == 0 else Action.LEFT)
-            world.step()
-            print(f'Step {world.t}')
-            if world.sio_client.connected:
-                if first_time:
-                    world.send_socketio_message(
-                        topic='world_sim_static_update',
-                        data=world.get_all_state_data())
-                    first_time = False
-
-                world.send_socketio_message(
-                    topic='world_sim_robot_update',
-                    data=world.get_position_update_data())
-            sleep(1)
-    except KeyboardInterrupt:
-        print('Breaking out')
-        world.ended = True
-        # world.sio_client.disconnect()
+    # pylint: disable=invalid-name
+    first_time = True
+    print('Main loop start...')
+    while True:
+        # Arbitrarily change robot positions
+        world.robots[0].add_action(
+            Action.RIGHT if world.t % 2 == 0 else Action.LEFT)
+        world.step()
+        print(f'Step {world.t}')
+        sleep(1)
