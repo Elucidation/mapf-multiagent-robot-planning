@@ -153,6 +153,8 @@ class World(object):
 
         if state_changed:
             self.wdb.update_robot_states(self.robots)
+        
+        self.wdb.update_timestamp(self.t)
 
         # Return if any robot has moved or not
         return state_changed

@@ -58,6 +58,16 @@ class RobotDatabaseManager {
         })
     }
 
+    async get_timestamp() {
+        return new Promise((resolve, reject) => {
+            this.db.get("SELECT value FROM State WHERE label='timestamp'", (err, row) => {
+                if (err)
+                    return reject(err);
+                resolve(row);
+            });
+        });
+    }
+
     async get_robots() {
         return new Promise((resolve, reject) => {
             this.db.all("SELECT * FROM Robot", (err, rows) => {

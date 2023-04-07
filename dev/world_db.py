@@ -15,8 +15,6 @@ log_handler = logging.StreamHandler()
 log_handler.setLevel(logging.DEBUG)
 logger.addHandler(log_handler)
 
-# TODO : Add general stats to world like timestamp etc.
-
 class WorldDatabaseManager:
     """DB Manager for world state"""
 
@@ -32,6 +30,7 @@ class WorldDatabaseManager:
         self.con.executescript(
             """
             DROP TABLE IF EXISTS "Robot";
+            DROP TABLE IF EXISTS "State";
             """)
 
     def init_tables(self):
@@ -51,6 +50,12 @@ class WorldDatabaseManager:
                 "path"   TEXT DEFAULT "",
                 PRIMARY KEY("robot_id")
             );
+            CREATE TABLE IF NOT EXISTS "State" (
+                "label" TEXT UNIQUE,
+                "value" INTEGER,
+                "string_value" TEXT,
+                PRIMARY KEY("label")
+            );
             """)
     
     def add_robots(self, robots: List[Robot]):
@@ -64,6 +69,13 @@ class WorldDatabaseManager:
         print('add_robots', data)
         sql = """INSERT INTO Robot (robot_id, position) VALUES (?, ?) """
         cursor.executemany(sql, data)
+        self.con.commit()
+    
+    def update_timestamp(self, t: int):
+        cursor = self.con.cursor()
+        print('update_timestamp', t)
+        sql = """REPLACE INTO State (label, value) VALUES ('timestamp', ?)"""
+        cursor.execute(sql, (t,))
         self.con.commit()
     
     def update_robot_states(self, robots: List[Robot]):
@@ -83,4 +95,5 @@ if __name__ == '__main__':
     wdm = WorldDatabaseManager('world.db')
     wdm.reset()
     wdm.add_robots([Robot(RobotId(0),(1,2)), Robot(RobotId(1),(3,5))])
+    wdm.update_timestamp(3)
     

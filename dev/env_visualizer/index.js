@@ -3,7 +3,6 @@
 // TODO: Serve a web page that shows a live view of the robots
 // TODO: Show orders too?
 // TODO: Animate robot motion
-// TODO: socket.io push state updates
 
 const express = require('express');
 const app = express();
@@ -28,15 +27,6 @@ io.on('connection', (socket) => {
     // Create arbitrary grid and initial robots.
     socket.emit('set_world', world);
     socket.emit('update', world);
-    
-    // TODO : Poll the DB containing robot positions and update from that instead
-    // // When world_sim.py client emits update t/robots
-    // socket.on('world_sim_robot_update', (data) => {
-    //     // TODO (#16)
-    //     console.info('Got world_sim_robot_update', data.t, data.timestamp);
-    //     io.emit('update', data);
-    //     return true;
-    // })
 });
 
 
@@ -107,16 +97,6 @@ class World {
             station_positions: this.station_positions
         };
     }
-
-    /**
-     * 
-     * @returns A dict with the current world state {t: time, positions: Point[] of robots}
-     */
-    get() {
-        let data = { t: this.t }
-        data.positions = this.robots.map((r) => r.pos);
-        return data;
-    }
 }
 
 
@@ -126,15 +106,24 @@ let world = World.from_yaml('../warehouses/warehouse1.yaml')
 // Update robot positions every second
 setInterval(update_robots, 1000); // 1 second
 function update_robots() {
-    robot_dbm.get_robots().then((robots, idx) => {
-        // console.info(x)
-        let msg = {};
-        msg.robots = [];
-        robots.forEach(robot => {
+    Promise.all([robot_dbm.get_timestamp(), robot_dbm.get_robots()]).then(data => {
+        let t_db_data = data[0];
+        let robots_db_data = data[1];
+        // Update time
+        world.t = t_db_data.value;
+        
+        // Update robot positions
+        // Unparse "1,2" -> [1,2] for robot positions
+        let robots = []
+        for (let i = 0; i < robots_db_data.length; i++) {
+            const robot = robots_db_data[i];
             let pos = robot.position.split(',').map(c => parseInt(c))
-            msg.robots.push({id:robot.robot_id, pos:{x:pos[0], y:pos[1]}, state:robot.state, held_item_id:robot.held_item_id})
-        });
-        // msg is {robots: [{id, pos},...], t:timestamp}, pos is list of x/y positions [{x:..., y:...}, ...] for each robot}
+            world.robots[i].pos.x = pos[0]
+            world.robots[i].pos.y = pos[1]
+            robots.push({id:robot.robot_id, pos:{x:pos[0], y:pos[1]}, state:robot.state, held_item_id:robot.held_item_id})
+        }
+
+        let msg = {t:world.t, robots:robots}
         io.emit('update', msg);
     })
 }
