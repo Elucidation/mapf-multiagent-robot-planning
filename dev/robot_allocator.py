@@ -53,8 +53,13 @@ world_db_filename = 'world.db' # TODO Move this to config param
 wdb = WorldDatabaseManager(world_db_filename)
 
 # #8 fixed path robot 1 home zone -> item 1 zone -> station 1 zone
+fixed_path_1 = [(1,1),(1,2),(1,3),
+                (2,3),(2,2),(3,2),(4,2),(4,1),(5,1),(6,1),(6,2),(6,3),
+                (6,4),(6,5),(7,5),(8,5),(8,4),(8,3),(8,2),(9,2),(10,2),
+                (10,3),(10,4),(10,5),(10,6),(10,7),
+                (11,7)]
 # paths are in x,y
-wdb.set_robot_path(RobotId(0), [(1,1),(1,2),(1,3),(11,7)])
+wdb.set_robot_path(RobotId(0), fixed_path_1)
 
 # while True:
 #     ## Check for any finished robot/tasks: make robot open, make task finished
