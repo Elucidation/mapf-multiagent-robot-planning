@@ -90,7 +90,7 @@ class WorldDatabaseManager:
 
     def update_robots(self, robots: List[Robot]):
         data = []
-        # Array of tuples ("x,y", robot_id) for each robot
+        # Array of tuples ("[x,y]", robot_id) for each robot
         for robot in robots:
             pos_str = json.dumps(robot.pos)
             path = json.dumps(list(robot.future_path))
@@ -102,13 +102,13 @@ class WorldDatabaseManager:
         self.con.commit()
 
     def _parse_position(self, position_str: str) -> Tuple[int, int]:
-        a, b = json.loads(position_str)
-        return (a, b)
+        x, y = json.loads(position_str)
+        return (x, y) # (x, y) for Robot
 
     def _parse_path(self, path_str: str) -> List[Tuple[int, int]]:
         # Note: invalid path str will fail out on loads.
         path = json.loads(path_str)
-        return [(a, b) for a, b in path]
+        return [(x, y) for x, y in path]
 
     def get_robot(self, robot_id: RobotId) -> Robot:
         cursor = self.con.cursor()

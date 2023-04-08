@@ -52,7 +52,9 @@ def find_available_robot():
 world_db_filename = 'world.db' # TODO Move this to config param
 wdb = WorldDatabaseManager(world_db_filename)
 
-wdb.set_robot_path(RobotId(0), [(1,1),(2,1),(3,1),(4,1)])
+# #8 fixed path robot 1 home zone -> item 1 zone -> station 1 zone
+# paths are in x,y
+wdb.set_robot_path(RobotId(0), [(1,1),(1,2),(1,3),(11,7)])
 
 # while True:
 #     ## Check for any finished robot/tasks: make robot open, make task finished

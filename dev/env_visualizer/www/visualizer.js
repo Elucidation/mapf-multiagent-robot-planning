@@ -109,13 +109,19 @@ function drawBoard(world) {
   context.stroke();
   context.closePath();
 
+  // TODO : redraw when robots go over them.
   // Draw item loading zones
-  // Todo: redraw when robots go over them.
   drawItemZones(world.item_load_positions);
+  // Draw station zones
+  drawStationZones(world.station_positions);
 }
 
 function drawItemZones(zones) {
   zones.forEach((zone) => drawCircle(zone.x, zone.y, /* radius= */ 3, /* fill= */ 'rgb(60, 128, 86)'));
+}
+
+function drawStationZones(zones) {
+  zones.forEach((zone) => drawSquare(zone.x, zone.y, /* side= */ 10, /* fill= */ 'rgb(68, 54, 183)'));
 }
 
 /**
@@ -134,6 +140,27 @@ function drawCircle(gx, gy, radius = 8, fill = "#ff0000") {
   var y = 20 * gy + 10 + 1;
   context.beginPath()
   context.arc(x, y, radius, 0, Math.PI * 2, false);
+  context.fillStyle = fill;
+  context.fill();
+  context.closePath();
+}
+
+/**
+ * Draw square on canvas
+ * @param {number} gx col
+ * @param {number} gy row
+ * @param {number} side side length of square
+ * @param {string} fill color hex
+ */
+function drawSquare(gx, gy, side = 8, fill = "#ff0000") {
+  if (context == null) {
+    console.error('Missing context or canvas elements.');
+    return;
+  }
+  var x = 20 * gx + 10 + 1;
+  var y = 20 * gy + 10 + 1;
+  context.beginPath()
+  context.rect(x-side/2, y-side/2, side, side)
   context.fillStyle = fill;
   context.fill();
   context.closePath();

@@ -101,7 +101,7 @@ class World(object):
             if robot.pos in latest_positions:
                 other_robot = self.get_robot_by_id(latest_positions[robot.pos])
                 a1 = robot.get_last_pos()
-                b1 = other_robot.get_last_action()
+                b1 = other_robot.get_last_pos()
                 self.collision = (robot.id, robot.pos, a1,
                                   other_robot.id, other_robot.pos, b1)
                 return False
@@ -197,9 +197,9 @@ def load_warehouse_yaml(filename: str) -> Tuple[np.ndarray, List[Position], List
 if __name__ == '__main__':
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
         'warehouses/warehouse1.yaml')
-    # Create robots at start positions
-    robots = [Robot(RobotId(i), start_pos)
-              for i, start_pos in enumerate(robot_home_zones)]
+    # Create robots at start positions (r,c) -> (x,y)
+    robots = [Robot(RobotId(i), (c,r))
+              for i, (r, c) in enumerate(robot_home_zones)]
     world = World(grid, robots, item_load_zones, station_zones)
     print(world)
     world.show_grid_ascii()

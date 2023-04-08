@@ -15,7 +15,7 @@ class Robot(object):
         self.held_item_id = held_item_id
         self.state = state
         # Contains future positions
-        self.future_path: deque = deque(path)
+        self.future_path: deque = deque(path) # deque[(x,y), (x,y), ...]
         self.held_item_id = 0
         self.last_pos = None
         self.reset_position_history()
