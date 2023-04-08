@@ -2,39 +2,6 @@ from enum import Enum
 from typing import Tuple, NewType  # Python 3.8
 from collections import deque
 
-
-class Action(Enum):
-    """Robot move actions in world and helper methods."""
-    WAIT = 0
-    UP = 1
-    DOWN = 2
-    LEFT = 3
-    RIGHT = 4
-
-    @staticmethod
-    def convert_path_to_actions(path):
-        # path is a list of tuple r,c indices
-        actions = []
-        for i in range(len(path)-1):
-            change = (path[i+1][0] - path[i][0], path[i+1][1] - path[i][1])
-            # switch r,c to x,y
-            # change = (change[1], change[0])
-
-            if change == (0, 1):
-                actions.append(Action.UP)
-            elif change == (0, -1):
-                actions.append(Action.DOWN)
-            elif change == (-1, 0):
-                actions.append(Action.LEFT)
-            elif change == (1, 0):
-                actions.append(Action.RIGHT)
-            elif change == (0, 0):
-                actions.append(Action.WAIT)
-            else:
-                raise ValueError(f'Path {change} not allowed')
-        return actions
-
-
 RobotId = NewType('RobotId', int)
 
 
@@ -45,8 +12,9 @@ class Robot(object):
         self.id = robot_id
         self.pos = pos  # (X col, Y row)
         self.pos_history: deque = deque(maxlen=10)
-        self.actions: deque = deque()
-        self.last_action = None
+        # Contains future positions
+        self.future_path: deque = deque()
+        self.last_pos = None
         self.reset_position_history()
 
     def reset_position_history(self):
@@ -54,42 +22,35 @@ class Robot(object):
         self.pos_history.clear()
         self.pos_history.append(self.pos)
 
-    def add_action(self, action: Action):
-        self.actions.append(action)
+    def add_path(self, path):
+        # TODO : Verify path is legal (start is last pos) here?
+        self.future_path.extend(path)
 
-    def peek_next_action(self):
-        if not self.actions:
-            return Action.WAIT
-        return self.actions[0]
+    def peek_next_pos(self):
+        if not self.future_path:
+            return None
+        return self.future_path[0]
 
-    def _pop_action(self):
-        # Return action or WAIT if none are there
-        if not self.actions:
-            return Action.WAIT
-        return self.actions.popleft()
+    def _pop_next_pos(self):
+        # Return next position or current if none are there
+        if not self.future_path:
+            return None
+        return self.future_path.popleft()
 
-    def get_last_action(self):
-        return self.last_action
+    def get_last_pos(self):
+        return self.last_pos
 
-    def do_next_action(self):
-        # Returns true if it did an action
-        action = self._pop_action()
-        self.last_action = action
-        if action == Action.UP:
-            self.pos = (self.pos[0], self.pos[1] + 1)
-        elif action == Action.DOWN:
-            self.pos = (self.pos[0], self.pos[1] - 1)
-        elif action == Action.LEFT:
-            self.pos = (self.pos[0] - 1, self.pos[1])
-        elif action == Action.RIGHT:
-            self.pos = (self.pos[0] + 1, self.pos[1])
-        elif action == Action.WAIT:
-            pass
-        else:
-            raise ValueError(f'Unexpected action {action}')
-
+    def move_to_next_position(self):
+        # Returns true/false if a move happened
+        if not self.future_path:
+            return False # Didn't change
+        next_pos = self._pop_next_pos()
+        self.last_pos = self.pos
+        print(self.pos, next_pos)
+        self.pos = next_pos
+        # TODO : Consider adding repeated positions to history?
         self.pos_history.append(self.pos)
-        return action != Action.WAIT
+        return True
 
     def __repr__(self):
         return (f'Robot_{self.id} : {self.pos}')

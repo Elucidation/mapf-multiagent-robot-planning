@@ -5,7 +5,7 @@ from datetime import datetime
 from time import sleep
 import numpy as np
 import yaml
-from robot import Robot, Action, RobotId
+from robot import Robot, RobotId
 from world_db import WorldDatabaseManager
 import socketio  # type: ignore
 # pylint: disable=redefined-outer-name
@@ -91,7 +91,7 @@ class World(object):
             # Check robot on space tile (not a wall)
             grid_val = self.get_grid_tile_for_position(robot.pos)
             if grid_val != EnvType.SPACE:
-                a1 = robot.get_last_action()
+                a1 = robot.get_last_pos()
                 self.collision = (robot.id, robot.pos, a1)
                 return False
 
@@ -100,7 +100,7 @@ class World(object):
             # by building a dict of positions, collision fails out
             if robot.pos in latest_positions:
                 other_robot = self.get_robot_by_id(latest_positions[robot.pos])
-                a1 = robot.get_last_action()
+                a1 = robot.get_last_pos()
                 b1 = other_robot.get_last_action()
                 self.collision = (robot.id, robot.pos, a1,
                                   other_robot.id, other_robot.pos, b1)
@@ -116,21 +116,17 @@ class World(object):
                 if other_robot == robot:
                     # Same robot, skip
                     continue
-                a1 = robot.get_last_action()
-                b1 = other_robot.get_last_action()
-
-                # Check for the two types of edge collisions, left/right and up/down
-                if ((a1 == Action.LEFT and b1 == Action.RIGHT) or
-                    (a1 == Action.RIGHT and b1 == Action.LEFT) or
-                    (a1 == Action.UP and b1 == Action.DOWN) or
-                        (a1 == Action.DOWN and b1 == Action.UP)):
+                a1 = robot.get_last_pos()
+                a2 = robot.pos
+                b1 = other_robot.get_last_pos()
+                b2 = other_robot.pos
+                # Check if robots went directly through each other
+                if ((a1 == b2 and a2 == b1)):
                     print(
-                        f'Edge collision [{robot}] {a1} <-> [{other_robot}] {b1}')
-                    self.collision = (robot.id, robot.pos, a1,
-                                      other_robot.id, other_robot.pos, b1)
+                        f'Edge collision [{robot}] {a1}->{a2} <-> [{other_robot}] {b1}->{b2}')
+                    self.collision = (robot.id, a2, a1,
+                                      other_robot.id, b2, b1)
                     return False
-
-            #     pass # TODO check going through each-other collision
 
         self.collision = None
         return True
@@ -146,7 +142,7 @@ class World(object):
 
         state_changed = False
         for robot in self.robots:
-            state_changed |= robot.do_next_action()
+            state_changed |= robot.move_to_next_position()
 
         self.world_state = self._check_valid_state()
         self.t += 1
@@ -177,7 +173,7 @@ class World(object):
         print("---")
 
     def __repr__(self):
-        return (f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}')
+        return f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}'
 
 
 # TODO: Move scenarios to Scenario class
@@ -208,8 +204,11 @@ if __name__ == '__main__':
     print('Main loop start...')
     while True:
         # Arbitrarily change robot positions
-        world.robots[0].add_action(
-            Action.RIGHT if world.t % 2 == 0 else Action.LEFT)
+        if world.t % 2 == 0:
+            world.robots[0].add_path([(2, 1),])
+        else:
+            world.robots[0].add_path([(1, 1),])
         world.step()
         print(f'Step {world.t}')
+        print(world.robots)
         sleep(1)

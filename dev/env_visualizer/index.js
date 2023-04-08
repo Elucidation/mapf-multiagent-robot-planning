@@ -109,8 +109,10 @@ function update_robots() {
     Promise.all([robot_dbm.get_timestamp(), robot_dbm.get_robots()]).then(data => {
         let t_db_data = data[0];
         let robots_db_data = data[1];
-        // Update time
-        world.t = t_db_data.value;
+        // Update time if exists
+        if (t_db_data) {
+            world.t = t_db_data.value;
+        }
         
         // Update robot positions
         // Unparse "1,2" -> [1,2] for robot positions
