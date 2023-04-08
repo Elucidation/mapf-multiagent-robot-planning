@@ -109,7 +109,7 @@ function drawBoard(world) {
   context.stroke();
   context.closePath();
 
-  // TODO : redraw when robots go over them.
+  // Note: Also redraws every robot Update
   // Draw item loading zones
   drawItemZones(world.item_load_positions);
   // Draw station zones
@@ -194,6 +194,11 @@ var current_positions = [];
  */
 function update_positions(/** @type {Point[]} */ new_positions) {
   current_positions.forEach(pos => clearCircle(pos.x, pos.y));
+
+  // Re-draw station/item zones
+  drawItemZones(world.item_load_positions);
+  drawStationZones(world.station_positions);
+  
   new_positions.forEach(pos => drawCircle(pos.x, pos.y));
   current_positions = new_positions;
 }

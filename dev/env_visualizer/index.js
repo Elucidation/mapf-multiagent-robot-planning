@@ -115,7 +115,6 @@ function update_robots() {
         }
         
         // Update robot positions
-        // Unparse "1,2" -> [1,2] for robot positions
         let robots = []
         for (let i = 0; i < robots_db_data.length; i++) {
             const robot = robots_db_data[i];
