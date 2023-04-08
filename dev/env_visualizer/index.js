@@ -119,7 +119,8 @@ function update_robots() {
         let robots = []
         for (let i = 0; i < robots_db_data.length; i++) {
             const robot = robots_db_data[i];
-            let pos = robot.position.split(',').map(c => parseInt(c))
+            let pos = JSON.parse(robot.position)
+            
             world.robots[i].pos.x = pos[0]
             world.robots[i].pos.y = pos[1]
             robots.push({id:robot.robot_id, pos:{x:pos[0], y:pos[1]}, state:robot.state, held_item_id:robot.held_item_id})

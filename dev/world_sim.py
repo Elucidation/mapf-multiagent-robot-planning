@@ -136,6 +136,8 @@ class World(object):
         # check that final state has no robots colliding with walls or
         # each other
 
+        self.robots = self.wdb.get_robots()
+
         self.past_robot_positions.clear()
         for robot in self.robots:
             self.past_robot_positions[robot.pos] = robot.id
@@ -148,9 +150,12 @@ class World(object):
         self.t += 1
 
         if state_changed:
-            self.wdb.update_robot_states(self.robots)
+            self.wdb.update_robots(self.robots)
         
         self.wdb.update_timestamp(self.t)
+
+        if (state_changed):
+            print(f'Robots moved: {self.robots}')
 
         # Return if any robot has moved or not
         return state_changed
@@ -203,12 +208,6 @@ if __name__ == '__main__':
     first_time = True
     print('Main loop start...')
     while True:
-        # Arbitrarily change robot positions
-        if world.t % 2 == 0:
-            world.robots[0].add_path([(2, 1),])
-        else:
-            world.robots[0].add_path([(1, 1),])
         world.step()
         print(f'Step {world.t}')
-        print(world.robots)
         sleep(1)

@@ -20,6 +20,7 @@ from Station import Task, StationId
 from Order import OrderId
 from TaskStatus import TaskStatus
 from Item import ItemId
+from world_db import WorldDatabaseManager
 
 # db_name = "orders.db"
 # dboi = DatabaseOrderManager(db_name)
@@ -39,75 +40,81 @@ def get_world_robots():
 
 robots = get_world_robots()
 
-radb = DatabaseRobotTaskManager()
+# radb = DatabaseRobotTaskManager()
 
 def find_available_robot():
     # todo, check robot assigned table
     return robots[0]
 
-robot_task_allocations: list[tuple[Robot, Task]] = [()]
-
-while True:
-    ## Check for any finished robot/tasks: make robot open, make task finished
-    allocations = radb.get_current_allocations()
-    for entry in allocations:
-        if not task:
-            continue
-        radb.check_task_state(robot.id, task)
-
-    # Find open task, open robot, assign robot to task
-
-    ## Find open task
-    # Get task (item X to station Y)
-    # tasks = dboi.get_tasks(query_status=TaskStatus.OPEN, N=1)
-    fake_task = Task(StationId(0), OrderId(0), ItemId(0), 1, TaskStatus.OPEN)
-    tasks = [fake_task]
-    if len(tasks) == 0:
-        print('No Tasks at the moment, sleeping 5 seconds')
-        time.sleep(no_task_delay)
-        continue
-
-    task = tasks[0]
-    print(f'Received Task {task}')
-
-    task.status = TaskStatus.IN_PROGRESS
-
-    paths = getPaths(task, robot) # [robot_to_item, item_to_station, station_to_robot_start]
-
-    entry = {
-        'task_id': task,
-        'robot_id': None,
-        'item_id': task.item_id,
-        'station_id': task.station_id,
-        'time_assigned': time.time(),
-        'item_picked_time': None,
-        'item_delivered_time': None,
-        'robot_finished_time': None # Once robot is back home?
-    }
-
-    ## Find available robot
-    robot = find_available_robot()
-    while not robot:
-        time.sleep(no_robot_delay)
-        robot = find_available_robot()
-
-    radb.assign_robot_to_task(task, robot)
+# robot_task_allocations: list[tuple[Robot, Task]] = [()]
 
 
-    ## 
+world_db_filename = 'world.db' # TODO Move this to config param
+wdb = WorldDatabaseManager(world_db_filename)
 
-    # Take 1-5 sec to complete task
-    delay = task_complete_delay[0] + random.random() * \
-        (task_complete_delay[1]-task_complete_delay[0])
-    print(f" waiting {delay} seconds")
-    time.sleep(delay)
+wdb.set_robot_path(RobotId(0), [(1,1),(2,1),(3,1),(4,1)])
 
-    # Submit task complete
-    # dboi.add_item_to_station(task.station_id, task.item_id)
-    task.status = TaskStatus.COMPLETE
-    print(f'Finished {task}')
+# while True:
+#     ## Check for any finished robot/tasks: make robot open, make task finished
+#     allocations = radb.get_current_allocations()
+#     for entry in allocations:
+#         if not task:
+#             continue
+#         radb.check_task_state(robot.id, task)
 
-    # Delay till next task
-    delay = step_delay[0] + random.random() * (step_delay[1]-step_delay[0])
-    print(f" waiting {delay} seconds")
-    time.sleep(delay)
+#     # Find open task, open robot, assign robot to task
+
+#     ## Find open task
+#     # Get task (item X to station Y)
+#     # tasks = dboi.get_tasks(query_status=TaskStatus.OPEN, N=1)
+#     fake_task = Task(StationId(0), OrderId(0), ItemId(0), 1, TaskStatus.OPEN)
+#     tasks = [fake_task]
+#     if len(tasks) == 0:
+#         print('No Tasks at the moment, sleeping 5 seconds')
+#         time.sleep(no_task_delay)
+#         continue
+
+#     task = tasks[0]
+#     print(f'Received Task {task}')
+
+#     task.status = TaskStatus.IN_PROGRESS
+
+#     paths = getPaths(task, robot) # [robot_to_item, item_to_station, station_to_robot_start]
+
+#     entry = {
+#         'task_id': task,
+#         'robot_id': None,
+#         'item_id': task.item_id,
+#         'station_id': task.station_id,
+#         'time_assigned': time.time(),
+#         'item_picked_time': None,
+#         'item_delivered_time': None,
+#         'robot_finished_time': None # Once robot is back home?
+#     }
+
+#     ## Find available robot
+#     robot = find_available_robot()
+#     while not robot:
+#         time.sleep(no_robot_delay)
+#         robot = find_available_robot()
+
+#     radb.assign_robot_to_task(task, robot)
+
+
+#     ## 
+
+#     # Take 1-5 sec to complete task
+#     delay = task_complete_delay[0] + random.random() * \
+#         (task_complete_delay[1]-task_complete_delay[0])
+#     print(f" waiting {delay} seconds")
+#     time.sleep(delay)
+
+#     # Submit task complete
+#     # dboi.add_item_to_station(task.station_id, task.item_id)
+#     task.status = TaskStatus.COMPLETE
+#     print(f'Finished {task}')
+
+#     # Delay till next task
+#     delay = step_delay[0] + random.random() * (step_delay[1]-step_delay[0])
+#     print(f" waiting {delay} seconds")
+#     time.sleep(delay)
