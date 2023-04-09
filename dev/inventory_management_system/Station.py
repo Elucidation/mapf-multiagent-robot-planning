@@ -3,6 +3,7 @@ from Order import OrderId
 from Item import ItemId
 from TaskStatus import TaskStatus
 StationId = NewType('StationId', int)
+TaskId = NewType('TaskId', int)
 
 
 class Station():
@@ -33,7 +34,8 @@ class Station():
 class Task():
     """Tasks are directives of Item X to Station Y"""
 
-    def __init__(self, station_id: StationId, order_id: OrderId, item_id: ItemId, quantity: int, status: TaskStatus):
+    def __init__(self, task_id: TaskId, station_id: StationId, order_id: OrderId, item_id: ItemId, quantity: int, status: TaskStatus):
+        self.task_id = task_id
         self.station_id = station_id
         self.order_id = order_id
         self.item_id = item_id
@@ -47,4 +49,4 @@ class Task():
         return self.status == TaskStatus.ERROR
 
     def __repr__(self):
-        return f'Task [{self.status}]: Item {self.item_id}x{self.quantity} to Station {self.station_id}'
+        return f'Task {self.task_id} [{self.status}]: Item {self.item_id}x{self.quantity} to Station {self.station_id}'

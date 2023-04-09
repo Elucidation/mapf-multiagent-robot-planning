@@ -377,11 +377,11 @@ class DatabaseOrderManager:
         """Return incomplete tasks associated with a station"""
         c = self.con.cursor()
         c.execute(
-            'SELECT station_id, order_id, item_id, quantity, status FROM "Task" WHERE station_id=? LIMIT 0, ?', (station_id, N))
+            'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE station_id=? LIMIT 0, ?', (station_id, N))
         tasks = []
         for row in c.fetchall():
-            (station_id, order_id, item_id, quantity, status) = row
-            task = Task(station_id=StationId(station_id), order_id=OrderId(order_id), item_id=ItemId(item_id),
+            (task_id, station_id, order_id, item_id, quantity, status) = row
+            task = Task(TaskId(task_id), station_id=StationId(station_id), order_id=OrderId(order_id), item_id=ItemId(item_id),
                         quantity=quantity, status=TaskStatus(status))
             if not task.is_complete():
                 tasks.append(task)
@@ -391,15 +391,15 @@ class DatabaseOrderManager:
         c = self.con.cursor()
         if query_status:
             c.execute(
-                'SELECT station_id, order_id, item_id, quantity, status FROM "Task" WHERE status=? LIMIT 0, ?', (str(query_status), N))
+                'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE status=? LIMIT 0, ?', (str(query_status), N))
         else:
             c.execute(
-                'SELECT station_id, order_id, item_id, quantity, status FROM "Task" LIMIT 0, ?', (N,))
+                'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" LIMIT 0, ?', (N,))
 
         tasks = []
         for row in c.fetchall():
-            (station_id, order_id, item_id, quantity, status) = row
-            task = Task(StationId(station_id), OrderId(order_id),
+            (task_id, station_id, order_id, item_id, quantity, status) = row
+            task = Task(TaskId(task_id), StationId(station_id), OrderId(order_id),
                         ItemId(item_id), quantity, TaskStatus(status))
             tasks.append(task)
         return tasks
