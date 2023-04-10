@@ -212,6 +212,16 @@ class DatabaseOrderManager:
 
         return stations
 
+    def get_station(self, station_id: StationId) -> Optional[Station]:
+        # Get station by id if it exists.
+        result = self.con.execute(
+            'SELECT station_id, order_id FROM "Station" WHERE station_id = ? LIMIT 1', (station_id,))
+        row = result.fetchone()
+        if not row:
+            return None
+        (station_id, order_id) = row
+        return Station(station_id, order_id)
+
     def get_stations(self, limit_rows: int = 49999) -> List[Station]:
         # A limited number of stations, so get them all at once
         result = self.con.execute(
@@ -233,7 +243,7 @@ class DatabaseOrderManager:
     def complete_order(self, order_id):
         self.set_order_status(order_id, "COMPLETE")
 
-    def update_station(self, station_id: StationId) -> bool:
+    def _update_station(self, station_id: StationId) -> bool:
         """Check if station has any uncomplete tasks. 
         If all tasks are complete, complete the station order
         returns bool if station is cleared"""
@@ -289,17 +299,17 @@ class DatabaseOrderManager:
         # Returns order ID assigned to station or None if station is empty/available
         result = self.con.execute(
             'SELECT order_id FROM "Station" WHERE station_id=? LIMIT 1', (station_id,))
-        if not result:
-            return None
         row = result.fetchone()
+        if not row:
+            return None
         return row[0]  # order_id
 
     def get_station_with_order_id(self, order_id : OrderId) -> Optional[StationId]:
         # Returns station ID assigned to station or None if station is empty/available
         result = self.con.execute('SELECT station_id FROM "Station" WHERE order_id=?', (order_id,))
-        if not result:
-            return None
         row = result.fetchone()
+        if not row:
+            return None
         return row[0]  # station_id
 
     def add_item_to_station(self, station_id: StationId, item_id: ItemId, quantity=1) -> bool:
@@ -337,7 +347,7 @@ class DatabaseOrderManager:
         self.update_task(station_id, item_id, new_quantity, new_status)
         if new_status == TaskStatus.COMPLETE:
             # Check if station has any tasks left or update if it's complete
-            self.update_station(station_id)
+            self._update_station(station_id)
         return True
 
     def update_task(self, station_id: StationId, item_id: ItemId, quantity: int, status: TaskStatus):
