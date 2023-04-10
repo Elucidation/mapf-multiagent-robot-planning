@@ -26,7 +26,6 @@ class DatabaseOrderManager:
 
     def __init__(self, db_filename):
         self.con = sl.connect(db_filename)
-        # TODO: need to reset if new db
 
     def reset(self):
         self.delete_tables()
@@ -46,53 +45,50 @@ class DatabaseOrderManager:
         )
 
     def init_tables(self):
-        with self.con:
-            self.con.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS "Order" (
-                    "order_id"  INTEGER NOT NULL UNIQUE,
-                    "created_by"    INTEGER NOT NULL,
-                    "created" INTEGER NOT NULL,
-                    "finished" INTEGER,
-                    "description"   TEXT,
-                    "status"   TEXT,
-                    PRIMARY KEY("order_id")
-                );
-                CREATE TABLE IF NOT EXISTS "Item" (
-                    "item_id"  INTEGER NOT NULL UNIQUE,
-                    "name"   TEXT NOT NULL,
-                    "description"   TEXT,
-                    "color"   TEXT,
-                    PRIMARY KEY("item_id")
-                );
-                CREATE TABLE IF NOT EXISTS "OrderItem" (
-                    "order_id"  INTEGER NOT NULL,
-                    "item_id"  INTEGER NOT NULL,
-                    "quantity"  INTEGER NOT NULL DEFAULT 1,
-                    PRIMARY KEY("order_id", "item_id"),
-                    FOREIGN KEY("order_id") REFERENCES "Order"("order_id"),
-                    FOREIGN KEY("item_id") REFERENCES "Item"("item_id")
-                );
-                CREATE TABLE IF NOT EXISTS "Station" (
-                    "station_id"  INTEGER NOT NULL UNIQUE,
-                    "order_id"  INTEGER,
-                    PRIMARY KEY("station_id"),
-                    FOREIGN KEY("order_id") REFERENCES "Order"("order_id")
-                );
-                CREATE TABLE IF NOT EXISTS "Task" (
-                    "task_id" INTEGER NOT NULL,
-                    "station_id"  INTEGER NOT NULL,
-                    "order_id"  INTEGER NOT NULL,
-                    "item_id"  INTEGER NOT NULL,
-                    "quantity"  INTEGER NOT NULL,
-                    "status"   TEXT,
-                    PRIMARY KEY("task_id" AUTOINCREMENT),
-                    FOREIGN KEY("station_id") REFERENCES "Station"("station_id"),
-                    FOREIGN KEY("order_id") REFERENCES "Order"("order_id")
-                    FOREIGN KEY("item_id") REFERENCES "Item"("item_id")
-                );
-                """
-            )
+        self.con.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS "Order" (
+                "order_id"  INTEGER NOT NULL UNIQUE,
+                "created_by"    INTEGER NOT NULL,
+                "created" INTEGER NOT NULL,
+                "finished" INTEGER,
+                "description"   TEXT,
+                "status"   TEXT,
+                PRIMARY KEY("order_id")
+            );
+            CREATE TABLE IF NOT EXISTS "Item" (
+                "item_id"  INTEGER NOT NULL UNIQUE,
+                "name"   TEXT NOT NULL,
+                "description"   TEXT,
+                "color"   TEXT,
+                PRIMARY KEY("item_id")
+            );
+            CREATE TABLE IF NOT EXISTS "OrderItem" (
+                "order_id"  INTEGER NOT NULL,
+                "item_id"  INTEGER NOT NULL,
+                "quantity"  INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY("order_id", "item_id"),
+                FOREIGN KEY("order_id") REFERENCES "Order"("order_id"),
+                FOREIGN KEY("item_id") REFERENCES "Item"("item_id")
+            );
+            CREATE TABLE IF NOT EXISTS "Station" (
+                "station_id"  INTEGER NOT NULL UNIQUE,
+                "order_id"  INTEGER,
+                PRIMARY KEY("station_id"),
+                FOREIGN KEY("order_id") REFERENCES "Order"("order_id")
+            );
+            CREATE TABLE IF NOT EXISTS "Task" (
+                "task_id" INTEGER NOT NULL,
+                "station_id"  INTEGER NOT NULL,
+                "order_id"  INTEGER NOT NULL,
+                "item_id"  INTEGER NOT NULL,
+                "quantity"  INTEGER NOT NULL,
+                "status"   TEXT,
+                PRIMARY KEY("task_id" AUTOINCREMENT),
+                FOREIGN KEY("station_id") REFERENCES "Station"("station_id"),
+                FOREIGN KEY("order_id") REFERENCES "Order"("order_id")
+                FOREIGN KEY("item_id") REFERENCES "Item"("item_id")
+            );""")
 
     @staticmethod
     def get_db_order_tuple(order: Order):
@@ -118,25 +114,18 @@ class DatabaseOrderManager:
 
     def init_items(self):
         item_names = get_item_names()
-        item_sql = (
-            'INSERT INTO "Item" (name) values(?)'
-        )
+        item_sql = 'INSERT INTO "Item" (name) values(?)'
         item_name_data = list(map(lambda item_name: (item_name,), item_names))
-        with self.con:
-            c = self.con.cursor()
-            self.con.executemany(item_sql, item_name_data)
-            self.con.commit()
+        self.con.executemany(item_sql, item_name_data)
 
     def add_station(self):
         self.con.commit()
         sql = 'INSERT INTO "Station" DEFAULT VALUES;'
-        with self.con:
-            c = self.con.cursor()
-            c.execute(sql)
-            self.con.commit()
+        self.con.execute(sql)
 
-    # TODO: type params
-    def add_order(self, items: ItemCounter, created_by: int, created: Optional[datetime] = None, description: str = "", status: OrderStatus = OrderStatus.OPEN):
+    def add_order(self, items: ItemCounter, created_by: int,
+                  created: Optional[datetime] = None, description: str = "",
+                  status: OrderStatus = OrderStatus.OPEN) -> Order:
         """Add a new order to the database.
 
         Args:
@@ -149,18 +138,19 @@ class DatabaseOrderManager:
         Returns:
             bool: Success or failure to add new order
         """
-        order_sql = 'INSERT INTO "Order" (created_by, created, description, status) values(?, ?, ?, ?)'
+        order_sql = (
+            'INSERT INTO "Order" (created_by, created, description, status) values(?, ?, ?, ?)')
         order_item_sql = (
             'INSERT INTO "OrderItem" (order_id, item_id, quantity) values(?, ?, ?)'
         )
         if created is None:
             created = datetime.now()  # Use current time if none provided.
         with self.con:
-            c = self.con.cursor()
-            c.execute(order_sql, (created_by, created,
-                      description, str(status)))
+            cur = self.con.cursor()
+            cur.execute(order_sql, (created_by, created,
+                                    description, str(status)))
             # Get row_id/primary key id of last insert by this cursor
-            order_id = OrderId(c.lastrowid)
+            order_id = OrderId(cur.lastrowid)
             self.con.executemany(
                 order_item_sql, self.get_db_order_items_tuples(order_id, items)
             )
@@ -173,17 +163,17 @@ class DatabaseOrderManager:
             items=items,
         )
 
-    def get_orders(self, N: int = 49999, status=None) -> List[Order]:
-        c = self.con.cursor()
+    def get_orders(self, limit_rows: int = 49999, status=None) -> List[Order]:
+        cur = self.con.cursor()
         # order_id,created_by,created,finished,description,status
         if status:
-            c.execute(
-                'SELECT * FROM "Order" WHERE status=? LIMIT 0, ?', (status, N))
+            cur.execute(
+                'SELECT * FROM "Order" WHERE status=? LIMIT ?', (status, limit_rows))
         else:
-            c.execute('SELECT * FROM "Order" LIMIT 0, ?', (N,))
+            cur.execute('SELECT * FROM "Order" LIMIT ?', (limit_rows,))
         orders = []
         while True:
-            row = c.fetchone()
+            row = cur.fetchone()
             if row is None:
                 break
 
@@ -203,33 +193,31 @@ class DatabaseOrderManager:
 
     def get_items_for_order(self, order_id: int) -> ItemCounter:
         """Returns Counter of {item_id : quantity} """
-        c = self.con.cursor()
-        c.execute(
+        result = self.con.execute(
             'SELECT order_id, item_id, quantity FROM "OrderItem" WHERE order_id=?', (order_id,))
         items: Counter = Counter()
-        for _, item_id, quantity in c.fetchall():
+        for _, item_id, quantity in result:
             items[ItemId(item_id)] += quantity
         return items
 
-    def get_available_stations(self, N=49999):
-        c = self.con.cursor()
+    def get_available_stations(self, limit_rows=49999):
         # Find stations with unset order_id (ie. available)
-        c.execute(
-            'SELECT * FROM "Station" WHERE order_id IS ? LIMIT 0, ?', (None, N))
+        result = self.con.execute(
+            'SELECT * FROM "Station" WHERE order_id IS ? LIMIT ?', (None, limit_rows))
         stations = []
-        for row in c.fetchall():
+        for row in result:
             (station_id, order_id) = row
             station = Station(station_id, order_id)
             stations.append(station)
 
         return stations
 
-    def get_stations(self, N: int = 49999) -> List[Station]:
-        c = self.con.cursor()
+    def get_stations(self, limit_rows: int = 49999) -> List[Station]:
         # A limited number of stations, so get them all at once
-        c.execute('SELECT station_id, order_id FROM "Station" LIMIT 0, ?', (N,))
+        result = self.con.execute(
+            'SELECT station_id, order_id FROM "Station" LIMIT ?', (limit_rows,))
         stations = []
-        for row in c.fetchall():
+        for row in result:
             (station_id, order_id) = row
             station = Station(station_id, order_id)
             stations.append(station)
@@ -237,10 +225,7 @@ class DatabaseOrderManager:
 
     def set_order_status(self, order_id, status):
         sql = """UPDATE "Order" SET finished=?, status=? WHERE order_id=?;"""
-        with self.con:
-            c = self.con.cursor()
-            c.execute(sql, (datetime.now(), status, order_id))
-            self.con.commit()
+        self.con.execute(sql, (datetime.now(), status, order_id))
 
     def set_order_in_progress(self, order_id):
         self.set_order_status(order_id, "IN_PROGRESS")
@@ -274,7 +259,7 @@ class DatabaseOrderManager:
             bool: success or failure
         """
         station_curr_order = self.get_station_order(station_id)
-        if order_id != None and station_curr_order != None:
+        if (order_id is not None) and (station_curr_order is not None):
             logger.info(
                 f"Station {station_id} already has an order {station_curr_order}, not assigning order {order_id}")
             return False
@@ -306,7 +291,7 @@ class DatabaseOrderManager:
         # Returns order ID assigned to station or None if station is empty/available
         c = self.con.cursor()
         c.execute(
-            'SELECT order_id FROM "Station" WHERE station_id=?', (station_id,))
+            'SELECT order_id FROM "Station" WHERE station_id=? LIMIT 1', (station_id,))
         row = c.fetchone()
         if row is None:
             return None
@@ -314,11 +299,10 @@ class DatabaseOrderManager:
 
     def get_station_with_order_id(self, order_id):
         # Returns station ID assigned to station or None if station is empty/available
-        c = self.con.cursor()
-        c.execute('SELECT station_id FROM "Station" WHERE order_id=?', (order_id,))
-        row = c.fetchone()
-        if row is None:
+        result = self.con.execute('SELECT station_id FROM "Station" WHERE order_id=?', (order_id,))
+        if not result:
             return None
+        row = result[0]
         return row[0]  # station_id
 
     def add_item_to_station(self, station_id: StationId, item_id: ItemId, quantity=1) -> bool:
@@ -379,7 +363,7 @@ class DatabaseOrderManager:
         """Return incomplete tasks associated with a station"""
         c = self.con.cursor()
         c.execute(
-            'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE station_id=? LIMIT 0, ?', (station_id, N))
+            'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE station_id=? LIMIT ?', (station_id, N))
         tasks = []
         for row in c.fetchall():
             (task_id, station_id, order_id, item_id, quantity, status) = row
@@ -393,10 +377,10 @@ class DatabaseOrderManager:
         c = self.con.cursor()
         if query_status:
             c.execute(
-                'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE status=? LIMIT 0, ?', (str(query_status), N))
+                'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE status=? LIMIT ?', (str(query_status), N))
         else:
             c.execute(
-                'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" LIMIT 0, ?', (N,))
+                'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" LIMIT ?', (N,))
 
         tasks = []
         for row in c.fetchall():
@@ -412,10 +396,10 @@ class DatabaseOrderManager:
         Returns:
             bool: Whether an order was assigned to a station
         """
-        stations = self.get_available_stations(N=1)
+        stations = self.get_available_stations(limit_rows=1)
         if len(stations) == 0:
             return False
-        orders = self.get_orders(N=1, status='OPEN')
+        orders = self.get_orders(limit_rows=1, status='OPEN')
         if len(orders) == 0:
             return False
         self.assign_order_to_station(
