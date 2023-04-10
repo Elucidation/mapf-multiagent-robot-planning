@@ -1,9 +1,11 @@
 """Robot class"""
+from __future__ import annotations
 from enum import Enum
 from typing import Tuple, NewType, Optional  # Python 3.8
 from collections import deque
 
 RobotId = NewType('RobotId', int)
+Position = Tuple[int, int]
 
 class RobotStatus(Enum):
     """Robot Status"""
@@ -12,10 +14,10 @@ class RobotStatus(Enum):
     ERROR = 'ERROR'
 
     @staticmethod
-    def load(value: str):
-        if value == RobotStatus.AVAILABLE:
+    def load(value: str) -> RobotStatus:
+        if value == RobotStatus.AVAILABLE.value:
             return RobotStatus.AVAILABLE
-        elif value == RobotStatus.IN_PROGRESS:
+        elif value == RobotStatus.IN_PROGRESS.value:
             return RobotStatus.IN_PROGRESS
         return RobotStatus.ERROR
 
@@ -26,7 +28,10 @@ class RobotStatus(Enum):
 class Robot(object):
     """Robot position and ID"""
 
-    def __init__(self, robot_id: RobotId, pos: Tuple[int, int], held_item_id: Optional[int] = None, state: RobotStatus = RobotStatus.AVAILABLE, path: list = []):
+    def __init__(self, robot_id: RobotId, pos: Position,
+                 held_item_id: Optional[int] = None,
+                 state: RobotStatus = RobotStatus.AVAILABLE,
+                 path: list = []):
         self.id = robot_id
         self.pos = pos  # (X col, Y row)
         self.pos_history: deque = deque(maxlen=10)
@@ -74,7 +79,7 @@ class Robot(object):
         return True
 
     def __repr__(self):
-        return (f'Robot_{self.id} : {self.pos}')
+        return (f'Robot_{self.id}[{self.state}] : {self.pos}')
 
     def json_data(self):
         r, c = self.pos  # x,y = c,r

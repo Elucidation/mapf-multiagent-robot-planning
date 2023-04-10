@@ -1,3 +1,15 @@
+"""Contains Robot Allocator and Job classes
+
+Robot Allocator:
+ - Poll Inventory Management System DB for available tasks
+ - Poll World DB for available robots and general world position info
+ - Assign available Robots to Task as a Job
+ - Track current jobs, their states:
+    - Generate and assign paths for Robots based on the job state
+    - Move along state of jobs as robots complete paths
+    - Pick/Drop items for robots from item zones to station zones
+    - Update stations by filling items as they happen
+"""
 # TODO : WIP not functioning yet, for #9
 # Polls for available tasks from DB
 # Gets robot list from world sim
@@ -5,18 +17,18 @@
 # Assigns robots to tasks, (eventually pathfinds), completes tasks, clears robot state
 # Add inventory_management_system module to path for imports (hacky)
 
-from db_robot_task import DatabaseRobotTaskManager
-from robot import Robot, RobotId
+from typing import Optional, Tuple, NewType
+import time
+# import random
 import multiagent_planner.pathfinding as pf
-from typing import List, Tuple
-from world_db import WorldDatabaseManager
+from robot import Robot, RobotId, RobotStatus
+# from db_robot_task import DatabaseRobotTaskManager
+from world_db import WorldDatabaseManager, WORLD_DB_PATH
 from inventory_management_system.Item import ItemId
 from inventory_management_system.TaskStatus import TaskStatus
 from inventory_management_system.Order import OrderId
 from inventory_management_system.Station import Task, StationId, TaskId
-from warehouses.warehouse_loader import load_warehouse_yaml_xy
-import time
-import random
+from warehouses.warehouse_loader import load_warehouse_yaml_xy, Position
 
 
 # db_name = "orders.db"
@@ -34,122 +46,233 @@ no_robot_delay = 1
 
 # robot_task_allocations: list[tuple[Robot, Task]] = [()]
 
-
-world_db_filename = 'world.db'  # TODO Move this to config param
-wdb = WorldDatabaseManager(world_db_filename)
-
-
-# Load grid positions all in x,y coordinates
-WORLD_GRID, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml_xy(
-    'warehouses/warehouse1.yaml')
+JobId = NewType('JobId', int)
 
 
 class Job:
     "Build a job from a task, containing actual positions/paths for robot"
 
-    def __init__(self, task: Task, robot_id: RobotId) -> None:
+    def __init__(self, job_id: JobId, grid, robot_home_zones: list[Position],
+                 item_load_zones: list[Position],
+                 station_zones: list[Position], task: Task, robot: Robot) -> None:
+        self.job_id = job_id
+        self.task = task
+        self.robot_id = robot.id
+
+        # Get positions along the route
         self.item_zone = item_load_zones[task.item_id]
         self.station_zone = station_zones[task.station_id]
-        self.robot_home = robot_home_zones[robot_id]
+        self.robot_home = robot_home_zones[robot.id]
 
-        self.task = task
-        self.robot_id = robot_id
+        self.robot_start_pos = robot.pos
 
-        self.robot_start_pos = self.get_current_robot_pos()
+        # Generate paths with astar
+        self.path_robot_to_item = pf.astar(
+            grid, self.robot_start_pos, self.item_zone)
+        self.path_item_to_station = pf.astar(
+            grid, self.item_zone, self.station_zone)
+        self.path_station_to_home = pf.astar(
+            grid, self.station_zone, self.robot_home)
 
-        self.path_robot_to_item = pf.astar(WORLD_GRID, self.robot_start_pos, self.item_zone)
-        self.path_item_to_station = pf.astar(WORLD_GRID, self.item_zone, self.station_zone)
-        self.path_station_to_home = pf.astar(WORLD_GRID, self.station_zone, self.robot_home)
-                
         # State tracker, ladder logic
         self.started = False
         self.item_picked = False
         self.item_dropped = False
         self.robot_returned = False
         self.complete = False
-    
-    def get_current_robot_pos(self) -> Tuple[int, int]:
-        return wdb.get_robot(self.robot_id).pos
+
+    def get_current_robot_pos(self, world_dbm: WorldDatabaseManager) -> Tuple[int, int]:
+        return world_dbm.get_robot(self.robot_id).pos
 
     def __repr__(self):
-        state = [self.started, self.item_picked, self.item_dropped, self.robot_returned, self.complete]
+        state = [self.started, self.item_picked,
+                 self.item_dropped, self.robot_returned, self.complete]
         state = [int(s) for s in state]
         return f'Job for {self.task} : {state}'
 
-    
+
+# TODO : Replace with actual tasks
+fake_tasks = [
+    Task(TaskId(0), StationId(0), OrderId(0), ItemId(0), 1, TaskStatus.OPEN),
+    Task(TaskId(1), StationId(2), OrderId(1), ItemId(4), 1, TaskStatus.OPEN),
+]
 
 
-fake_task = Task(TaskId(0), StationId(0), OrderId(0),
-                 ItemId(0), 1, TaskStatus.OPEN)
+class RobotAllocator:
+    """Robot Allocator, manages robots, assigning them jobs from tasks, updating stations and tasks states as needed"""
 
+    def __init__(self) -> None:
+        self.wdb = WorldDatabaseManager(WORLD_DB_PATH)
+        # Load grid positions all in x,y coordinates
+        self.world_grid, self.robot_home_zones, self.item_load_zones, self.station_zones = load_warehouse_yaml_xy(
+            'warehouses/warehouse1.yaml')
 
-def fake_get_tasks():
-    return [fake_task]
+        # Keep track of all jobs, even completed
+        self.job_id_counter: JobId = JobId(0)
+        self.jobs: dict[JobId, Job] = {}
 
+        # Get all robots regardless of state, assume no robots will be added or removed for duration of this instance
+        robots = self.wdb.get_robots()
+        # Reset Robot states
+        for robot in robots:
+            robot.state = RobotStatus.AVAILABLE
+        self.wdb.update_robots(robots)
 
-job = Job(fake_task, RobotId(0))
-jobs : dict[TaskId, Job] = {}
-jobs[job.task.task_id] = job
+        # Track robot allocations as allocations[robot_id] = Job
+        self.allocations: dict[RobotId, Optional[Job]] = {
+            robot.id: None for robot in robots}
 
-# TODO : Create jobs for tasks
+    def make_job(self, task: Task, robot: Robot):
+        if robot.state != RobotStatus.AVAILABLE:
+            raise ValueError(
+                f'{robot} not available for a new job: ({repr(robot.state)} == {repr(RobotStatus.AVAILABLE)}) = {robot.state == RobotStatus.AVAILABLE}')
+        if task.status != TaskStatus.OPEN:
+            raise ValueError(f'{task} not open for a new job')
 
-# Main loop processing jobs from tasks
-while True:
-    tasks = fake_get_tasks()
+        # TODO : This will move to DB auto increment
+        job_id = self.job_id_counter
+        self.job_id_counter = JobId(self.job_id_counter + 1)
 
-    for task in tasks:
-        job = jobs[task.task_id]
-        print(job)
+        # Create job
+        job = Job(job_id, self.world_grid, self.robot_home_zones,
+                  self.item_load_zones, self.station_zones, task, robot)
+        self.jobs[job_id] = job  # Track job
+        self.allocations[robot.id] = job  # Track robot allocation
+        # Set states
+        task.status = TaskStatus.IN_PROGRESS
+        robot.state = RobotStatus.IN_PROGRESS
+        self.wdb.update_robots([robot])
+
+        return job
+
+    def get_robot(self, robot_id: RobotId):
+        return self.wdb.get_robot(robot_id)
+
+    def get_available_robots(self) -> list[Robot]:
+        # Finds all robots currently available
+        return self.wdb.get_robots(query_state=str(RobotStatus.AVAILABLE))
+
+    def get_available_tasks(self) -> list[Task]:
+        # TODO : Pull from Inv Mgmt Sys DB
+        return [task for task in fake_tasks if task.status == TaskStatus.OPEN]
+
+    def assign_task_to_robot(self) -> Optional[Job]:
+        # Check if any available robots and available tasks
+        # If yes, create a job for that robot, update states and return the job here
+        available_robots = self.get_available_robots()
+        if not available_robots:
+            return None
+
+        available_tasks = self.get_available_tasks()
+        if not available_tasks:
+            return None
+
+        # Available robots and tasks, create a job for the first pair
+        robot = available_robots[0]
+        task = available_tasks[0]
+        job = self.make_job(task, robot)
+        print(
+            f'**ASSIGNED TASK TO ROBOT found pair: {robot} - {task} : {job}**')
+        return job
+
+    def update(self):
+        # Check and update any jobs
+        for job in robot_mgr.jobs.values():
+            self.check_and_update_job(job)
+
+        # Now check for any available robots and tasks
+        robot_mgr.assign_task_to_robot()
+
+    def check_and_update_job(self, job: Job):
         if job.complete:
-            continue
+            return
         if not job.started:
-            print(f'Starting job for task {task}')
-            wdb.set_robot_path(job.robot_id, job.path_robot_to_item)
+            print(f'Starting job {job} for task {job.task}')
+            robot_mgr.wdb.set_robot_path(job.robot_id, job.path_robot_to_item)
             job.started = True
-            continue
+            return
         elif not job.item_picked:
             # Check that robot is at item zone
-            current_pos = job.get_current_robot_pos()
+            current_pos = job.get_current_robot_pos(robot_mgr.wdb)
             if (current_pos != job.item_zone):
-                print(f'Robot not yet to item zone {current_pos} -> {job.item_zone}')
-                continue
+                print(
+                    f'Robot not yet to item zone {current_pos} -> {job.item_zone}')
+                return
             # TODO : Add item to held items for robot
-            print(f'Item picked! Sending robot to station for task {task}')
+            print(f'Item picked! Sending robot to station for task {job.task}')
 
-            wdb.set_robot_path(job.robot_id, job.path_item_to_station)
+            robot_mgr.wdb.set_robot_path(
+                job.robot_id, job.path_item_to_station)
             job.item_picked = True
-            continue
+            return
         elif not job.item_dropped:
             # Check that robot is at station zone
-            current_pos = job.get_current_robot_pos()
+            current_pos = job.get_current_robot_pos(robot_mgr.wdb)
             if (current_pos != job.station_zone):
-                print(f'Robot not yet to station zone {current_pos} -> {job.station_zone}')
-                continue
-            print(f'Item dropped! Sending robot back home for task {task}')
-            print(f'Task {task} complete')
-            
+                print(
+                    f'Robot not yet to station zone {current_pos} -> {job.station_zone}')
+                return
+            print(f'Item dropped! Sending robot back home for task {job.task}')
+            print(f'Task {job.task} complete')
+
             # TODO : Drop item from held items for robot
             # TODO : Use dboi to complete task
             # dboi.add_item_to_station(task.station_id, task.item_id)
-            task.status = TaskStatus.COMPLETE
+            job.task.status = TaskStatus.COMPLETE  # This only modifies the task in job
 
-            wdb.set_robot_path(job.robot_id, job.path_station_to_home)
+            robot_mgr.wdb.set_robot_path(
+                job.robot_id, job.path_station_to_home)
             job.item_dropped = True
-            continue
+            return
         elif not job.robot_returned:
             # Check that robot is at home zone
-            current_pos = job.get_current_robot_pos()
+            current_pos = job.get_current_robot_pos(robot_mgr.wdb)
             if (current_pos != job.robot_home):
-                print(f'Robot not yet to robot home {current_pos} -> {job.robot_home}')
-                continue
-            print(f'Robot returned home, job complete for task {task}')
+                print(
+                    f'Robot not yet to robot home {current_pos} -> {job.robot_home}')
+                return
+            print(f'Robot returned home, job complete for task {job.task}')
             job.robot_returned = True
             job.complete = True
-            continue
-    
+
+            # Make robot available
+            robot = self.get_robot(job.robot_id)
+            robot.state = RobotStatus.AVAILABLE
+            self.wdb.update_robots([robot])
+
+            return
+
+
+robot_mgr = RobotAllocator()
+
+# robot_mgr.make_job(fake_task, robot_mgr.get_robot(RobotId(0)))
+# job = robot_mgr.assign_task_to_robot()
+# print(f'Tried to assign available robots to available jobs: {job}')
+
+# TODO : Create jobs for tasks
+
+print('Current fake tasks:')
+for task in fake_tasks:
+    print(task)
+
+# Main loop processing jobs from tasks
+while True:
+    print('-------')
+    robot_mgr.update()
+
     # Delay till next task
     delay = 5
     print(f" waiting {delay} seconds")
+    print('---')
+    print('- Current fake tasks:')
+    for task in fake_tasks:
+        print(task)
+    print('- Current job allocations')
+    for robot_id, job in robot_mgr.allocations.items():
+        print(f'RobotId {robot_id} : {job}')
+    print('- Robots:')
+    print(robot_mgr.get_available_robots())
+    print('---')
     time.sleep(delay)
 
 

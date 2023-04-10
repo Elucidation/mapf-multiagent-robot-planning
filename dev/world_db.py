@@ -96,7 +96,7 @@ class WorldDatabaseManager:
             pos_str = json.dumps(robot.pos)
             path = json.dumps(list(robot.future_path))
             data.append([pos_str, robot.held_item_id,
-                        robot.state, path, robot.id])
+                        str(robot.state), path, robot.id])
 
         cursor = self.con.cursor()
         sql = """UPDATE Robot SET position=?, held_item_id=?, state=?, path=? WHERE robot_id=?"""
