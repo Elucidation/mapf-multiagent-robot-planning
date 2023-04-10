@@ -44,6 +44,7 @@ class DatabaseOrderManager:
             DROP TABLE IF EXISTS "Task";
             """
         )
+        self.con.commit()
 
     def init_tables(self):
         self.con.executescript(
@@ -90,6 +91,7 @@ class DatabaseOrderManager:
                 FOREIGN KEY("order_id") REFERENCES "Order"("order_id")
                 FOREIGN KEY("item_id") REFERENCES "Item"("item_id")
             );""")
+        self.con.commit()
 
     @staticmethod
     def get_db_order_tuple(order: Order):
@@ -117,12 +119,13 @@ class DatabaseOrderManager:
         item_names = get_item_names()
         item_sql = 'INSERT INTO "Item" (name) values(?)'
         item_name_data = list(map(lambda item_name: (item_name,), item_names))
-        self.con.executemany(item_sql, item_name_data)
+        with self.con:
+            self.con.executemany(item_sql, item_name_data)
 
     def add_station(self):
-        self.con.commit()
         sql = 'INSERT INTO "Station" DEFAULT VALUES;'
-        self.con.execute(sql)
+        with self.con:
+            self.con.execute(sql)
 
     def add_order(self, items: ItemCounter, created_by: int,
                   created: Optional[datetime] = None, description: str = "",
@@ -155,7 +158,6 @@ class DatabaseOrderManager:
             self.con.executemany(
                 order_item_sql, self.get_db_order_items_tuples(order_id, items)
             )
-            self.con.commit()
         return Order(
             order_id=order_id,
             created_by=created_by,
@@ -236,7 +238,8 @@ class DatabaseOrderManager:
 
     def set_order_status(self, order_id, status):
         sql = """UPDATE "Order" SET finished=?, status=? WHERE order_id=?;"""
-        self.con.execute(sql, (datetime.now(), status, order_id))
+        with self.con:
+            self.con.execute(sql, (datetime.now(), status, order_id))
 
     def set_order_in_progress(self, order_id):
         self.set_order_status(order_id, "IN_PROGRESS")
@@ -288,10 +291,11 @@ class DatabaseOrderManager:
             'INSERT INTO "Task" (station_id, order_id, item_id, quantity, status) values(?, ?, ?, ?, ?)'
         )
 
-        # Assign order to station
-        self.con.execute(sql, (order_id, station_id))
-        # Add tasks for items->station for that order
-        self.con.executemany(tasks_sql, tasks)
+        with self.con:
+            # Assign order to station
+            self.con.execute(sql, (order_id, station_id))
+            # Add tasks for items->station for that order
+            self.con.executemany(tasks_sql, tasks)
 
         self.set_order_in_progress(order_id)
         return True
@@ -353,7 +357,9 @@ class DatabaseOrderManager:
     def update_task(self, station_id: StationId, item_id: ItemId, quantity: int, status: TaskStatus):
         """Updates task with new quantity and status."""
         sql = """UPDATE "Task" SET quantity=?, status=? WHERE station_id=? AND item_id=? AND (status='OPEN' OR status='IN_PROGRESS');"""
-        self.con.execute(sql, (quantity, status.value, station_id, item_id))
+        with self.con:
+            self.con.execute(
+                sql, (quantity, status.value, station_id, item_id))
 
     def get_stations_and_tasks(self) -> List[Tuple[Station, List[Task]]]:
         stations = self.get_stations()
