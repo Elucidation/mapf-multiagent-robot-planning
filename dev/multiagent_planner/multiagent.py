@@ -1,8 +1,8 @@
 """Script to run multiagent sim and visualize it."""
-import pathfinding
-from visualizer import Visualizer
 import numpy as np
 import yaml
+from . import pathfinding
+from .visualizer import Visualizer
 
 
 def get_scenario(filename: str) -> tuple[np.ndarray, list[tuple[int, int]], list[tuple[int, int]]]:
@@ -17,7 +17,7 @@ def get_scenario(filename: str) -> tuple[np.ndarray, list[tuple[int, int]], list
 
 if __name__ == '__main__':
     grid, goals, starts = get_scenario(
-        'dev/multiagent_planner/scenarios/scenario4.yaml')
+        'multiagent_planner/scenarios/scenario4.yaml')
 
     paths = pathfinding.mapf1(grid, starts, goals, maxiter=100, max_time=40)
     collisions = pathfinding.find_all_collisions(paths)

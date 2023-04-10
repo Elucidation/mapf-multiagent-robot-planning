@@ -1,7 +1,8 @@
 """Unit tests for pathfinding."""
 import unittest
-import pathfinding
-from multiagent import get_scenario
+from . import pathfinding
+from .multiagent import get_scenario
+# python -m unittest
 
 
 class TestPathfinding(unittest.TestCase):
@@ -14,19 +15,19 @@ class TestPathfinding(unittest.TestCase):
         self.assertEqual(collisions, [(1, 0, 1, 2)])
 
     def test_mapf0(self):
-        grid, goals, starts = get_scenario('dev/multiagent_planner/scenarios/scenario2.yaml')
+        grid, goals, starts = get_scenario('multiagent_planner/scenarios/scenario2.yaml')
         paths = pathfinding.mapf0(grid, starts, goals)
         collisions = pathfinding.find_all_collisions(paths)
         self.assertEqual(collisions, [(2, 2, 5, 6)])
 
     def test_mapf1(self):
-        grid, goals, starts = get_scenario('dev/multiagent_planner/scenarios/scenario3.yaml')
+        grid, goals, starts = get_scenario('multiagent_planner/scenarios/scenario3.yaml')
         paths = pathfinding.mapf1(grid, starts, goals, maxiter=100)
         collisions = pathfinding.find_all_collisions(paths)
         self.assertEqual(collisions, [])
 
     def test_single_robot_astar(self):
-        grid, goals, starts = get_scenario('dev/multiagent_planner/scenarios/scenario1.yaml')
+        grid, goals, starts = get_scenario('multiagent_planner/scenarios/scenario1.yaml')
         path = pathfinding.astar(grid, starts[0], goals[0])
         expected_path = [(1, 4), (1, 3), (1, 2), (1, 1), (2, 1),
                          (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (3, 4)]
