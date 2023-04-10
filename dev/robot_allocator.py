@@ -105,7 +105,7 @@ class RobotAllocator:
         self.wdb = WorldDatabaseManager(WORLD_DB_PATH)
         # Load grid positions all in x,y coordinates
         self.world_grid, self.robot_home_zones, self.item_load_zones, self.station_zones = load_warehouse_yaml_xy(
-            'warehouses/warehouse1.yaml')
+            'warehouses/warehouse2.yaml')
 
         # Keep track of all jobs, even completed
         self.job_id_counter: JobId = JobId(0)
