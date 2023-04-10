@@ -1,13 +1,15 @@
+"""Order Manager DB contains Orders/Items/Stations/Tasks and their relationships"""
 import sqlite3 as sl
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from datetime import datetime
-from Order import *
-from Station import *
-from TaskStatus import TaskStatus
-from Item import ItemId
-import Item
-from collections import Counter
 import logging
+from collections import Counter
+
+from .Order import Order, OrderId
+from .OrderStatus import OrderStatus
+from .Station import Station, StationId, Task, TaskId
+from .TaskStatus import TaskStatus
+from .Item import ItemCounter, ItemId, get_item_names
 
 MAIN_DB = "orders.db"
 
@@ -115,7 +117,7 @@ class DatabaseOrderManager:
         self.add_station()
 
     def init_items(self):
-        item_names = Item.get_item_names()
+        item_names = get_item_names()
         item_sql = (
             'INSERT INTO "Item" (name) values(?)'
         )

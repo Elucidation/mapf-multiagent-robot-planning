@@ -1,9 +1,9 @@
 from flask import Flask, render_template
-from Order import *
 from datetime import datetime, timedelta
-from database_order_manager import DatabaseOrderManager
 import json
-from Item import get_item_names
+from .Order import *
+from .database_order_manager import DatabaseOrderManager
+from .Item import get_item_names
 
 # flask.exe --app order_tracking_web_server --debug run
 

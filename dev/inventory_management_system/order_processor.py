@@ -1,7 +1,7 @@
-from database_order_manager import DatabaseOrderManager, MAIN_DB
 import logging
 import sys
 import time
+from .database_order_manager import DatabaseOrderManager, MAIN_DB
 
 # Set up logging
 logger = logging.getLogger("order_processor_logger")

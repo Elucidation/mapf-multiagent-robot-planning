@@ -5,28 +5,18 @@
 # Assigns robots to tasks, (eventually pathfinds), completes tasks, clears robot state
 # Add inventory_management_system module to path for imports (hacky)
 
-import os
-import sys
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(SCRIPT_DIR, "inventory_management_system"))
-
-# from database_order_manager import DatabaseOrderManager
 from db_robot_task import DatabaseRobotTaskManager
 from robot import Robot, RobotId
 import multiagent_planner.pathfinding as pf
 from typing import List, Tuple
 from world_db import WorldDatabaseManager
-from Item import ItemId
-from TaskStatus import TaskStatus
-from Order import OrderId
-from Station import Task, StationId, TaskId
+from inventory_management_system.Item import ItemId
+from inventory_management_system.TaskStatus import TaskStatus
+from inventory_management_system.Order import OrderId
+from inventory_management_system.Station import Task, StationId, TaskId
 from warehouses.warehouse_loader import load_warehouse_yaml_xy
 import time
 import random
-
-
-
-# from TaskStatus import TaskStatus
 
 
 # db_name = "orders.db"

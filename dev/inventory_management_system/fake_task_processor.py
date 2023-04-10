@@ -1,7 +1,7 @@
-from database_order_manager import DatabaseOrderManager
 import time
 import random
-from TaskStatus import TaskStatus
+from .database_order_manager import DatabaseOrderManager
+from .TaskStatus import TaskStatus
 
 db_name = "orders.db"
 dboi = DatabaseOrderManager(db_name)

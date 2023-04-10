@@ -6,7 +6,7 @@ ItemCounter = typing.Counter[ItemId]
 
 # TODO: Load this from DB / This fails from wrong directory
 def get_item_names():
-    with open('item_names.txt', 'r') as f:
+    with open('inventory_management_system/item_names.txt', 'r') as f:
         item_names = [name.strip() for name in f.readlines()]
     return item_names
 

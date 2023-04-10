@@ -1,8 +1,8 @@
 import time
 import random
-from Item import ItemCounter, ItemId
-from database_order_manager import DatabaseOrderManager, MAIN_DB
 import logging
+from .Item import ItemCounter, ItemId
+from .database_order_manager import DatabaseOrderManager, MAIN_DB
 
 # Set up logging
 logger = logging.getLogger("fake_order_sender")

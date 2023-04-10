@@ -1,5 +1,0 @@
-{
-    "python.analysis.extraPaths": [
-        "./dev/inventory_management_system"
-    ]
-}

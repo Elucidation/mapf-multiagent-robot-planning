@@ -1,14 +1,16 @@
-import unittest
 # Basic test creation of a Database, assign orders, add items, check incomplete tasks etc.
+
+# from dev dir, run `python -m unittest inventory_management_system.test_database_order_manager`
+import unittest
 from datetime import datetime
-from Order import *
-from Station import *
-from TaskStatus import TaskStatus
-from Item import ItemId
+from .Order import *
+from .Station import *
+from .TaskStatus import TaskStatus
+from .Item import ItemId
 import logging
 import os
 
-from database_order_manager import DatabaseOrderManager
+from .database_order_manager import DatabaseOrderManager
 
 
 # Set up logging
