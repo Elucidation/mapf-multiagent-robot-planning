@@ -77,7 +77,6 @@ class Robot(object):
         return (f'Robot_{self.id} : {self.pos}')
 
     def json_data(self):
-        # TODO : get path.
         r, c = self.pos  # x,y = c,r
         return {'id': self.id, 'pos': {'x': c, 'y': r}, 'path': self.future_path}
 
