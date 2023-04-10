@@ -1,14 +1,32 @@
+"""Robot class"""
 from enum import Enum
 from typing import Tuple, NewType, Optional  # Python 3.8
 from collections import deque
 
 RobotId = NewType('RobotId', int)
 
+class RobotStatus(Enum):
+    """Robot Status"""
+    AVAILABLE = 'AVAILABLE'
+    IN_PROGRESS = 'IN_PROGRESS'
+    ERROR = 'ERROR'
+
+    @staticmethod
+    def load(value: str):
+        if value == RobotStatus.AVAILABLE:
+            return RobotStatus.AVAILABLE
+        elif value == RobotStatus.IN_PROGRESS:
+            return RobotStatus.IN_PROGRESS
+        return RobotStatus.ERROR
+
+    def __str__(self):
+        return str(self.value)
+
 
 class Robot(object):
     """Robot position and ID"""
 
-    def __init__(self, robot_id: RobotId, pos: Tuple[int, int], held_item_id: Optional[int] = None, state: str = "", path: list = []):
+    def __init__(self, robot_id: RobotId, pos: Tuple[int, int], held_item_id: Optional[int] = None, state: RobotStatus = RobotStatus.AVAILABLE, path: list = []):
         self.id = robot_id
         self.pos = pos  # (X col, Y row)
         self.pos_history: deque = deque(maxlen=10)

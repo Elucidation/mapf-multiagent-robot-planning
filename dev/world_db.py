@@ -2,11 +2,12 @@
 # Using sqlite instead of tinydb for a bit more concurrent read stability
 
 import sqlite3 as sl
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import logging
 import json
 from robot import Robot, RobotId
 
+WORLD_DB_PATH = 'world.db'
 
 # Set up logging
 logger = logging.getLogger("database_world_manager")
@@ -94,7 +95,8 @@ class WorldDatabaseManager:
         for robot in robots:
             pos_str = json.dumps(robot.pos)
             path = json.dumps(list(robot.future_path))
-            data.append([pos_str, robot.held_item_id, robot.state, path, robot.id])
+            data.append([pos_str, robot.held_item_id,
+                        robot.state, path, robot.id])
 
         cursor = self.con.cursor()
         sql = """UPDATE Robot SET position=?, held_item_id=?, state=?, path=? WHERE robot_id=?"""
@@ -103,7 +105,7 @@ class WorldDatabaseManager:
 
     def _parse_position(self, position_str: str) -> Tuple[int, int]:
         x, y = json.loads(position_str)
-        return (x, y) # (x, y) for Robot
+        return (x, y)  # (x, y) for Robot
 
     def _parse_path(self, path_str: str) -> List[Tuple[int, int]]:
         # Note: invalid path str will fail out on loads.
@@ -119,10 +121,14 @@ class WorldDatabaseManager:
         position = self._parse_position(position_str)
         return Robot(robot_id, position, held_item_id, state, path)
 
-    def get_robots(self) -> List[Robot]:
+    def get_robots(self, query_state: Optional[str] = None) -> List[Robot]:
         cursor = self.con.cursor()
-        sql = """SELECT robot_id, position, held_item_id, state, path FROM Robot"""
-        cursor.execute(sql)
+        if query_state:
+            sql = """SELECT robot_id, position, held_item_id, state, path FROM Robot WHERE state = ?"""
+            cursor.execute(sql)
+        else:
+            sql = """SELECT robot_id, position, held_item_id, state, path FROM Robot"""
+            cursor.execute(sql)
         robots = []
         for row in cursor.fetchall():
             (robot_id, position_str, held_item_id, state, path_str) = row
@@ -136,7 +142,7 @@ class WorldDatabaseManager:
 
 
 if __name__ == '__main__':
-    wdm = WorldDatabaseManager('world.db')
+    wdm = WorldDatabaseManager(WORLD_DB_PATH)
     wdm.reset()
     wdm.add_robots([Robot(RobotId(0), (1, 2)), Robot(RobotId(1), (3, 5))])
     wdm.update_timestamp(3)
