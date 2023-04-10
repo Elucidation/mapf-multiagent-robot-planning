@@ -1,8 +1,10 @@
+"""Order Status Class (OPEN/IN_PROGRESS/COMPLETE/ERROR)"""
 from __future__ import annotations
 from enum import Enum
 
 
 class OrderStatus(Enum):
+    """Order Status OPEN/IN_PROGRESS/COMPLETE/ERROR"""
     OPEN = 'OPEN'
     IN_PROGRESS = 'IN_PROGRESS'
     COMPLETE = 'COMPLETE'
@@ -18,6 +20,6 @@ class OrderStatus(Enum):
             return OrderStatus.COMPLETE
 
         return OrderStatus.ERROR
-    
+
     def __str__(self):
         return str(self.value)

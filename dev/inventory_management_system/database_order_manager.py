@@ -10,6 +10,7 @@ from .OrderStatus import OrderStatus
 from .Station import Station, StationId, Task, TaskId
 from .TaskStatus import TaskStatus
 from .Item import ItemCounter, ItemId, get_item_names
+# pylint: disable=C0301:line-too-long
 
 MAIN_DB = "./inventory_management_system/orders.db"
 
@@ -295,7 +296,7 @@ class DatabaseOrderManager:
         self.set_order_in_progress(order_id)
         return True
 
-    def get_station_order(self, station_id : StationId) -> Optional[OrderId]:
+    def get_station_order(self, station_id: StationId) -> Optional[OrderId]:
         # Returns order ID assigned to station or None if station is empty/available
         result = self.con.execute(
             'SELECT order_id FROM "Station" WHERE station_id=? LIMIT 1', (station_id,))
@@ -304,9 +305,10 @@ class DatabaseOrderManager:
             return None
         return row[0]  # order_id
 
-    def get_station_with_order_id(self, order_id : OrderId) -> Optional[StationId]:
+    def get_station_with_order_id(self, order_id: OrderId) -> Optional[StationId]:
         # Returns station ID assigned to station or None if station is empty/available
-        result = self.con.execute('SELECT station_id FROM "Station" WHERE order_id=?', (order_id,))
+        result = self.con.execute(
+            'SELECT station_id FROM "Station" WHERE order_id=?', (order_id,))
         row = result.fetchone()
         if not row:
             return None
@@ -325,15 +327,13 @@ class DatabaseOrderManager:
         """
         sql = """SELECT quantity FROM "Task" WHERE station_id=? AND item_id=? AND (status='OPEN' OR status='IN_PROGRESS');"""
         new_quantity = quantity
-        with self.con:
-            c = self.con.cursor()
-            c.execute(sql, (station_id, item_id))
-            row = c.fetchone()
-            if row is None:
-                logger.info(
-                    f'Task {item_id} -> station {station_id} not found, ignoring')
-                return False
-            current_quantity = row[0]
+        result = self.con.execute(sql, (station_id, item_id))
+        row = result.fetchone()
+        if row is None:
+            logger.info(
+                f'Task {item_id} -> station {station_id} not found, ignoring')
+            return False
+        current_quantity = row[0]
         new_quantity = current_quantity - quantity
         if new_quantity == 0:
             # Finish task since all items moved
@@ -353,10 +353,7 @@ class DatabaseOrderManager:
     def update_task(self, station_id: StationId, item_id: ItemId, quantity: int, status: TaskStatus):
         """Updates task with new quantity and status."""
         sql = """UPDATE "Task" SET quantity=?, status=? WHERE station_id=? AND item_id=? AND (status='OPEN' OR status='IN_PROGRESS');"""
-        with self.con:
-            c = self.con.cursor()
-            c.execute(sql, (quantity, status.value, station_id, item_id))
-            self.con.commit()
+        self.con.execute(sql, (quantity, status.value, station_id, item_id))
 
     def get_stations_and_tasks(self) -> List[Tuple[Station, List[Task]]]:
         stations = self.get_stations()
@@ -366,13 +363,12 @@ class DatabaseOrderManager:
             station_tasks.append((station, tasks))
         return station_tasks
 
-    def get_incomplete_station_tasks(self, station_id: int, N=49999) -> List[Task]:
+    def get_incomplete_station_tasks(self, station_id: int, limit_rows=49999) -> List[Task]:
         """Return incomplete tasks associated with a station"""
-        c = self.con.cursor()
-        c.execute(
-            'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE station_id=? LIMIT ?', (station_id, N))
+        result = self.con.execute(
+            'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE station_id=? LIMIT ?', (station_id, limit_rows))
         tasks = []
-        for row in c.fetchall():
+        for row in result:
             (task_id, station_id, order_id, item_id, quantity, status) = row
             task = Task(TaskId(task_id), station_id=StationId(station_id), order_id=OrderId(order_id), item_id=ItemId(item_id),
                         quantity=quantity, status=TaskStatus(status))
@@ -380,17 +376,17 @@ class DatabaseOrderManager:
                 tasks.append(task)
         return tasks
 
-    def get_tasks(self, query_status: Optional[TaskStatus] = None, N=49999) -> List[Task]:
-        c = self.con.cursor()
+    def get_tasks(self, query_status: Optional[TaskStatus] = None, limit_rows=49999) -> List[Task]:
         if query_status:
-            c.execute(
-                'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE status=? LIMIT ?', (str(query_status), N))
+            sql = 'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE status=? LIMIT ?'
+            vals = [str(query_status), limit_rows]
         else:
-            c.execute(
-                'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" LIMIT ?', (N,))
+            sql = 'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" LIMIT ?'
+            vals = [limit_rows]
+        result = self.con.execute(sql, vals)
 
         tasks = []
-        for row in c.fetchall():
+        for row in result:
             (task_id, station_id, order_id, item_id, quantity, status) = row
             task = Task(TaskId(task_id), StationId(station_id), OrderId(order_id),
                         ItemId(item_id), quantity, TaskStatus(status))

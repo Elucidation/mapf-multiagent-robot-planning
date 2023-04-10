@@ -1,3 +1,4 @@
+"""Fake order creator adds fake orders to the DB"""
 import time
 import random
 import logging
@@ -27,10 +28,11 @@ fixed_item_list_options = [
 ]
 
 for i in range(10):
-    item_list = ItemCounter(map(ItemId,fixed_item_list_options[i % len(fixed_item_list_options)]))
+    item_list = ItemCounter(
+        map(ItemId, fixed_item_list_options[i % len(fixed_item_list_options)]))
     order = dbm.add_order(item_list, created_by=1)
     logger.info(f'{i} - Added new order {order}')
-    
+
     delay = random.random() * 1.0  # random 0-5 second delay
     logger.info(f" waiting {delay:.2f} seconds")
     time.sleep(delay)

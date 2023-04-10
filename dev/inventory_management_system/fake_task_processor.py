@@ -1,30 +1,31 @@
+"""Fake Task processor retrieves open tasks and closes them at random times"""
 import time
 import random
-from .database_order_manager import DatabaseOrderManager
+from .database_order_manager import DatabaseOrderManager, MAIN_DB
 from .TaskStatus import TaskStatus
 
-db_name = "orders.db"
-dboi = DatabaseOrderManager(db_name)
+dboi = DatabaseOrderManager(MAIN_DB)
 
 
 # Checks for any tasks, completes the latest one
-step_delay = [0.2, 0.8]
-task_complete_delay = [0.2, 0.6]
-no_task_delay = 5
+DELAY_STEP = [0.2, 0.8]
+DELAY_TASK_COMPLETE = [0.2, 0.6]
+DELAY_NO_TASK = 5
 
 while True:
     # Get task (item X to station Y)
-    tasks = dboi.get_tasks(query_status=TaskStatus.OPEN, N=1)
+    tasks = dboi.get_tasks(query_status=TaskStatus.OPEN, limit_rows=1)
     if len(tasks) == 0:
-        print(f'No Tasks at the moment, sleeping 5 seconds')
-        time.sleep(no_task_delay)
+        print('No Tasks at the moment, sleeping 5 seconds')
+        time.sleep(DELAY_NO_TASK)
         continue
-    
+
     task = tasks[0]
     print(f'Received Task {task}')
 
     # Take 1-5 sec to complete task
-    delay = task_complete_delay[0] + random.random() * (task_complete_delay[1]-task_complete_delay[0])
+    delay = DELAY_TASK_COMPLETE[0] + random.random() * \
+        (DELAY_TASK_COMPLETE[1]-DELAY_TASK_COMPLETE[0])
     print(f" waiting {delay} seconds")
     time.sleep(delay)
 
@@ -33,6 +34,6 @@ while True:
     print(f'Finished {task}')
 
     # Delay till next task
-    delay = step_delay[0] + random.random() * (step_delay[1]-step_delay[0])
+    delay = DELAY_STEP[0] + random.random() * (DELAY_STEP[1]-DELAY_STEP[0])
     print(f" waiting {delay} seconds")
     time.sleep(delay)

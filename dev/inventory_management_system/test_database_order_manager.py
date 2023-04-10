@@ -166,7 +166,7 @@ class TestDatabaseOrderManager(unittest.TestCase):
 
         # add only item to station, completing the only task
         self.dbm.add_item_to_station(station_id, item1)
-        
+
         # Confirm station is cleared
         station = self.dbm.get_station(station_id)
         assert station.is_available() is True
@@ -180,10 +180,7 @@ class TestDatabaseOrderManager(unittest.TestCase):
         result_station_id = self.dbm.get_station_with_order_id(
             order1.order_id)
         assert result_station_id is not None
-        
-        # TODO : Add unit tests for following functions
-        # self.dbm.get_incomplete_station_tasks
-    
+
     def test_get_incomplete_station_tasks(self):
         station_id = StationId(1)
         item1 = ItemId(456)

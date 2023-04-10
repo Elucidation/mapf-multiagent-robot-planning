@@ -1,3 +1,4 @@
+"""Contains Order class"""
 from typing import NewType, Union, Optional
 from datetime import datetime
 from collections import Counter
@@ -7,6 +8,7 @@ OrderId = NewType('OrderId', int)
 
 
 class Order:
+    """Order contains items, status and metadata"""
     def __init__(
         self,
         order_id: OrderId,
@@ -20,7 +22,7 @@ class Order:
         self.created_by = created_by
 
         self.created = created
-        if type(created) == str:
+        if isinstance(created, str):
             self.created = datetime.strptime(created, "%Y-%m-%d %H:%M:%S.%f")
 
         self.description = description
@@ -29,7 +31,8 @@ class Order:
         self.status = status
 
         self.finished = finished
-        if type(finished) == str:
+
+        if isinstance(finished, str):
             self.finished = datetime.strptime(finished, "%Y-%m-%d %H:%M:%S.%f")
 
     def get_time_to_complete(self):
@@ -79,16 +82,16 @@ class Order:
     def __repr__(self):
         return f"Order {self.order_id} [{self.status}]: {self.items}"
 
-    def __eq__(self, o: object) -> bool:
-        if type(o) == Order:
+    def __eq__(self, obj: object) -> bool:
+        if isinstance(obj, Order):
             return (
-                (self.order_id == o.order_id) and
-                (sorted(self.items.items()) == sorted(o.items.items())) and
-                (self.created_by == o.created_by) and
-                (self.created == o.created) and
-                (self.description == o.description) and
-                (self.status == o.status) and
-                (self.finished == o.finished)
+                (self.order_id == obj.order_id) and
+                (sorted(self.items.items()) == sorted(obj.items.items())) and
+                (self.created_by == obj.created_by) and
+                (self.created == obj.created) and
+                (self.description == obj.description) and
+                (self.status == obj.status) and
+                (self.finished == obj.finished)
             )
         else:
             raise NotImplementedError()
