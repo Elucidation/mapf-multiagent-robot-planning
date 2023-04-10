@@ -100,7 +100,7 @@ class World {
 }
 
 
-let world = World.from_yaml('../warehouses/warehouse2.yaml')
+let world = World.from_yaml('./warehouses/warehouse2.yaml')
 
 
 // Update robot positions every second

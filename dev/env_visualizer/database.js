@@ -79,5 +79,5 @@ class RobotDatabaseManager {
     }
 }
 
-exports.dbm = new DatabaseManager('../inventory_management_system/orders.db');
-exports.robot_dbm = new RobotDatabaseManager('../world.db');
+exports.dbm = new DatabaseManager('./inventory_management_system/orders.db');
+exports.robot_dbm = new RobotDatabaseManager('./world.db');
