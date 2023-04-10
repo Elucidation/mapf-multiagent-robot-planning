@@ -4,7 +4,7 @@ from typing import List, Tuple, Dict, Optional, Any  # Python 3.8
 from datetime import datetime
 from time import sleep
 import numpy as np
-import yaml
+from warehouses.warehouse_loader import load_warehouse_yaml
 from robot import Robot, RobotId
 from world_db import WorldDatabaseManager
 import socketio  # type: ignore
@@ -179,19 +179,6 @@ class World(object):
 
     def __repr__(self):
         return f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}'
-
-
-# TODO: Move scenarios to Scenario class
-def load_warehouse_yaml(filename: str) -> Tuple[np.ndarray, List[Position], List[Position], List[Position]]:
-    with open(filename, 'r', encoding='utf8') as f:
-        scenario = yaml.safe_load(f)
-    grid = np.array(scenario['grid'])
-    robot_home_zones = [(int(r), int(c))
-                        for (r, c) in scenario['robot_home_zones']]
-    item_load_zones = [(int(r), int(c))
-                       for (r, c) in scenario['item_load_zones']]
-    station_zones = [(int(r), int(c)) for (r, c) in scenario['station_zones']]
-    return grid, robot_home_zones, item_load_zones, station_zones
 
 
 if __name__ == '__main__':
