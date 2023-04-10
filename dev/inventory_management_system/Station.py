@@ -52,4 +52,4 @@ class Task():
 
     def __repr__(self):
         return (f'Task {self.task_id} [{self.status}]: '
-                'Item {self.item_id}x{self.quantity} to Station {self.station_id}')
+                f'Item {self.item_id}x{self.quantity} to Station {self.station_id}')
