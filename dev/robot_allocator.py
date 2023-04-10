@@ -101,6 +101,9 @@ job = Job(fake_task, RobotId(0))
 jobs : dict[TaskId, Job] = {}
 jobs[job.task.task_id] = job
 
+# TODO : Create jobs for tasks
+
+# Main loop processing jobs from tasks
 while True:
     tasks = fake_get_tasks()
 
