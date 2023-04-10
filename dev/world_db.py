@@ -2,10 +2,10 @@
 # Using sqlite instead of tinydb for a bit more concurrent read stability
 
 import sqlite3 as sl
-from typing import List, Optional, Tuple
+from typing import List, Optional
 import logging
 import json
-from robot import Robot, RobotId
+from robot import Robot, RobotId, RobotStatus, Position
 
 WORLD_DB_PATH = 'world.db'
 
@@ -103,37 +103,38 @@ class WorldDatabaseManager:
         cursor.executemany(sql, data)
         self.con.commit()
 
-    def _parse_position(self, position_str: str) -> Tuple[int, int]:
+    def _parse_position(self, position_str: str) -> Position:
         x, y = json.loads(position_str)
         return (x, y)  # (x, y) for Robot
 
-    def _parse_path(self, path_str: str) -> List[Tuple[int, int]]:
+    def _parse_path(self, path_str: str) -> List[Position]:
         # Note: invalid path str will fail out on loads.
         path = json.loads(path_str)
-        return [(x, y) for x, y in path]
+        return [(x, y) for x, y in path] # Create position tuples
 
     def get_robot(self, robot_id: RobotId) -> Robot:
         cursor = self.con.cursor()
         sql = """SELECT robot_id, position, held_item_id, state, path FROM Robot WHERE robot_id = ? LIMIT 1"""
         cursor.execute(sql, (robot_id,))
-        (_, position_str, held_item_id, state, path_str) = cursor.fetchone()
+        (_, position_str, held_item_id, state_str, path_str) = cursor.fetchone()
         path = self._parse_path(path_str)
         position = self._parse_position(position_str)
+        state = RobotStatus.load(state_str)
         return Robot(robot_id, position, held_item_id, state, path)
 
     def get_robots(self, query_state: Optional[str] = None) -> List[Robot]:
         cursor = self.con.cursor()
         if query_state:
             sql = """SELECT robot_id, position, held_item_id, state, path FROM Robot WHERE state = ?"""
-            cursor.execute(sql)
+            cursor.execute(sql, (query_state,))
         else:
             sql = """SELECT robot_id, position, held_item_id, state, path FROM Robot"""
             cursor.execute(sql)
         robots = []
         for row in cursor.fetchall():
-            (robot_id, position_str, held_item_id, state, path_str) = row
-            path = json.loads(path_str)
+            (robot_id, position_str, held_item_id, state_str, path_str) = row
             path = self._parse_path(path_str)
+            state = RobotStatus.load(state_str)
             position = self._parse_position(position_str)
             robot = Robot(robot_id, position, held_item_id,
                           state, path)
