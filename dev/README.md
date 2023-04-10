@@ -4,17 +4,58 @@ This folder contains development scripts testing out an automated warehouse proj
 
 The automated warehouse project utilizes a system of Orders, Tasks, and Jobs managed by a Robot Allocator, which assigns Robots to efficiently transport Items from Item Zones to Stations for assembly and order fulfillment.
 
+Sequence diagram 
+```mermaid
+sequenceDiagram
+    participant OrderProcessor as Order Processor
+    participant Database as Database
+    participant RobotAllocator as Robot Allocator
+    participant Robot as Robot
+    participant ItemZone as Item Zone
+    participant Station as Station
+
+    OrderProcessor->>Database: Check for available Orders
+    Database->>OrderProcessor: Return available Orders
+    loop Process Orders
+        OrderProcessor->>Database: Create Task entries for Order
+        RobotAllocator->>Database: Query Task entries
+        Database->>RobotAllocator: Return available Tasks
+        RobotAllocator->>Robot: Assign Jobs based on Tasks
+        loop Pick and Deliver Items
+            Robot->>ItemZone: Pick Items
+            Robot->>Station: Deliver Items
+        end
+        Station->>Database: Update Task completion
+        Database->>OrderProcessor: Update Order Progress
+    end
+    OrderProcessor->>Station: Order Completed, Free Station
+```
+
+General flow of operations:
+```mermaid
+graph LR
+A[Receive Order] --> B[Create Tasks]
+B --> C[Robot Allocator]
+C --> D[Assign Jobs to Robots]
+D --> E[Pick Items from Item Zones]
+E --> F[Deliver Items to Stations]
+F --> G[Complete Tasks]
+G --> H[Assemble Order at Station]
+H --> I[Order Completed]
+I --> J[Free Station for New Order]
+```
+
 Concepts: 
-* Orders are requests for some combination of Items.
-* Items are picked up from Item Zones in the Warehouse.
-* Stations can be assigned Orders to be completed, which happens when all items for that Order are dropped off at the Station. These steps to drop items at the Station are called Tasks.
-* The Warehouse has Stations in it for combining Items together for an Order.
-* The Warehouse has Robots that can pick and drop Items from the Item Zones to the Stations.
-* A Task is a request by a Station to get some quantity of an Item.
-* A Robot can be assigned to move a single Item to a Station, this is called a Job.
-* The Robot Allocator creates Jobs from available Tasks, and assigns them to Available Robots.
-* As Jobs get finished, their parent Task eventually get completed, and eventually the Orders get filled and completed, freeing up the Station for a new Order.
-* This goes on indefinitely.
+* Orders are comprised of various combinations of Items that need to be picked up and assembled.
+* Items are located in designated Item Zones within the Warehouse.
+* Stations are responsible for processing Orders. An Order is considered complete once all its associated Items have been delivered to the Station through a series of Tasks.
+* The Warehouse contains multiple Stations for gathering and assembling Items to fulfill Orders.
+* Robots are responsible for transporting Items from the Item Zones to the Stations within the Warehouse.
+* Tasks represent the delivery of a specified quantity of an Item to a Station.
+* Each Robot is assigned a single Job, which involves moving one Item to a Station.
+* The Robot Allocator generates Jobs based on outstanding Tasks and assigns them to available Robots.
+* As Robots complete their Jobs, the corresponding Tasks are fulfilled, eventually leading to the completion of Orders. Once an Order is completed, the Station becomes available for a new Order.
+* This process continues indefinitely as new Orders are received and processed.
 
 ## Modules:
 
