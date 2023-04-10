@@ -2,16 +2,13 @@ from flask import Flask, render_template
 from datetime import datetime, timedelta
 import json
 from .Order import *
-from .database_order_manager import DatabaseOrderManager
+from .database_order_manager import DatabaseOrderManager, MAIN_DB
 from .Item import get_item_names
 
-# flask.exe --app order_tracking_web_server --debug run
+#  dev> flask.exe --app inventory_management_system.order_tracking_web_server --debug run
 
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
-
-db_name = "orders.db"
-
 
 @app.template_filter('strftime')
 def _jinja2_filter_datetime(date: datetime):
@@ -35,7 +32,7 @@ def order_tracking():
 
 @app.route("/orders/open")
 def open_orders_html():
-    dboi = DatabaseOrderManager(db_name)
+    dboi = DatabaseOrderManager(MAIN_DB)
     orders = dboi.get_orders()
     orders = [o for o in orders if o.is_open() or o.is_in_progress()]
     return render_template("fragment_open_orders.html", orders=orders)
@@ -43,7 +40,7 @@ def open_orders_html():
 
 @app.route("/stations")
 def stations_html():
-    dboi = DatabaseOrderManager(db_name)
+    dboi = DatabaseOrderManager(MAIN_DB)
     stations_and_tasks = dboi.get_stations_and_tasks()
 
     return render_template(
@@ -54,7 +51,7 @@ def stations_html():
 
 @app.route("/orders/finished")
 def finished_orders_html():
-    dboi = DatabaseOrderManager(db_name)
+    dboi = DatabaseOrderManager(MAIN_DB)
     # todo: update get_orders to use status
     orders = dboi.get_orders()
     orders = [o for o in orders if o.is_finished()]
@@ -63,7 +60,7 @@ def finished_orders_html():
 
 @app.route("/order_station_tables")
 def get_all_json():
-    dboi = DatabaseOrderManager(db_name)
+    dboi = DatabaseOrderManager(MAIN_DB)
     orders = dboi.get_orders()
     stations_and_tasks = dboi.get_stations_and_tasks()
 

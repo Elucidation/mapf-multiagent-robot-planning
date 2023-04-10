@@ -11,7 +11,7 @@ from .Station import Station, StationId, Task, TaskId
 from .TaskStatus import TaskStatus
 from .Item import ItemCounter, ItemId, get_item_names
 
-MAIN_DB = "orders.db"
+MAIN_DB = "./inventory_management_system/orders.db"
 
 # Set up logging
 logger = logging.getLogger("database_order_manager")
