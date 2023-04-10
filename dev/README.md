@@ -6,12 +6,15 @@ This folder contains development scripts testing out an automated warehouse proj
 
 ### [`inventory_management_system`](inventory_management_system/)
 A python module for tracking creating and tracking Orders, Items, Stations, and Tasks.
+![IMS Web UI](inventory_management_system/ims_example.png)
 
 ### [`multiagent_planner`](multiagent_planner/)
 A python module for finding paths in a 2D grid world for singular and multiple agents without collisions.
+![test1 animation](../media/scenario4.gif)
 
 ### [`env_visualizer`](env_visualizer/)
 A node module for seeing a live view of the tables of Orders/Stations and their status as they get completed.
+![warehouse view 1](../media/warehouse_view1.jpg)
 
 ## Scripts
 
