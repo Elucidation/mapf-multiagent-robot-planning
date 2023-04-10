@@ -245,14 +245,14 @@ class DatabaseOrderManager:
         self.clear_station(station_id)
         return True
 
-    def clear_station(self, station_id):
+    def clear_station(self, station_id: StationId):
         self.assign_order_to_station(None, station_id)
 
-    def assign_order_to_station(self, order_id: OrderId, station_id: StationId) -> bool:
+    def assign_order_to_station(self, order_id: Optional[OrderId], station_id: StationId) -> bool:
         """Assign an order to a station, and add all tasks of items to station. 
 
         Args:
-            order_id (OrderId): The ID of the order to be assigned.
+            order_id (OrderId): The ID of the order to be assigned, or None if empty.
             station_id (StationId): The ID of the station to assign the order to.
 
         Returns:
@@ -267,42 +267,39 @@ class DatabaseOrderManager:
         # Add tasks for moving items in order to that station
         tasks = []
         status = TaskStatus.OPEN
-        for item_id, quantity in self.get_items_for_order(order_id).items():
-            tasks.append(
-                (station_id, order_id, item_id, quantity, str(status)))
+        if order_id:
+            for item_id, quantity in self.get_items_for_order(order_id).items():
+                tasks.append(
+                    (station_id, order_id, item_id, quantity, str(status)))
 
         sql = """UPDATE "Station" SET order_id=? WHERE station_id=?;"""
         tasks_sql = (
             'INSERT INTO "Task" (station_id, order_id, item_id, quantity, status) values(?, ?, ?, ?, ?)'
         )
 
-        with self.con:
-            c = self.con.cursor()
-            # Assign order to station
-            c.execute(sql, (order_id, station_id))
-            # Add tasks for items->station for that order
-            c.executemany(tasks_sql, tasks)
-            self.con.commit()
+        # Assign order to station
+        self.con.execute(sql, (order_id, station_id))
+        # Add tasks for items->station for that order
+        self.con.executemany(tasks_sql, tasks)
 
         self.set_order_in_progress(order_id)
         return True
 
-    def get_station_order(self, station_id):
+    def get_station_order(self, station_id : StationId) -> Optional[OrderId]:
         # Returns order ID assigned to station or None if station is empty/available
-        c = self.con.cursor()
-        c.execute(
+        result = self.con.execute(
             'SELECT order_id FROM "Station" WHERE station_id=? LIMIT 1', (station_id,))
-        row = c.fetchone()
-        if row is None:
+        if not result:
             return None
+        row = result.fetchone()
         return row[0]  # order_id
 
-    def get_station_with_order_id(self, order_id):
+    def get_station_with_order_id(self, order_id : OrderId) -> Optional[StationId]:
         # Returns station ID assigned to station or None if station is empty/available
         result = self.con.execute('SELECT station_id FROM "Station" WHERE order_id=?', (order_id,))
         if not result:
             return None
-        row = result[0]
+        row = result.fetchone()
         return row[0]  # station_id
 
     def add_item_to_station(self, station_id: StationId, item_id: ItemId, quantity=1) -> bool:
