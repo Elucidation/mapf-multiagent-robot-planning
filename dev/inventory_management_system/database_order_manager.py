@@ -76,7 +76,7 @@ class DatabaseOrderManager:
             CREATE TABLE IF NOT EXISTS "Station" (
                 "station_id"  INTEGER NOT NULL UNIQUE,
                 "order_id"  INTEGER,
-                PRIMARY KEY("station_id"),
+                PRIMARY KEY("station_id" AUTOINCREMENT),
                 FOREIGN KEY("order_id") REFERENCES "Order"("order_id")
             );
             CREATE TABLE IF NOT EXISTS "Task" (
@@ -348,19 +348,25 @@ class DatabaseOrderManager:
         else:
             # Make task available again
             new_status = TaskStatus.OPEN
-        self.update_task(station_id, item_id, new_quantity, new_status)
+        self.update_related_task(station_id, item_id, new_quantity, new_status)
         if new_status == TaskStatus.COMPLETE:
             # Check if station has any tasks left or update if it's complete
             self._update_station(station_id)
         return True
 
-    def update_task(self, station_id: StationId, item_id: ItemId, quantity: int, status: TaskStatus):
+    def update_related_task(self, station_id: StationId, item_id: ItemId, quantity: int, status: TaskStatus):
         """Updates task with new quantity and status."""
         sql = """UPDATE "Task" SET quantity=?, status=? WHERE station_id=? AND item_id=? AND (status='OPEN' OR status='IN_PROGRESS');"""
         with self.con:
             self.con.execute(
                 sql, (quantity, status.value, station_id, item_id))
 
+    def update_task_status(self, task_id: TaskId, status: TaskStatus):
+        """Updates task with new quantity and status."""
+        sql = """UPDATE "Task" SET status=? WHERE task_id=?;"""
+        with self.con:
+            self.con.execute(sql, (status.value, task_id))
+            
     def get_stations_and_tasks(self) -> List[Tuple[Station, List[Task]]]:
         stations = self.get_stations()
         station_tasks = []

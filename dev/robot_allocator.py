@@ -28,11 +28,8 @@ from inventory_management_system.Item import ItemId
 from inventory_management_system.TaskStatus import TaskStatus
 from inventory_management_system.Order import OrderId
 from inventory_management_system.Station import Task, StationId, TaskId
+from inventory_management_system.database_order_manager import DatabaseOrderManager, MAIN_DB
 from warehouses.warehouse_loader import load_warehouse_yaml_xy, Position
-
-
-# db_name = "orders.db"
-# dboi = DatabaseOrderManager(db_name)
 
 
 # Checks for any tasks, completes the latest one
@@ -60,9 +57,10 @@ class Job:
         self.robot_id = robot.id
 
         # Get positions along the route
-        self.item_zone = item_load_zones[task.item_id]
-        self.station_zone = station_zones[task.station_id]
         self.robot_home = robot_home_zones[robot.id]
+        self.item_zone = item_load_zones[task.item_id]
+        # Note: Hacky, off-by-one because sqlite3 db starts indexing at 1, not zero
+        self.station_zone = station_zones[task.station_id - 1]
 
         self.robot_start_pos = robot.pos
 
@@ -88,21 +86,19 @@ class Job:
         state = [self.started, self.item_picked,
                  self.item_dropped, self.robot_returned, self.complete]
         state = [int(s) for s in state]
-        return f'Job for {self.task} : {state}'
-
-
-# TODO : Replace with actual tasks
-fake_tasks = [
-    Task(TaskId(0), StationId(0), OrderId(0), ItemId(0), 1, TaskStatus.OPEN),
-    Task(TaskId(1), StationId(2), OrderId(1), ItemId(4), 1, TaskStatus.OPEN),
-]
+        return f'Job for <{self.task}>: Progress {state}'
 
 
 class RobotAllocator:
     """Robot Allocator, manages robots, assigning them jobs from tasks, updating stations and tasks states as needed"""
 
     def __init__(self) -> None:
-        self.wdb = WorldDatabaseManager(WORLD_DB_PATH)
+        # Connect to databases
+        self.wdb = WorldDatabaseManager(
+            WORLD_DB_PATH)  # Contains World/Robot info
+        self.ims_db = DatabaseOrderManager(
+            MAIN_DB)  # Contains Task information
+
         # Load grid positions all in x,y coordinates
         self.world_grid, self.robot_home_zones, self.item_load_zones, self.station_zones = load_warehouse_yaml_xy(
             'warehouses/warehouse2.yaml')
@@ -138,8 +134,10 @@ class RobotAllocator:
                   self.item_load_zones, self.station_zones, task, robot)
         self.jobs[job_id] = job  # Track job
         self.allocations[robot.id] = job  # Track robot allocation
-        # Set states
-        task.status = TaskStatus.IN_PROGRESS
+        # Set task state
+        self.ims_db.update_task_status(task.task_id, TaskStatus.IN_PROGRESS)
+        task.status = TaskStatus.IN_PROGRESS  # Update local task instance as well
+        # Set robot state
         robot.state = RobotStatus.IN_PROGRESS
         self.wdb.update_robots([robot])
 
@@ -152,9 +150,8 @@ class RobotAllocator:
         # Finds all robots currently available
         return self.wdb.get_robots(query_state=str(RobotStatus.AVAILABLE))
 
-    def get_available_tasks(self) -> list[Task]:
-        # TODO : Pull from Inv Mgmt Sys DB
-        return [task for task in fake_tasks if task.status == TaskStatus.OPEN]
+    def get_available_tasks(self, limit_rows: int = 5) -> list[Task]:
+        return self.ims_db.get_tasks(TaskStatus.OPEN, limit_rows)
 
     def assign_task_to_robot(self) -> Optional[Job]:
         # Check if any available robots and available tasks
@@ -184,10 +181,11 @@ class RobotAllocator:
         robot_mgr.assign_task_to_robot()
 
     def check_and_update_job(self, job: Job):
+        # TODO : Split this up into functions
         if job.complete:
             return
         if not job.started:
-            print(f'Starting job {job} for task {job.task}')
+            print(f'Starting job {job}')
             robot_mgr.wdb.set_robot_path(job.robot_id, job.path_robot_to_item)
             job.started = True
             return
@@ -212,13 +210,15 @@ class RobotAllocator:
                 print(
                     f'Robot not yet to station zone {current_pos} -> {job.station_zone}')
                 return
+
+            # Add Item to station (this finishes the task too)
+            # TODO : Drop item from held items for robot
+            # TODO : Validate item added successfully
+            self.ims_db.add_item_to_station(job.task.station_id, job.task.item_id)
+            # This only modifies the task instance in the job
+            job.task.status = TaskStatus.COMPLETE
             print(f'Item dropped! Sending robot back home for task {job.task}')
             print(f'Task {job.task} complete')
-
-            # TODO : Drop item from held items for robot
-            # TODO : Use dboi to complete task
-            # dboi.add_item_to_station(task.station_id, task.item_id)
-            job.task.status = TaskStatus.COMPLETE  # This only modifies the task in job
 
             robot_mgr.wdb.set_robot_path(
                 job.robot_id, job.path_station_to_home)
@@ -245,27 +245,17 @@ class RobotAllocator:
 
 robot_mgr = RobotAllocator()
 
-# robot_mgr.make_job(fake_task, robot_mgr.get_robot(RobotId(0)))
-# job = robot_mgr.assign_task_to_robot()
-# print(f'Tried to assign available robots to available jobs: {job}')
-
-# TODO : Create jobs for tasks
-
-print('Current fake tasks:')
-for task in fake_tasks:
-    print(task)
-
 # Main loop processing jobs from tasks
 while True:
     print('-------')
     robot_mgr.update()
 
     # Delay till next task
-    delay = 5
+    delay = 1
     print(f" waiting {delay} seconds")
     print('---')
-    print('- Current fake tasks:')
-    for task in fake_tasks:
+    print('- Current available tasks:')
+    for task in robot_mgr.get_available_tasks():
         print(task)
     print('- Current job allocations')
     for robot_id, job in robot_mgr.allocations.items():
