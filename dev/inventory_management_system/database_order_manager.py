@@ -366,7 +366,7 @@ class DatabaseOrderManager:
         sql = """UPDATE "Task" SET status=? WHERE task_id=?;"""
         with self.con:
             self.con.execute(sql, (status.value, task_id))
-            
+
     def get_stations_and_tasks(self) -> List[Tuple[Station, List[Task]]]:
         stations = self.get_stations()
         station_tasks = []

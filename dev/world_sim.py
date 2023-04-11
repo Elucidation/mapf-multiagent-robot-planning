@@ -43,8 +43,8 @@ class World(object):
         self.ended = False
 
         self.init_socketio()
-        
-        world_db_filename = 'world.db' # TODO Move this to config param
+
+        world_db_filename = 'world.db'  # TODO Move this to config param
         self.wdb = WorldDatabaseManager(world_db_filename)
         self.wdb.reset()
         self.wdb.add_robots(self.robots)
@@ -54,8 +54,8 @@ class World(object):
             'timestamp': str(datetime.now()),
             't': self.t,
             'grid': self.grid.tolist(),
-            'item_load_positions': [{'x': c, 'y': r} for r, c in self.item_load_zones],
-            'station_positions': [{'x': c, 'y': r} for r, c in self.station_zones],
+            'item_load_positions': [{'x': c, 'y': row} for row, c in self.item_load_zones],
+            'station_positions': [{'x': c, 'y': row} for row, c in self.station_zones],
             'robots': [r.json_data() for r in self.robots]
         }
 
@@ -91,8 +91,7 @@ class World(object):
             # Check robot on space tile (not a wall)
             grid_val = self.get_grid_tile_for_position(robot.pos)
             if grid_val != EnvType.SPACE:
-                a1 = robot.get_last_pos()
-                self.collision = (robot.id, robot.pos, a1)
+                self.collision = (robot.id, robot.pos, robot.get_last_pos())
                 return False
 
             # vertex conflict
@@ -100,10 +99,10 @@ class World(object):
             # by building a dict of positions, collision fails out
             if robot.pos in latest_positions:
                 other_robot = self.get_robot_by_id(latest_positions[robot.pos])
-                a1 = robot.get_last_pos()
-                b1 = other_robot.get_last_pos()
-                self.collision = (robot.id, robot.pos, a1,
-                                  other_robot.id, other_robot.pos, b1)
+                past_pos = robot.get_last_pos()
+                other_robot_past_pos = other_robot.get_last_pos()
+                self.collision = (robot.id, robot.pos, past_pos,
+                                  other_robot.id, other_robot.pos, other_robot_past_pos)
                 return False
             else:
                 latest_positions[robot.pos] = robot.id
@@ -116,16 +115,17 @@ class World(object):
                 if other_robot == robot:
                     # Same robot, skip
                     continue
-                a1 = robot.get_last_pos()
-                a2 = robot.pos
-                b1 = other_robot.get_last_pos()
-                b2 = other_robot.pos
+                r1_past = robot.get_last_pos()
+                r1_now = robot.pos
+                r2_past = other_robot.get_last_pos()
+                r2_now = other_robot.pos
                 # Check if robots went directly through each other
-                if ((a1 == b2 and a2 == b1)):
+                if (r1_past == r2_now and r1_now == r2_past):
                     print(
-                        f'Edge collision [{robot}] {a1}->{a2} <-> [{other_robot}] {b1}->{b2}')
-                    self.collision = (robot.id, a2, a1,
-                                      other_robot.id, b2, b1)
+                        f'Edge collision [{robot}] {r1_past}->{r1_now} <->'
+                        f' [{other_robot}] {r2_past}->{r2_now}')
+                    self.collision = (robot.id, r1_now, r1_past,
+                                      other_robot.id, r2_now, r2_past)
                     return False
 
         self.collision = None
@@ -151,10 +151,10 @@ class World(object):
 
         if state_changed:
             self.wdb.update_robots(self.robots)
-        
+
         self.wdb.update_timestamp(self.t)
 
-        if (state_changed):
+        if state_changed:
             print(f'Robots moved: {self.robots}')
 
         # Return if any robot has moved or not
@@ -163,15 +163,15 @@ class World(object):
     def show_grid_ascii(self):
         # Create grid string with walls or spaces
         grid_str = np.full_like(self.grid, dtype=str, fill_value='')
-        for r in range(self.height):
-            for c in range(self.width):
-                char = "W" if self.grid[r, c] == EnvType.WALL.value else " "
-                grid_str[r, c] += char
+        for row in range(self.height):
+            for col in range(self.width):
+                char = "W" if self.grid[row, col] == EnvType.WALL.value else " "
+                grid_str[row, col] += char
 
         # Place robots in grid_str
         for robot in self.robots:
-            r, c = robot.pos
-            grid_str[r, c] = (grid_str[r, c] + 'R').strip()
+            row, col = robot.pos
+            grid_str[row, col] = (grid_str[row, col] + 'R').strip()
         print("---")
         # Print grid flipped vertically so up down match
         print(np.flipud(grid_str))
@@ -184,9 +184,9 @@ class World(object):
 if __name__ == '__main__':
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
         'warehouses/warehouse2.yaml')
-    # Create robots at start positions (r,c) -> (x,y)
-    robots = [Robot(RobotId(i), (c,r))
-              for i, (r, c) in enumerate(robot_home_zones)]
+    # Create robots at start positions (row,col) -> (x,y)
+    robots = [Robot(RobotId(i), (col, row))
+              for i, (row, col) in enumerate(robot_home_zones)]
     world = World(grid, robots, item_load_zones, station_zones)
     print(world)
     world.show_grid_ascii()

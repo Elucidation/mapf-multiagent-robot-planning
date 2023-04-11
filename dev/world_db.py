@@ -1,6 +1,7 @@
-# DB interface class for world simulator to store world state in a SQL DB
-# Using sqlite instead of tinydb for a bit more concurrent read stability
-
+"""
+DB interface class for world simulator to store world state in a SQL DB
+Using sqlite instead of tinydb for a bit more concurrent read stability
+"""
 import sqlite3 as sl
 from typing import List, Optional
 import logging
@@ -104,17 +105,18 @@ class WorldDatabaseManager:
         self.con.commit()
 
     def _parse_position(self, position_str: str) -> Position:
-        x, y = json.loads(position_str)
-        return (x, y)  # (x, y) for Robot
+        pos_x, pos_y = json.loads(position_str)
+        return (pos_x, pos_y)  # (x, y) for Robot
 
     def _parse_path(self, path_str: str) -> List[Position]:
         # Note: invalid path str will fail out on loads.
         path = json.loads(path_str)
-        return [(x, y) for x, y in path] # Create position tuples
+        return [(x, y) for x, y in path]  # Create position tuples
 
     def get_robot(self, robot_id: RobotId) -> Robot:
         cursor = self.con.cursor()
-        sql = """SELECT robot_id, position, held_item_id, state, path FROM Robot WHERE robot_id = ? LIMIT 1"""
+        sql = ("SELECT robot_id, position, held_item_id, state, path FROM Robot "
+               "WHERE robot_id = ? LIMIT 1")
         cursor.execute(sql, (robot_id,))
         (_, position_str, held_item_id, state_str, path_str) = cursor.fetchone()
         path = self._parse_path(path_str)
@@ -125,10 +127,10 @@ class WorldDatabaseManager:
     def get_robots(self, query_state: Optional[str] = None) -> List[Robot]:
         cursor = self.con.cursor()
         if query_state:
-            sql = """SELECT robot_id, position, held_item_id, state, path FROM Robot WHERE state = ?"""
+            sql = "SELECT robot_id, position, held_item_id, state, path FROM Robot WHERE state = ?"
             cursor.execute(sql, (query_state,))
         else:
-            sql = """SELECT robot_id, position, held_item_id, state, path FROM Robot"""
+            sql = "SELECT robot_id, position, held_item_id, state, path FROM Robot"
             cursor.execute(sql)
         robots = []
         for row in cursor.fetchall():

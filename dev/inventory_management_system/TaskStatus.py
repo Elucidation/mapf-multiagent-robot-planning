@@ -9,6 +9,6 @@ class TaskStatus(Enum):
     IN_PROGRESS = 'IN_PROGRESS'
     COMPLETE = 'COMPLETE'
     ERROR = 'ERROR'
-    
+
     def __str__(self):
         return str(self.value)

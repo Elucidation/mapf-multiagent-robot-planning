@@ -50,7 +50,7 @@ class Robot(object):
         """Reset history with current position."""
         self.pos_history.clear()
         self.pos_history.append(self.pos)
-    
+
     def set_path(self, path):
         """Set future path to given path, removing anything already there."""
         # TODO : Verify legal

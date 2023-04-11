@@ -86,7 +86,8 @@ class Job:
         state = [self.started, self.item_picked,
                  self.item_dropped, self.robot_returned, self.complete]
         state = [int(s) for s in state]
-        return f'Job [Robot {self.robot_id},Task {self.task.task_id},Order {self.task.order_id}] Move {self.task.item_id} to {self.task.station_id}: Progress {state}'
+        return (f'Job [Robot {self.robot_id},Task {self.task.task_id},Order {self.task.order_id}]'
+                f' Move {self.task.item_id} to {self.task.station_id}: Progress {state}')
 
 
 class RobotAllocator:
@@ -221,7 +222,7 @@ class RobotAllocator:
     def job_try_pick_item(self, job: Job) -> bool:
         # Check that robot is at item zone
         current_pos = job.get_current_robot_pos(robot_mgr.wdb)
-        if (current_pos != job.item_zone):
+        if current_pos != job.item_zone:
             logging.debug(
                 f'Robot not yet to item zone {current_pos} -> {job.item_zone}')
             return False
@@ -278,7 +279,7 @@ class RobotAllocator:
     def job_go_home(self, job: Job) -> bool:
         # Check that robot is at home zone
         current_pos = job.get_current_robot_pos(robot_mgr.wdb)
-        if (current_pos != job.robot_home):
+        if current_pos != job.robot_home:
             logging.debug(
                 f'Robot not yet to robot home {current_pos} -> {job.robot_home}')
             return False
