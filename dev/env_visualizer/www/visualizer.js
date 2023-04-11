@@ -123,7 +123,8 @@ function drawItemZones(zones) {
   zones.forEach((zone, idx) => {
     clearSquare(zone.x, zone.y)
     drawSquare(zone.x, zone.y, /* side= */ ITEM_ZONE_SIZE, /* fill= */ 'rgb(60, 128, 86)')
-    drawText(zone.x, zone.y, `Itm ${idx}`, /* font= */ "12px", /* fill= */ 'rgb(0,0,0)')
+    let item_name = world.item_names[idx];
+    drawText(zone.x, zone.y, `${item_name}`, /* font= */ "12px", /* fill= */ 'rgb(0,0,0)')
   });
 }
 

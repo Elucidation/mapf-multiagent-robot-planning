@@ -80,6 +80,13 @@ class World {
         this.station_positions = data.station_zones.map(rc => new Point(rc[1], rc[0]));
         /** @type {number[][]} Grid of world */
         this.grid = data.grid;
+
+        /** @type {string[]} Names of items with zero-indexed ids  */
+        this.item_names = World.load_item_names();
+    }
+
+    static load_item_names() {
+        return fs.readFileSync('./inventory_management_system/item_names.txt').toString().replace(/\r\n/g,'\n').split("\n");
     }
 
     static from_yaml(/** @type {string} */ warehouse_path) {
@@ -88,13 +95,14 @@ class World {
 
     /**
      * 
-     * @returns A dict with the static world info (grid, item and station positions)
+     * @returns A dict with the static world info
      */
     get_world() {
         return {
             grid: this.grid,
             item_load_positions: this.item_load_positions,
-            station_positions: this.station_positions
+            station_positions: this.station_positions,
+            item_names: this.item_names
         };
     }
 }
@@ -111,6 +119,10 @@ function update_robots() {
         let robots_db_data = data[1];
         // Update time if exists
         if (t_db_data) {
+            if (t_db_data.value == world.t) {
+                // No time change yet, skip this update
+                return
+            }
             world.t = t_db_data.value;
         }
         
