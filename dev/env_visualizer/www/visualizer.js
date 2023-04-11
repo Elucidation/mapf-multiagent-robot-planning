@@ -29,7 +29,7 @@ socket.on("set_world", (/** @type {any} */ msg) => {
   }
   canvas.width = 2 + TILE_SIZE * grid_dims.x;
   canvas.height = 2 + TILE_SIZE * grid_dims.y;
-  drawBoard(world);
+  draw_board(world);
 });
 
 socket.on("update", (/** @type {any} */ msg) => {
@@ -40,7 +40,7 @@ socket.on("update", (/** @type {any} */ msg) => {
   // msg is list of x/y positions [{x:..., y:...}, ...] for each robot
   console.debug("Updating world state", msg);
   if (msg.t != null) {
-    updateTime(msg.t);
+    update_time(msg.t);
   }
   let positions = msg.robots.map((r) => r.pos);
   update_positions(positions);
@@ -56,7 +56,7 @@ if (!(canvas instanceof HTMLCanvasElement)) {
 }
 var context = canvas.getContext("2d");
 
-function updateTime(t) {
+function update_time(t) {
   var tblock = document.getElementById("time");
   if (!(tblock instanceof HTMLSpanElement)) {
     throw Error("Missing time paragraph element.");
@@ -67,7 +67,7 @@ function updateTime(t) {
 /**
  * Clear canvas and draw grid.
  */
-function drawBoard(world) {
+function draw_board(world) {
   if (context == null || !(canvas instanceof HTMLCanvasElement)) {
     console.error("Missing context or canvas elements.");
     return;
@@ -114,22 +114,22 @@ function drawBoard(world) {
 
   // Note: Also redraws every robot Update
   // Draw item loading zones
-  drawItemZones(world.item_load_positions);
+  draw_item_zones(world.item_load_positions);
   // Draw station zones
-  drawStationZones(world.station_positions);
+  draw_station_zones(world.station_positions);
 }
 
-function drawItemZones(zones) {
+function draw_item_zones(zones) {
   zones.forEach((zone, idx) => {
-    clearSquare(zone.x, zone.y);
-    drawSquare(
+    clear_square(zone.x, zone.y);
+    draw_square(
       zone.x,
       zone.y,
       /* side= */ ITEM_ZONE_SIZE,
       /* fill= */ "rgb(60, 128, 86)"
     );
     let item_name = world.item_names[idx];
-    drawText(
+    draw_text(
       zone.x,
       zone.y,
       `${item_name}`,
@@ -139,16 +139,16 @@ function drawItemZones(zones) {
   });
 }
 
-function drawStationZones(zones) {
+function draw_station_zones(zones) {
   zones.forEach((zone, idx) => {
-    clearSquare(zone.x, zone.y);
-    drawSquare(
+    clear_square(zone.x, zone.y);
+    draw_square(
       zone.x,
       zone.y,
       /* side= */ STATION_ZONE_SIZE,
       /* fill= */ "rgb(68, 54, 183)"
     );
-    drawText(
+    draw_text(
       zone.x,
       zone.y,
       `Stn  ${idx}`,
@@ -165,7 +165,7 @@ function draw_robot_held_items(robots) {
       if (item_name == undefined) {
         console.error(`undefined item name: ${robot.held_item_id} for ${robot}`)
       }
-      drawText(
+      draw_text(
         robot.pos.x,
         robot.pos.y,
         /* text= */ `[${item_name}]`,
@@ -190,7 +190,7 @@ function grid_to_xy(gx, gy) {
  * @param {number} radius radius of circle
  * @param {string} fill color hex
  */
-function drawCircle(gx, gy, radius = 8, fill = "#ff0000") {
+function draw_circle(gx, gy, radius = 8, fill = "#ff0000") {
   if (context == null) {
     console.error("Missing context or canvas elements.");
     return;
@@ -211,7 +211,7 @@ function drawCircle(gx, gy, radius = 8, fill = "#ff0000") {
  * @param {string} font
  * @param {string} fill color hex
  */
-function drawText(
+function draw_text(
   gx,
   gy,
   text,
@@ -231,6 +231,10 @@ function drawText(
   context.fillText(text, x, y + y_offset);
 }
 
+function draw_path(params) {
+  // TODO : draw the future path of robot(s)
+}
+
 /**
  * Draw square on canvas
  * @param {number} gx col
@@ -238,7 +242,7 @@ function drawText(
  * @param {number} side side length of square
  * @param {string} fill color hex
  */
-function drawSquare(gx, gy, side = 8, fill = "#ff0000") {
+function draw_square(gx, gy, side = 8, fill = "#ff0000") {
   if (context == null) {
     console.error("Missing context or canvas elements.");
     return;
@@ -256,7 +260,7 @@ function drawSquare(gx, gy, side = 8, fill = "#ff0000") {
  * @param {number} gy row
  * @param {number} side side length of square
  */
-function clearSquare(gx, gy, side = TILE_SIZE - 2) {
+function clear_square(gx, gy, side = TILE_SIZE - 2) {
   if (context == null) {
     console.error("Missing context or canvas elements.");
     return;
@@ -273,7 +277,7 @@ function clearSquare(gx, gy, side = TILE_SIZE - 2) {
  * @param {number} gy row
  * @param {number} radius radius of circle
  */
-function clearCircle(gx, gy, radius = 8) {
+function clear_circle(gx, gy, radius = 8) {
   if (context == null) {
     console.error("Missing context or canvas elements.");
     return;
@@ -298,15 +302,15 @@ var current_positions = [];
  * @param {Point[]} new_positions
  */
 function update_positions(/** @type {Point[]} */ new_positions) {
-  current_positions.forEach((pos) => clearSquare(pos.x, pos.y));
+  current_positions.forEach((pos) => clear_square(pos.x, pos.y));
 
   // Re-draw station/item zones
-  drawItemZones(world.item_load_positions);
-  drawStationZones(world.station_positions);
+  draw_item_zones(world.item_load_positions);
+  draw_station_zones(world.station_positions);
 
   new_positions.forEach((pos, idx) => {
-    drawCircle(pos.x, pos.y);
-    drawText(
+    draw_circle(pos.x, pos.y);
+    draw_text(
       pos.x,
       pos.y,
       `Rbt ${idx}`,
