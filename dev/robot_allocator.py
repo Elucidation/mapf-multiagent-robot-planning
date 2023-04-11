@@ -86,7 +86,7 @@ class Job:
         state = [self.started, self.item_picked,
                  self.item_dropped, self.robot_returned, self.complete]
         state = [int(s) for s in state]
-        return f'Job for <{self.task}>: Progress {state}'
+        return f'Job [Robot {self.robot_id},Task {self.task.task_id},Order {self.task.order_id}] Move {self.task.item_id} to {self.task.station_id}: Progress {state}'
 
 
 class RobotAllocator:
@@ -201,7 +201,7 @@ class RobotAllocator:
         task = available_tasks[0]
         job = self.make_job(task, robot)
         logging.info(
-            f'**ASSIGNED TASK TO ROBOT found pair: {robot} - {task} : {job}**')
+            f'**ASSIGNED TASK TO ROBOT found pair: {robot} : {job}**')
         return job
 
     def update(self):

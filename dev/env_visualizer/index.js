@@ -140,6 +140,7 @@ function update_robots() {
       for (let i = 0; i < robots_db_data.length; i++) {
         const robot = robots_db_data[i];
         let pos = JSON.parse(robot.position);
+        let path = JSON.parse(robot.path);
 
         world.robots[i].pos.x = pos[0];
         world.robots[i].pos.y = pos[1];
@@ -148,6 +149,7 @@ function update_robots() {
           pos: { x: pos[0], y: pos[1] },
           state: robot.state,
           held_item_id: robot.held_item_id,
+          path: path, // future path [(x,y), (x,y), ...], empty [] otherwise
         });
       }
 
