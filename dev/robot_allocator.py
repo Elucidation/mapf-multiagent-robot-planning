@@ -32,7 +32,7 @@ from inventory_management_system.database_order_manager import DatabaseOrderMana
 from warehouses.warehouse_loader import load_warehouse_yaml_xy, Position
 
 # Set up logging
-logging.basicConfig(level = logging.INFO)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("robot_allocator")
 # logger.setLevel(logging.DEBUG)
 log_handler = logging.StreamHandler()
@@ -116,6 +116,11 @@ class RobotAllocator:
         for robot in robots:
             robot.state = RobotStatus.AVAILABLE
         self.wdb.update_robots(robots)
+
+        # Reset Task in progress states
+        tasks = self.ims_db.get_tasks(query_status=TaskStatus.IN_PROGRESS)
+        for task in tasks:
+            self.ims_db.update_task_status(task.task_id, TaskStatus.OPEN)
 
         # Track robot allocations as allocations[robot_id] = Job
         self.allocations: dict[RobotId, Optional[Job]] = {
@@ -220,12 +225,13 @@ class RobotAllocator:
             logging.debug(
                 f'Robot not yet to item zone {current_pos} -> {job.item_zone}')
             return False
-        
+
         # Add item to held items for robot
         self.robot_pick_item(job.robot_id, job.task.item_id)
         job.item_picked = True
 
-        logging.info(f'Item picked! Sending robot to station for task {job.task}')
+        logging.info(
+            f'Item picked! Sending robot to station for task {job.task}')
         return True
 
     def job_go_to_station(self, job: Job) -> bool:
@@ -259,7 +265,8 @@ class RobotAllocator:
             job.task.station_id, job.task.item_id)
         # This only modifies the task instance in the job
         job.task.status = TaskStatus.COMPLETE
-        logging.info(f'Item dropped! Sending robot back home for task {job.task}')
+        logging.info(
+            f'Item dropped! Sending robot back home for task {job.task}')
         logging.info(f'Task {job.task} complete')
 
         # Send robot home
@@ -303,24 +310,25 @@ class RobotAllocator:
         return False
 
 
-robot_mgr = RobotAllocator()
+if __name__ == '__main__':
+    robot_mgr = RobotAllocator()
 
-# Main loop processing jobs from tasks
-DELAY_SEC = 0.2
-while True:
-    logging.debug('-------')
-    robot_mgr.update()
+    # Main loop processing jobs from tasks
+    DELAY_SEC = 0.2
+    while True:
+        logging.debug('-------')
+        robot_mgr.update()
 
-    # Delay till next task
-    logging.debug(f" waiting {DELAY_SEC} seconds")
-    logging.debug('---')
-    logging.debug('- Current available tasks:')
-    for task in robot_mgr.get_available_tasks():
-        logging.debug(task)
-    logging.debug('- Current job allocations')
-    for allocated_robot_id, allocated_job in robot_mgr.allocations.items():
-        logging.debug(f'RobotId {allocated_robot_id} : {allocated_job}')
-    logging.debug('- Robots:')
-    logging.debug(robot_mgr.get_available_robots())
-    logging.debug('---')
-    time.sleep(DELAY_SEC)
+        # Delay till next task
+        logging.debug(f" waiting {DELAY_SEC} seconds")
+        logging.debug('---')
+        logging.debug('- Current available tasks:')
+        for available_task in robot_mgr.get_available_tasks():
+            logging.debug(available_task)
+        logging.debug('- Current job allocations')
+        for allocated_robot_id, allocated_job in robot_mgr.allocations.items():
+            logging.debug(f'RobotId {allocated_robot_id} : {allocated_job}')
+        logging.debug('- Robots:')
+        logging.debug(robot_mgr.get_available_robots())
+        logging.debug('---')
+        time.sleep(DELAY_SEC)

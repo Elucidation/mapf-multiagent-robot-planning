@@ -17,14 +17,14 @@ const STATION_ZONE_SIZE = 10;
 // @ts-ignore
 var socket = io();
 
-socket.on('set_world', (/** @type {any} */ msg) => {
-  console.debug('Updating grid dims', msg);
+socket.on("set_world", (/** @type {any} */ msg) => {
+  console.debug("Updating grid dims", msg);
   world = msg;
   grid = msg.grid;
   grid_dims.x = grid[0].length;
   grid_dims.y = grid.length;
   if (context == null || !(canvas instanceof HTMLCanvasElement)) {
-    console.error('Missing context or canvas elements.');
+    console.error("Missing context or canvas elements.");
     return;
   }
   canvas.width = 2 + TILE_SIZE * grid_dims.x;
@@ -32,32 +32,34 @@ socket.on('set_world', (/** @type {any} */ msg) => {
   drawBoard(world);
 });
 
-socket.on('update', (/** @type {any} */ msg) => {
+socket.on("update", (/** @type {any} */ msg) => {
   // if (!document.hasFocus()) {
   //   // Skip Updating visuals when window not in focus
   //   return;
   // }
   // msg is list of x/y positions [{x:..., y:...}, ...] for each robot
-  console.debug('Updating world state', msg);
+  console.debug("Updating world state", msg);
   if (msg.t != null) {
     updateTime(msg.t);
   }
   let positions = msg.robots.map((r) => r.pos);
   update_positions(positions);
+  // Draw held items for the robots in those positions
+  draw_robot_held_items(msg.robots);
 });
 
 // ---------------------------------------------------
 // Graphics Related
-var canvas = document.getElementById('canvas');
+var canvas = document.getElementById("canvas");
 if (!(canvas instanceof HTMLCanvasElement)) {
-  throw Error('Missing canvas element.');
+  throw Error("Missing canvas element.");
 }
-var context = canvas.getContext('2d');
+var context = canvas.getContext("2d");
 
 function updateTime(t) {
-  var tblock = document.getElementById('time');
+  var tblock = document.getElementById("time");
   if (!(tblock instanceof HTMLSpanElement)) {
-    throw Error('Missing time paragraph element.');
+    throw Error("Missing time paragraph element.");
   }
   tblock.textContent = t;
 }
@@ -67,7 +69,7 @@ function updateTime(t) {
  */
 function drawBoard(world) {
   if (context == null || !(canvas instanceof HTMLCanvasElement)) {
-    console.error('Missing context or canvas elements.');
+    console.error("Missing context or canvas elements.");
     return;
   }
 
@@ -77,7 +79,7 @@ function drawBoard(world) {
   const dh = h / grid_dims.y;
 
   context.clearRect(0, 0, canvas.width, canvas.height);
-  context.beginPath()
+  context.beginPath();
 
   // Draw walls
   context.fillStyle = "#555";
@@ -90,10 +92,8 @@ function drawBoard(world) {
         // Wall
         context.fillRect(x, y, dw, dh);
       }
-
     }
     const element = world.grid[r];
-
   }
 
   // Draw grid lines
@@ -121,24 +121,65 @@ function drawBoard(world) {
 
 function drawItemZones(zones) {
   zones.forEach((zone, idx) => {
-    clearSquare(zone.x, zone.y)
-    drawSquare(zone.x, zone.y, /* side= */ ITEM_ZONE_SIZE, /* fill= */ 'rgb(60, 128, 86)')
+    clearSquare(zone.x, zone.y);
+    drawSquare(
+      zone.x,
+      zone.y,
+      /* side= */ ITEM_ZONE_SIZE,
+      /* fill= */ "rgb(60, 128, 86)"
+    );
     let item_name = world.item_names[idx];
-    drawText(zone.x, zone.y, `${item_name}`, /* font= */ "12px", /* fill= */ 'rgb(0,0,0)')
+    drawText(
+      zone.x,
+      zone.y,
+      `${item_name}`,
+      /* font= */ "12px",
+      /* fill= */ "rgb(0,0,0)"
+    );
   });
 }
 
 function drawStationZones(zones) {
   zones.forEach((zone, idx) => {
-    clearSquare(zone.x, zone.y)
-    drawSquare(zone.x, zone.y, /* side= */ STATION_ZONE_SIZE, /* fill= */ 'rgb(68, 54, 183)')
-    drawText(zone.x, zone.y, `Stn  ${idx}`, /* font= */ "12px", /* fill= */ 'rgb(0,0,0)')
+    clearSquare(zone.x, zone.y);
+    drawSquare(
+      zone.x,
+      zone.y,
+      /* side= */ STATION_ZONE_SIZE,
+      /* fill= */ "rgb(68, 54, 183)"
+    );
+    drawText(
+      zone.x,
+      zone.y,
+      `Stn  ${idx}`,
+      /* font= */ "12px",
+      /* fill= */ "rgb(0,0,0)"
+    );
   });
 }
 
+function draw_robot_held_items(robots) {
+  for (const robot of robots) {
+    if (robot.held_item_id != undefined) {
+      let item_name = world.item_names[robot.held_item_id];
+      if (item_name == undefined) {
+        console.error(`undefined item name: ${robot.held_item_id} for ${robot}`)
+      }
+      drawText(
+        robot.pos.x,
+        robot.pos.y,
+        /* text= */ `[${item_name}]`,
+        /* font= */ undefined,
+        /* fill= */ undefined,
+        /* y_offset= */ TILE_SIZE / 4
+      );
+    }
+  }
+}
+
 function grid_to_xy(gx, gy) {
-  var x = TILE_SIZE * gx + TILE_SIZE/2 + 1;
-  var y = TILE_SIZE * gy + TILE_SIZE/2 + 1;
+  var x = TILE_SIZE * gx + TILE_SIZE / 2 + 1;
+  var y = TILE_SIZE * gy + TILE_SIZE / 2 + 1;
   return [x, y];
 }
 
@@ -151,11 +192,11 @@ function grid_to_xy(gx, gy) {
  */
 function drawCircle(gx, gy, radius = 8, fill = "#ff0000") {
   if (context == null) {
-    console.error('Missing context or canvas elements.');
+    console.error("Missing context or canvas elements.");
     return;
   }
-  var [x, y] = grid_to_xy(gx, gy)
-  context.beginPath()
+  var [x, y] = grid_to_xy(gx, gy);
+  context.beginPath();
   context.arc(x, y, radius, 0, Math.PI * 2, false);
   context.fillStyle = fill;
   context.fill();
@@ -170,17 +211,24 @@ function drawCircle(gx, gy, radius = 8, fill = "#ff0000") {
  * @param {string} font
  * @param {string} fill color hex
  */
-function drawText(gx, gy, text, font = "12px serif", fill = "#ff0000") {
+function drawText(
+  gx,
+  gy,
+  text,
+  font = "12px serif",
+  fill = "#ff0000",
+  y_offset = -TILE_SIZE / 4
+) {
   if (context == null) {
-    console.error('Missing context or canvas elements.');
+    console.error("Missing context or canvas elements.");
     return;
   }
-  var [x, y] = grid_to_xy(gx, gy)
+  var [x, y] = grid_to_xy(gx, gy);
   context.font = font;
-  context.textAlign = "center"
-  context.textBaseline = "middle"
+  context.textAlign = "center";
+  context.textBaseline = "middle";
   context.fillStyle = fill;
-  context.fillText(text, x, y - TILE_SIZE/4);
+  context.fillText(text, x, y + y_offset);
 }
 
 /**
@@ -192,12 +240,12 @@ function drawText(gx, gy, text, font = "12px serif", fill = "#ff0000") {
  */
 function drawSquare(gx, gy, side = 8, fill = "#ff0000") {
   if (context == null) {
-    console.error('Missing context or canvas elements.');
+    console.error("Missing context or canvas elements.");
     return;
   }
-  var [x, y] = grid_to_xy(gx, gy)
-  context.beginPath()
-  context.rect(x-side/2, y-side/2, side, side)
+  var [x, y] = grid_to_xy(gx, gy);
+  context.beginPath();
+  context.rect(x - side / 2, y - side / 2, side, side);
   context.fillStyle = fill;
   context.fill();
   context.closePath();
@@ -208,14 +256,14 @@ function drawSquare(gx, gy, side = 8, fill = "#ff0000") {
  * @param {number} gy row
  * @param {number} side side length of square
  */
-function clearSquare(gx, gy, side = TILE_SIZE-2) {
+function clearSquare(gx, gy, side = TILE_SIZE - 2) {
   if (context == null) {
-    console.error('Missing context or canvas elements.');
+    console.error("Missing context or canvas elements.");
     return;
   }
-  var [x, y] = grid_to_xy(gx, gy)
+  var [x, y] = grid_to_xy(gx, gy);
   context.beginPath();
-  context.clearRect(x-side/2, y-side/2, side, side);
+  context.clearRect(x - side / 2, y - side / 2, side, side);
   context.closePath();
 }
 
@@ -227,13 +275,18 @@ function clearSquare(gx, gy, side = TILE_SIZE-2) {
  */
 function clearCircle(gx, gy, radius = 8) {
   if (context == null) {
-    console.error('Missing context or canvas elements.');
+    console.error("Missing context or canvas elements.");
     return;
   }
-  var [x, y] = grid_to_xy(gx, gy)
+  var [x, y] = grid_to_xy(gx, gy);
   var radius = 8;
   context.beginPath();
-  context.clearRect(x - radius - 1, y - radius - 1, radius * 2 + 2, radius * 2 + 2);
+  context.clearRect(
+    x - radius - 1,
+    y - radius - 1,
+    radius * 2 + 2,
+    radius * 2 + 2
+  );
   context.closePath();
 }
 
@@ -242,18 +295,24 @@ var current_positions = [];
 
 /**
  * Draw circles for given positions, clearing old ones.
- * @param {Point[]} new_positions 
+ * @param {Point[]} new_positions
  */
 function update_positions(/** @type {Point[]} */ new_positions) {
-  current_positions.forEach(pos => clearSquare(pos.x, pos.y));
+  current_positions.forEach((pos) => clearSquare(pos.x, pos.y));
 
   // Re-draw station/item zones
   drawItemZones(world.item_load_positions);
   drawStationZones(world.station_positions);
-  
+
   new_positions.forEach((pos, idx) => {
-    drawCircle(pos.x, pos.y)
-    drawText(pos.x, pos.y, `Rbt ${idx}`, /* font= */ "12px serif", /* fill= */ 'rgb(0,0,0)')
+    drawCircle(pos.x, pos.y);
+    drawText(
+      pos.x,
+      pos.y,
+      `Rbt ${idx}`,
+      /* font= */ "12px serif",
+      /* fill= */ "rgb(0,0,0)"
+    );
   });
   current_positions = new_positions;
 }
