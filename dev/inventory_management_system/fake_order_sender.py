@@ -15,16 +15,10 @@ logger.addHandler(log_handler)
 dbm = DatabaseOrderManager(MAIN_DB)
 
 fixed_item_list_options = [
-    [1, 1, 2, 3],
+    [0, 1, 2, 3],
     [2, 3, 3],
-    [1, 2, 3],
-    [3],
-    [3, 5, 4, 4],
-    [6, 4],
-    [8, 8, 8, 8],
-    [6, 7, 7, 8],
-    [4, 5, 2, 2],
-    [7, 8, 9],
+    [1, 0, 1],
+    [0],
 ]
 
 for i in range(10):
