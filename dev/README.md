@@ -4,32 +4,7 @@ This folder contains development scripts testing out an automated warehouse proj
 
 The automated warehouse project utilizes a system of Orders, Tasks, and Jobs managed by a Robot Allocator, which assigns Robots to efficiently transport Items from Item Zones to Stations for assembly and order fulfillment.
 
-Sequence diagram 
-```mermaid
-sequenceDiagram
-    participant OrderProcessor as Order Processor
-    participant Database as Database
-    participant RobotAllocator as Robot Allocator
-    participant Robot as Robot
-    participant ItemZone as Item Zone
-    participant Station as Station
-
-    OrderProcessor->>Database: Check for available Orders
-    Database->>OrderProcessor: Return available Orders
-    loop Process Orders
-        OrderProcessor->>Database: Create Task entries for Order
-        RobotAllocator->>Database: Query Task entries
-        Database->>RobotAllocator: Return available Tasks
-        RobotAllocator->>Robot: Assign Jobs based on Tasks
-        loop Pick and Deliver Items
-            Robot->>ItemZone: Pick Items
-            Robot->>Station: Deliver Items
-        end
-        Station->>Database: Update Task completion
-        Database->>OrderProcessor: Update Order Progress
-    end
-    OrderProcessor->>Station: Order Completed, Free Station
-```
+![Example automated warehouse](../media/media_automated_warehouse_example1.gif)
 
 General flow of operations:
 ```mermaid
@@ -56,6 +31,34 @@ Concepts:
 * The Robot Allocator generates Jobs based on outstanding Tasks and assigns them to available Robots.
 * As Robots complete their Jobs, the corresponding Tasks are fulfilled, eventually leading to the completion of Orders. Once an Order is completed, the Station becomes available for a new Order.
 * This process continues indefinitely as new Orders are received and processed.
+
+
+Sequence diagram 
+```mermaid
+sequenceDiagram
+    participant OrderProcessor as Order Processor
+    participant Database as Database
+    participant RobotAllocator as Robot Allocator
+    participant Robot as Robot
+    participant ItemZone as Item Zone
+    participant Station as Station
+
+    OrderProcessor->>Database: Check for available Orders
+    Database->>OrderProcessor: Return available Orders
+    loop Process Orders
+        OrderProcessor->>Database: Create Task entries for Order
+        RobotAllocator->>Database: Query Task entries
+        Database->>RobotAllocator: Return available Tasks
+        RobotAllocator->>Robot: Assign Jobs based on Tasks
+        loop Pick and Deliver Items
+            Robot->>ItemZone: Pick Items
+            Robot->>Station: Deliver Items
+        end
+        Station->>Database: Update Task completion
+        Database->>OrderProcessor: Update Order Progress
+    end
+    OrderProcessor->>Station: Order Completed, Free Station
+```
 
 ## Modules:
 
@@ -92,7 +95,11 @@ Manages open orders, assigns to stations, creates tasks, etc.
 
 # Running
 
+
 Run commands from this `dev` folder.
+
+Either use the all-in-one `start_warehouse.bat` or individually start it with the following commands.
+
 
 Start order processor and reset the inventory management database:
 ```sh
