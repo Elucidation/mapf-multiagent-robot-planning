@@ -58,8 +58,8 @@ class Job:
 
         # Get positions along the route
         self.robot_home = robot_home_zones[robot.id]
-        self.item_zone = item_load_zones[task.item_id]
         # Note: Hacky, off-by-one because sqlite3 db starts indexing at 1, not zero
+        self.item_zone = item_load_zones[task.item_id - 1]
         self.station_zone = station_zones[task.station_id - 1]
 
         self.robot_start_pos = robot.pos
