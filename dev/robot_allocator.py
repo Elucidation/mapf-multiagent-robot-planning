@@ -180,67 +180,86 @@ class RobotAllocator:
         # Now check for any available robots and tasks
         robot_mgr.assign_task_to_robot()
 
-    def check_and_update_job(self, job: Job):
-        # TODO : Split this up into functions
-        if job.complete:
-            return
-        if not job.started:
-            print(f'Starting job {job}')
-            robot_mgr.wdb.set_robot_path(job.robot_id, job.path_robot_to_item)
-            job.started = True
-            return
-        elif not job.item_picked:
-            # Check that robot is at item zone
-            current_pos = job.get_current_robot_pos(robot_mgr.wdb)
-            if (current_pos != job.item_zone):
-                print(
-                    f'Robot not yet to item zone {current_pos} -> {job.item_zone}')
-                return
-            # TODO : Add item to held items for robot
-            print(f'Item picked! Sending robot to station for task {job.task}')
+    def job_start(self, job: Job) -> bool:
+        print(f'Starting job {job}')
+        robot_mgr.wdb.set_robot_path(job.robot_id, job.path_robot_to_item)
+        job.started = True
+        return True
 
-            robot_mgr.wdb.set_robot_path(
+    def job_try_pick_item(self, job: Job) -> bool:
+        # Check that robot is at item zone
+        current_pos = job.get_current_robot_pos(robot_mgr.wdb)
+        if (current_pos != job.item_zone):
+            print(
+                f'Robot not yet to item zone {current_pos} -> {job.item_zone}')
+            return False
+        # TODO : Add item to held items for robot
+        job.item_picked = True
+        print(f'Item picked! Sending robot to station for task {job.task}')
+        return True
+
+    def job_go_to_station(self, job: Job) -> bool:
+        # Send robot to station
+        robot_mgr.wdb.set_robot_path(
                 job.robot_id, job.path_item_to_station)
-            job.item_picked = True
-            return
+        return True
+
+    def job_drop_item_at_station(self, job: Job) -> bool:
+        # Check that robot is at station zone
+        current_pos = job.get_current_robot_pos(robot_mgr.wdb)
+        if (current_pos != job.station_zone):
+            print(
+                f'Robot not yet to station zone {current_pos} -> {job.station_zone}')
+            return False
+
+        # Add Item to station (this finishes the task too)
+        # TODO : Drop item from held items for robot
+        # TODO : Validate item added successfully
+        self.ims_db.add_item_to_station(
+            job.task.station_id, job.task.item_id)
+        # This only modifies the task instance in the job
+        job.task.status = TaskStatus.COMPLETE
+        print(f'Item dropped! Sending robot back home for task {job.task}')
+        print(f'Task {job.task} complete')
+
+        # Send robot home
+        robot_mgr.wdb.set_robot_path(
+            job.robot_id, job.path_station_to_home)
+        job.item_dropped = True
+        return True
+    
+    def job_go_home(self, job: Job) -> bool:
+        # Check that robot is at home zone
+        current_pos = job.get_current_robot_pos(robot_mgr.wdb)
+        if (current_pos != job.robot_home):
+            print(
+                f'Robot not yet to robot home {current_pos} -> {job.robot_home}')
+            return False
+        print(f'Robot returned home, job complete for task {job.task}')
+        job.robot_returned = True
+        job.complete = True
+
+        # Make robot available
+        robot = self.get_robot(job.robot_id)
+        robot.state = RobotStatus.AVAILABLE
+        self.wdb.update_robots([robot])
+        return True
+    
+    def check_and_update_job(self, job: Job) -> bool:
+        # Go through state ladder for a job
+        if job.complete:
+            return False
+        if not job.started:
+            return self.job_start(job)
+        elif not job.item_picked:
+            if not self.job_try_pick_item(job):
+                return False
+            return self.job_go_to_station(job)
         elif not job.item_dropped:
-            # Check that robot is at station zone
-            current_pos = job.get_current_robot_pos(robot_mgr.wdb)
-            if (current_pos != job.station_zone):
-                print(
-                    f'Robot not yet to station zone {current_pos} -> {job.station_zone}')
-                return
-
-            # Add Item to station (this finishes the task too)
-            # TODO : Drop item from held items for robot
-            # TODO : Validate item added successfully
-            self.ims_db.add_item_to_station(job.task.station_id, job.task.item_id)
-            # This only modifies the task instance in the job
-            job.task.status = TaskStatus.COMPLETE
-            print(f'Item dropped! Sending robot back home for task {job.task}')
-            print(f'Task {job.task} complete')
-
-            robot_mgr.wdb.set_robot_path(
-                job.robot_id, job.path_station_to_home)
-            job.item_dropped = True
-            return
+            return self.job_drop_item_at_station(job)
         elif not job.robot_returned:
-            # Check that robot is at home zone
-            current_pos = job.get_current_robot_pos(robot_mgr.wdb)
-            if (current_pos != job.robot_home):
-                print(
-                    f'Robot not yet to robot home {current_pos} -> {job.robot_home}')
-                return
-            print(f'Robot returned home, job complete for task {job.task}')
-            job.robot_returned = True
-            job.complete = True
-
-            # Make robot available
-            robot = self.get_robot(job.robot_id)
-            robot.state = RobotStatus.AVAILABLE
-            self.wdb.update_robots([robot])
-
-            return
+            return self.job_go_home(job)
+        return False
 
 
 robot_mgr = RobotAllocator()
@@ -258,8 +277,8 @@ while True:
     for task in robot_mgr.get_available_tasks():
         print(task)
     print('- Current job allocations')
-    for robot_id, job in robot_mgr.allocations.items():
-        print(f'RobotId {robot_id} : {job}')
+    for robot_id, allocated_job in robot_mgr.allocations.items():
+        print(f'RobotId {robot_id} : {allocated_job}')
     print('- Robots:')
     print(robot_mgr.get_available_robots())
     print('---')
