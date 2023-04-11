@@ -197,4 +197,4 @@ if __name__ == '__main__':
     while True:
         world.step()
         print(f'Step {world.t}')
-        sleep(1)
+        sleep(0.25)

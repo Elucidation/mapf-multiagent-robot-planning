@@ -27,7 +27,8 @@ for i in range(10):
     order = dbm.add_order(item_list, created_by=1)
     logger.info(f'{i} - Added new order {order}')
 
-    delay = random.random() * 1.0  # random 0-5 second delay
+    # delay = random.random() * 1.0  # random 0-5 second delay
+    delay = random.randint(10, 20)
     logger.info(f" waiting {delay:.2f} seconds")
     time.sleep(delay)
 print("Done")

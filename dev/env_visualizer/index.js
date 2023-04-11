@@ -111,8 +111,8 @@ class World {
 let world = World.from_yaml('./warehouses/warehouse2.yaml')
 
 
-// Update robot positions every second
-setInterval(update_robots, 1000); // 1 second
+// Update robot positions repeatedly
+setInterval(update_robots, 250);
 function update_robots() {
     Promise.all([robot_dbm.get_timestamp(), robot_dbm.get_robots()]).then(data => {
         let t_db_data = data[0];

@@ -271,7 +271,7 @@ while True:
     robot_mgr.update()
 
     # Delay till next task
-    delay = 1
+    delay = 0.2
     print(f" waiting {delay} seconds")
     print('---')
     print('- Current available tasks:')
