@@ -67,7 +67,7 @@ sequenceDiagram
 ### [`inventory_management_system`](inventory_management_system/)
 
 A python module for tracking creating and tracking Orders, Items, Stations, and Tasks.
-![IMS Web UI](inventory_management_system/ims_example.png)
+![IMS Web UI](../media/ims_example.png)
 
 ### [`multiagent_planner`](multiagent_planner/)
 
