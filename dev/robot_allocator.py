@@ -388,12 +388,13 @@ if __name__ == '__main__':
         robot_mgr.update()
 
         # Delay till next task
-        logging.debug(f" waiting {DELAY_SEC} seconds")
-        logging.debug('---')
-        logging.debug(f'- Current available tasks: {[task.task_id for task in robot_mgr.get_available_tasks()]}')
-        logging.debug('- Current job allocations')
-        for allocated_robot_id, allocated_job in robot_mgr.allocations.items():
-            logging.debug(f'RobotId {allocated_robot_id} : {allocated_job}')
-        logging.debug(f'- Available Robots: {robot_mgr.get_available_robots()}')
-        logging.debug('---')
+        if any(robot_mgr.allocations.values()):
+            logging.debug(f" waiting {DELAY_SEC} seconds")
+            logging.debug('---')
+            logging.debug(f'- Current available tasks: {[task.task_id for task in robot_mgr.get_available_tasks()]}')
+            logging.debug('- Current job allocations')
+            for allocated_robot_id, allocated_job in robot_mgr.allocations.items():
+                logging.debug(f'RobotId {allocated_robot_id} : {allocated_job}')
+            logging.debug(f'- Available Robots: {robot_mgr.get_available_robots()}')
+            logging.debug('---')
         time.sleep(DELAY_SEC)
