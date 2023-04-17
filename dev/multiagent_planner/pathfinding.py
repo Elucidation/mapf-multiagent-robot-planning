@@ -7,6 +7,8 @@ from typing import Optional
 Position = tuple[int, int]  # (row, col)
 PositionST = tuple[int, int, int]  # (row, col, time)
 Collision = tuple[int, int, int, int]  # (path_idx, row, col, time)
+Path = list[Position]
+PathST = list[PositionST]
 
 
 def astar(graph, pos_a: Position, pos_b: Position) -> list[Position]:
@@ -87,7 +89,7 @@ def astar(graph, pos_a: Position, pos_b: Position) -> list[Position]:
 
 
 def st_astar(graph, pos_a: Position, pos_b: Position,
-             dynamic_obstacles: dict, max_time=20, maxiters=10000):
+             dynamic_obstacles: set, max_time=20, maxiters=10000):
     """Space-Time A* search.
 
     Each tile is position.
@@ -98,7 +100,7 @@ def st_astar(graph, pos_a: Position, pos_b: Position,
         graph (_type_): NxN int array, obstacles are non-zero
         pos_a (Position): _description_
         pos_b (Position): _description_
-        dynamic_obstacles (dict): dict of (row,col,t) obstacles to avoid. Defaults to dict().
+        dynamic_obstacles (set): set{(row,col,t), ...} of obstacles to avoid. Defaults to set().
         max_time (int, optional): max time to search up to. Defaults to 20.
         maxiters (int, optional): _description_. Defaults to 10000.
 
@@ -253,10 +255,10 @@ def mapf1(grid, starts, goals, maxiter=5, max_time=20):
 
     collisions = find_all_collisions(paths)
     # dict of collisions per path
-    path_collisions = defaultdict(list)
+    path_collisions = defaultdict(set)
     for collision in collisions:
         path_idx, row, col, t = collision
-        path_collisions[path_idx].append((row, col, t))
+        path_collisions[path_idx].add((row, col, t))
 
     if not collisions:
         return paths
@@ -282,6 +284,6 @@ def mapf1(grid, starts, goals, maxiter=5, max_time=20):
         # Note: Keeps old dynamic obstacles, not optimal
         for collision in collisions:
             path_idx, row, col, t = collision
-            path_collisions[path_idx].append((row, col, t))
+            path_collisions[path_idx].add((row, col, t))
 
     return paths
