@@ -28,7 +28,7 @@ for i in range(10):
     logger.info(f'{i} - Added new order {order}')
 
     # delay = random.random() * 1.0  # random 0-5 second delay
-    delay = random.randint(5, 15)
+    delay = random.randint(2, 8)
     logger.info(f" waiting {delay:.2f} seconds")
     time.sleep(delay)
 print("Done")
