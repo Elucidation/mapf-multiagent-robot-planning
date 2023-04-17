@@ -89,7 +89,7 @@ def astar(graph, pos_a: Position, pos_b: Position) -> list[Position]:
 
 
 def st_astar(graph, pos_a: Position, pos_b: Position,
-             dynamic_obstacles: set, max_time=20, maxiters=10000):
+             dynamic_obstacles: set, max_time=20, maxiters=10000, t_start=0, end_fast=False) -> Path:
     """Space-Time A* search.
 
     Each tile is position.
@@ -103,12 +103,14 @@ def st_astar(graph, pos_a: Position, pos_b: Position,
         dynamic_obstacles (set): set{(row,col,t), ...} of obstacles to avoid. Defaults to set().
         max_time (int, optional): max time to search up to. Defaults to 20.
         maxiters (int, optional): _description_. Defaults to 10000.
+        t_start (int, optional): offset start time if this path starts later in dynamic obstacles. 
+        end_fast (bool, optional): end as soon as destination reached vs waiting till max_time
 
     Raises:
         ValueError: _description_
 
     Returns:
-        _type_: _description_
+        path (Path): A list of positions along the found path (or empty list if fail)
     """
 
     if graph[pos_a[0], pos_a[1]] > 0 or graph[pos_b[0], pos_b[1]] > 0:
@@ -123,7 +125,7 @@ def st_astar(graph, pos_a: Position, pos_b: Position,
     def check_valid(stpos: PositionST) -> bool:
         (row, col, t) = stpos
         max_row, max_col = graph.shape
-        if t > max_time:
+        if t > max_time+t_start:
             return False
         if row < 0 or row >= max_row:
             return False
@@ -137,20 +139,24 @@ def st_astar(graph, pos_a: Position, pos_b: Position,
 
     close_set = set()
     path_track: dict[PositionST, Optional[PositionST]] = {}  # coord -> parent
-    curr: PositionST = (pos_a[0], pos_a[1], 0)
+    curr: PositionST = (pos_a[0], pos_a[1], t_start)
     path_track[curr] = None
     close_set.add(curr)
 
     # priority queue via heapq
     # heuristc_score, parent, pos, time
     priority_queue: list[tuple[float, Optional[PositionST], PositionST]] = [
-        (heuristic(pos_a, pos_b), None, (pos_a[0], pos_a[1], 0))]
+        (heuristic(pos_a, pos_b), None, curr)]
 
     i = 0
     while (priority_queue or i < maxiters):
         # print(priority_queue)
         _, _, curr = heapq.heappop(priority_queue)
         close_set.add(curr)
+        # End once destination reached
+        if end_fast and curr[:2] == pos_b:
+            break
+        # Only quit at max_time
         if curr == (pos_b[0], pos_b[1], max_time):
             break
 
