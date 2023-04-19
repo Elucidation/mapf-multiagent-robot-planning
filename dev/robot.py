@@ -35,7 +35,7 @@ class Robot(object):
                  held_item_id: Optional[ItemId] = None,
                  state: RobotStatus = RobotStatus.AVAILABLE,
                  path: list = []):
-        self.id = robot_id
+        self.robot_id = robot_id
         self.pos = pos  # (X col, Y row)
         self.pos_history: deque = deque(maxlen=10)
         self.held_item_id = held_item_id
@@ -103,11 +103,11 @@ class Robot(object):
         return True
 
     def __repr__(self):
-        return f'Robot_{self.id}[{self.state}] : {self.pos}'
+        return f'Robot_{self.robot_id}[{self.state}] : {self.pos}'
 
     def json_data(self):
         row, col = self.pos  # x,y = col,row
-        return {'id': self.id, 'pos': {'x': col, 'y': row}, 'path': self.future_path}
+        return {'id': self.robot_id, 'pos': {'x': col, 'y': row}, 'path': self.future_path}
 
 
 if __name__ == '__main__':

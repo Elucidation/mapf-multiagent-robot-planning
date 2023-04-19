@@ -55,7 +55,7 @@ class Job:
         # Job-related metadata
         self.job_id = job_id
         self.task = task
-        self.robot_id = robot.id
+        self.robot_id = robot.robot_id
 
         # Stops on route
         self.robot_start_pos = robot.pos
@@ -123,7 +123,7 @@ class RobotAllocator:
 
         # Track robot allocations as allocations[robot_id] = Job
         self.allocations: dict[RobotId, Optional[Job]] = {
-            robot.id: None for robot in robots}
+            robot.robot_id: None for robot in robots}
 
     def make_job(self, task: Task, robot: Robot) -> Optional[Job]:
         """Try to generate and return job if pathing is possible, None otherwise"""
@@ -134,7 +134,7 @@ class RobotAllocator:
         if task.status != TaskStatus.OPEN:
             raise ValueError(f'{task} not open for a new job')
         # Get positions along the route
-        robot_home = self.robot_home_zones[robot.id]
+        robot_home = self.robot_home_zones[robot.robot_id]
         item_zone = self.item_load_zones[task.item_id]
         # Note: Hacky, off-by-one because sqlite3 db starts indexing at 1, not zero
         station_zone = self.station_zones[task.station_id - 1]
@@ -145,7 +145,7 @@ class RobotAllocator:
         self.job_id_counter = JobId(self.job_id_counter + 1)
         job = Job(job_id, robot_home, item_zone, station_zone, task, robot)
         self.jobs[job_id] = job  # Track job
-        self.allocations[robot.id] = job  # Track robot allocation
+        self.allocations[robot.robot_id] = job  # Track robot allocation
         # Set task state
         self.ims_db.update_task_status(task.task_id, TaskStatus.IN_PROGRESS)
         task.status = TaskStatus.IN_PROGRESS  # Update local task instance as well
@@ -154,12 +154,12 @@ class RobotAllocator:
         self.wdb.update_robots([robot])
         return job
 
-    def get_current_dynamic_obstacles(self, max_t:int = 20) -> set[tuple[int, int, int]]:
+    def get_current_dynamic_obstacles(self, max_t: int = 20) -> set[tuple[int, int, int]]:
         """Return existing robot future paths as dynamic obstacles
 
         Returns:
             set[tuple[int, int, int]]: set of (row, col, t) dynamic obstacles with current t=-1
-        """        
+        """
         # For dynamic obstacles, assume current moment is t=-1, next moment is t=0
         robots = self.wdb.get_robots()  # Get current future paths for all other robots
         dynamic_obstacles: set[tuple[int, int, int]
@@ -168,7 +168,8 @@ class RobotAllocator:
             # Add all positions along future path
             for t, pos in enumerate(robot.future_path):
                 dynamic_obstacles.add((pos[0], pos[1], t))
-                dynamic_obstacles.add((pos[0], pos[1], t+1)) # Also add it at future time
+                # Also add it at future time
+                dynamic_obstacles.add((pos[0], pos[1], t+1))
 
             path_t = len(robot.future_path)
             if robot.future_path:
@@ -176,7 +177,7 @@ class RobotAllocator:
                 last_pos = robot.future_path[path_t-1]
                 dynamic_obstacles.add((last_pos[0], last_pos[1], path_t))
                 dynamic_obstacles.add((last_pos[0], last_pos[1], path_t + 1))
-                    
+
             else:
                 # Robot stationary, add current robot position up to limit
                 for t in range(max_t):
@@ -258,7 +259,8 @@ class RobotAllocator:
 
     def job_start(self, job: Job) -> bool:
         # Try to generate new path for robot
-        job.path_robot_to_item = self.generate_path(job.robot_start_pos, job.item_zone)
+        job.path_robot_to_item = self.generate_path(
+            job.robot_start_pos, job.item_zone)
         if not job.path_robot_to_item:
             return False  # Did not start job as no path existed yet
 
@@ -276,9 +278,11 @@ class RobotAllocator:
             return False
 
         # Add item to held items for robot
-        success, item_in_hand = self.robot_pick_item(job.robot_id, job.task.item_id)
+        success, item_in_hand = self.robot_pick_item(
+            job.robot_id, job.task.item_id)
         if not success:
-            logging.error(f'Robot could not pick item for job {job}, already holding {item_in_hand}')
+            logging.error(
+                f'Robot could not pick item for job {job}, already holding {item_in_hand}')
         job.item_picked = True
 
         logging.info(
@@ -287,10 +291,11 @@ class RobotAllocator:
 
     def job_go_to_station(self, job: Job) -> bool:
         # Try to generate new path for robot
-        job.path_item_to_station = self.generate_path(job.item_zone, job.station_zone)
+        job.path_item_to_station = self.generate_path(
+            job.item_zone, job.station_zone)
         if not job.path_item_to_station:
             return False  # Did not start job as no path existed yet
-        
+
         # Send robot to station
         robot_mgr.wdb.set_robot_path(
             job.robot_id, job.path_item_to_station)
@@ -331,7 +336,8 @@ class RobotAllocator:
 
     def job_return_home(self, job: Job) -> bool:
         # Try to generate new path for robot
-        job.path_station_to_home = self.generate_path(job.station_zone, job.robot_home)
+        job.path_station_to_home = self.generate_path(
+            job.station_zone, job.robot_home)
         if not job.path_station_to_home:
             return False  # Did not start job as no path existed yet
         # Send robot home
@@ -391,10 +397,13 @@ if __name__ == '__main__':
         if any(robot_mgr.allocations.values()):
             logging.debug(f" waiting {DELAY_SEC} seconds")
             logging.debug('---')
-            logging.debug(f'- Current available tasks: {[task.task_id for task in robot_mgr.get_available_tasks()]}')
+            logging.debug('- Current available tasks: '
+                          f'{[task.task_id for task in robot_mgr.get_available_tasks()]}')
             logging.debug('- Current job allocations')
             for allocated_robot_id, allocated_job in robot_mgr.allocations.items():
-                logging.debug(f'RobotId {allocated_robot_id} : {allocated_job}')
-            logging.debug(f'- Available Robots: {robot_mgr.get_available_robots()}')
+                logging.debug(
+                    f'RobotId {allocated_robot_id} : {allocated_job}')
+            logging.debug(
+                f'- Available Robots: {robot_mgr.get_available_robots()}')
             logging.debug('---')
         time.sleep(DELAY_SEC)

@@ -9,10 +9,10 @@ class TestPathfinding(unittest.TestCase):
     """Unit tests for pathfinding module"""
 
     def test_find_collisions(self):
-        p1 = [(0, 0), (0, 1), (0, 1), (0, 2)]
-        p2 = [(1, 0), (1, 1), (0, 1), (0, 0)]
+        path1 = [(0, 0), (0, 1), (0, 1), (0, 2)]
+        path2 = [(1, 0), (1, 1), (0, 1), (0, 0)]
         # These collide at vertex at time 2
-        collisions = pathfinding.find_collisions(p1, p2)
+        collisions = pathfinding.find_collisions(path1, path2)
         self.assertEqual(collisions, [(1, 0, 1, 2)])
 
     def test_mapf0(self):

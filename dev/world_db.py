@@ -66,7 +66,7 @@ class WorldDatabaseManager:
         # Array of tuples (id, "x,y") for each robot
         for robot in robots:
             pos_str = json.dumps(robot.pos)
-            data.append([robot.id, pos_str])
+            data.append([robot.robot_id, pos_str])
 
         cursor = self.con.cursor()
         print('add_robots', data)
@@ -97,7 +97,7 @@ class WorldDatabaseManager:
             pos_str = json.dumps(robot.pos)
             path = json.dumps(list(robot.future_path))
             data.append([pos_str, robot.held_item_id,
-                        str(robot.state), path, robot.id])
+                        str(robot.state), path, robot.robot_id])
 
         cursor = self.con.cursor()
         sql = """UPDATE Robot SET position=?, held_item_id=?, state=?, path=? WHERE robot_id=?"""

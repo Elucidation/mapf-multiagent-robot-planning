@@ -71,7 +71,7 @@ class World(object):
         self.sio_server = socketio.Server(logger=True)
 
     def add_robot(self, robot: Robot):
-        self.robots_by_id[robot.id] = len(self.robots)
+        self.robots_by_id[robot.robot_id] = len(self.robots)
         self.robots.append(robot)
 
     def get_robot_by_id(self, robot_id: int):
@@ -91,7 +91,7 @@ class World(object):
             # Check robot on space tile (not a wall)
             grid_val = self.get_grid_tile_for_position(robot.pos)
             if grid_val != EnvType.SPACE:
-                self.collision = (robot.id, robot.pos, robot.get_last_pos())
+                self.collision = (robot.robot_id, robot.pos, robot.get_last_pos())
                 return False
 
             # vertex conflict
@@ -101,11 +101,11 @@ class World(object):
                 other_robot = self.get_robot_by_id(latest_positions[robot.pos])
                 past_pos = robot.get_last_pos()
                 other_robot_past_pos = other_robot.get_last_pos()
-                self.collision = (robot.id, robot.pos, past_pos,
+                self.collision = (robot.robot_id, robot.pos, past_pos,
                                   other_robot.id, other_robot.pos, other_robot_past_pos)
                 return False
             else:
-                latest_positions[robot.pos] = robot.id
+                latest_positions[robot.pos] = robot.robot_id
 
             # edge conflict
             # If robot is entering previously occupied cell, check if other robot moved on same edge
@@ -124,7 +124,7 @@ class World(object):
                     print(
                         f'Edge collision [{robot}] {r1_past}->{r1_now} <->'
                         f' [{other_robot}] {r2_past}->{r2_now}')
-                    self.collision = (robot.id, r1_now, r1_past,
+                    self.collision = (robot.robot_id, r1_now, r1_past,
                                       other_robot.id, r2_now, r2_past)
                     return False
 
@@ -140,7 +140,7 @@ class World(object):
 
         self.past_robot_positions.clear()
         for robot in self.robots:
-            self.past_robot_positions[robot.pos] = robot.id
+            self.past_robot_positions[robot.pos] = robot.robot_id
 
         state_changed = False
         for robot in self.robots:

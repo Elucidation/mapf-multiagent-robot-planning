@@ -88,8 +88,8 @@ def astar(graph, pos_a: Position, pos_b: Position) -> list[Position]:
     return []
 
 
-def st_astar(graph, pos_a: Position, pos_b: Position,
-             dynamic_obstacles: set, max_time=20, maxiters=10000, t_start=0, end_fast=False) -> Path:
+def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set, max_time=20,
+             maxiters=10000, t_start=0, end_fast=False) -> Path:
     """Space-Time A* search.
 
     Each tile is position.
