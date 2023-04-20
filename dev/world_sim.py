@@ -102,7 +102,7 @@ class World(object):
                 past_pos = robot.get_last_pos()
                 other_robot_past_pos = other_robot.get_last_pos()
                 self.collision = (robot.robot_id, robot.pos, past_pos,
-                                  other_robot.id, other_robot.pos, other_robot_past_pos)
+                                  other_robot.robot_id, other_robot.pos, other_robot_past_pos)
                 return False
             else:
                 latest_positions[robot.pos] = robot.robot_id
@@ -125,7 +125,7 @@ class World(object):
                         f'Edge collision [{robot}] {r1_past}->{r1_now} <->'
                         f' [{other_robot}] {r2_past}->{r2_now}')
                     self.collision = (robot.robot_id, r1_now, r1_past,
-                                      other_robot.id, r2_now, r2_past)
+                                      other_robot.robot_id, r2_now, r2_past)
                     return False
 
         self.collision = None
