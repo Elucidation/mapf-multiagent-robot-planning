@@ -65,10 +65,24 @@ class World {
 
     /** @type {number} The current time step (discrete, increments) */
     this.t = 0;
+
+    /** @type {Point[]} Robot Home positions in this world */
+    this.robot_home_zones = data.robot_home_zones.map((rc) => new Point(rc[1], rc[0]));
+
+    /** @type {Point[]} Item loading positions in this world */
+    this.item_load_positions = data.item_load_zones.map(
+      (rc) => new Point(rc[1], rc[0])
+    );
+    
+    /** @type {Point[]} Station positions in this world */
+    this.station_positions = data.station_zones.map(
+      (rc) => new Point(rc[1], rc[0])
+    );
+
     /** @type {Robot[]} List of robots in this world */
     this.robots = [];
-    for (let i = 0; i < data.robot_home_zones.length; i++) {
-      const robot_home_zone = data.robot_home_zones[i];
+    for (let i = 0; i < this.robot_home_zones.length; i++) {
+      const robot_home_zone = this.robot_home_zones[i];
       this.robots.push(
         new Robot({
           id: i,
@@ -76,14 +90,7 @@ class World {
         })
       );
     }
-    /** @type {Point[]} Item loading positions in this world */
-    this.item_load_positions = data.item_load_zones.map(
-      (rc) => new Point(rc[1], rc[0])
-    );
-    /** @type {Point[]} Station positions in this world */
-    this.station_positions = data.station_zones.map(
-      (rc) => new Point(rc[1], rc[0])
-    );
+
     /** @type {number[][]} Grid of world */
     this.grid = data.grid;
 
@@ -112,6 +119,7 @@ class World {
       grid: this.grid,
       item_load_positions: this.item_load_positions,
       station_positions: this.station_positions,
+      robot_home_zones: this.robot_home_zones,
       item_names: this.item_names,
     };
   }
