@@ -411,6 +411,6 @@ if __name__ == '__main__':
             logging.debug(
                 f'- Available Robots: {robot_mgr.get_available_robots()}')
             logging.debug('---')
-        
+
         # Delay till next task
         robot_mgr.sleep()
