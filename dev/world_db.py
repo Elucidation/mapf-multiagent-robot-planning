@@ -79,6 +79,17 @@ class WorldDatabaseManager:
         sql = """REPLACE INTO State (label, value) VALUES ('timestamp', ?)"""
         cursor.execute(sql, (t,))
         self.con.commit()
+    
+    def set_dt_sec(self, dt_sec: float):
+        cursor = self.con.cursor()
+        sql = """REPLACE INTO State (label, value) VALUES ('dt_sec', ?)"""
+        cursor.execute(sql, (dt_sec,))
+        self.con.commit()
+
+    def get_dt_sec(self) -> float:
+        result = self.con.execute('SELECT value FROM State WHERE label = "dt_sec" LIMIT 1')
+        (dt_sec,) = result.fetchone()
+        return dt_sec
 
     def set_robot_path(self, robot_id: int, path: list):
         # Note, tuples become lists with json.

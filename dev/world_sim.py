@@ -23,7 +23,7 @@ class EnvType(Enum):
 class World(object):
     """A grid which robots can be placed and moved in."""
 
-    def __init__(self, grid: np.ndarray, robots: List[Robot],
+    def __init__(self, grid: np.ndarray, robots: List[Robot], time_step_sec: float,
                  item_load_zones: List[Position] = [], station_zones: List[Position] = []):
         self.grid = grid
         self.height = self.grid.shape[0]  # Rows
@@ -40,6 +40,7 @@ class World(object):
         self.station_zones = station_zones
 
         self.t = 0  # world time T
+        self.dt_sec = time_step_sec  # expected time step in seconds with self.sleep()
         self.ended = False
 
         self.init_socketio()
@@ -48,6 +49,7 @@ class World(object):
         self.wdb = WorldDatabaseManager(world_db_filename)
         self.wdb.reset()
         self.wdb.add_robots(self.robots)
+        self.wdb.set_dt_sec(self.dt_sec)
 
     def get_all_state_data(self):
         return {
@@ -91,7 +93,8 @@ class World(object):
             # Check robot on space tile (not a wall)
             grid_val = self.get_grid_tile_for_position(robot.pos)
             if grid_val != EnvType.SPACE:
-                self.collision = (robot.robot_id, robot.pos, robot.get_last_pos())
+                self.collision = (robot.robot_id, robot.pos,
+                                  robot.get_last_pos())
                 return False
 
             # vertex conflict
@@ -160,12 +163,16 @@ class World(object):
         # Return if any robot has moved or not
         return state_changed
 
+    def sleep(self):
+        sleep(self.dt_sec)
+
     def show_grid_ascii(self):
         # Create grid string with walls or spaces
         grid_str = np.full_like(self.grid, dtype=str, fill_value='')
         for row in range(self.height):
             for col in range(self.width):
-                char = "W" if self.grid[row, col] == EnvType.WALL.value else " "
+                char = "W" if self.grid[row,
+                                        col] == EnvType.WALL.value else " "
                 grid_str[row, col] += char
 
         # Place robots in grid_str
@@ -187,7 +194,8 @@ if __name__ == '__main__':
     # Create robots at start positions (row,col) -> (x,y)
     robots = [Robot(RobotId(i), (col, row))
               for i, (row, col) in enumerate(robot_home_zones)]
-    world = World(grid, robots, item_load_zones, station_zones)
+    TIME_STEP_SEC = 0.25
+    world = World(grid, robots, TIME_STEP_SEC, item_load_zones, station_zones)
     print(world)
     world.show_grid_ascii()
 
@@ -197,4 +205,4 @@ if __name__ == '__main__':
     while True:
         world.step()
         print(f'Step {world.t}')
-        sleep(0.25)
+        world.sleep()

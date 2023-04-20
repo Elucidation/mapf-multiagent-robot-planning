@@ -68,6 +68,16 @@ class RobotDatabaseManager {
         });
     }
 
+    async get_dt_sec() {
+        return new Promise((resolve, reject) => {
+            this.db.get("SELECT value FROM State WHERE label='dt_sec'", (err, row) => {
+                if (err)
+                    return reject(err);
+                resolve(row);
+            });
+        });
+    }
+
     async get_robots() {
         return new Promise((resolve, reject) => {
             this.db.all("SELECT * FROM Robot", (err, rows) => {

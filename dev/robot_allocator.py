@@ -116,6 +116,9 @@ class RobotAllocator:
             robot.state = RobotStatus.AVAILABLE
         self.wdb.update_robots(robots)
 
+        # Get delta time step used by world sim
+        self.dt_sec = self.wdb.get_dt_sec()
+
         # Reset Task in progress states
         tasks = self.ims_db.get_tasks(query_status=TaskStatus.IN_PROGRESS)
         for task in tasks:
@@ -250,6 +253,9 @@ class RobotAllocator:
 
         # Now check for any available robots and tasks
         robot_mgr.assign_task_to_robot()
+
+    def sleep(self):
+        time.sleep(self.dt_sec)
 
     def generate_path(self, pos_a: Position, pos_b: Position) -> Path:
         """Generate a path from a to b avoiding existing robots"""
@@ -393,7 +399,6 @@ if __name__ == '__main__':
         logging.debug('-------')
         robot_mgr.update()
 
-        # Delay till next task
         if any(robot_mgr.allocations.values()):
             logging.debug(f" waiting {DELAY_SEC} seconds")
             logging.debug('---')
@@ -406,4 +411,6 @@ if __name__ == '__main__':
             logging.debug(
                 f'- Available Robots: {robot_mgr.get_available_robots()}')
             logging.debug('---')
-        time.sleep(DELAY_SEC)
+        
+        # Delay till next task
+        robot_mgr.sleep()
