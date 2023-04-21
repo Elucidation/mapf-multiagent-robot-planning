@@ -149,8 +149,7 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set, ma
         (heuristic(pos_a, pos_b), None, curr)]
 
     i = 0
-    while (priority_queue or i < maxiters):
-        # print(priority_queue)
+    while (priority_queue and i < maxiters):
         _, _, curr = heapq.heappop(priority_queue)
         close_set.add(curr)
         # End once destination reached
