@@ -189,12 +189,14 @@ class World(object):
 
 
 if __name__ == '__main__':
+    
+    TIME_STEP_SEC = 0.25
+
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
         'warehouses/warehouse2.yaml')
     # Create robots at start positions (row,col) -> (x,y)
     robots = [Robot(RobotId(i), (col, row))
               for i, (row, col) in enumerate(robot_home_zones)]
-    TIME_STEP_SEC = 0.25
     world = World(grid, robots, TIME_STEP_SEC, item_load_zones, station_zones)
     print(world)
     world.show_grid_ascii()
