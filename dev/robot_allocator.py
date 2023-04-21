@@ -301,6 +301,8 @@ class RobotAllocator:
         if not success:
             logging.error(
                 f'Robot could not pick item for job {job}, already holding {item_in_hand}')
+            job.error = True
+            return False
         job.item_picked = True
 
         logging.info(
@@ -334,10 +336,12 @@ class RobotAllocator:
             logging.error(
                 f"Robot didn't have item to drop: {job.robot_id} held {item_id}")
             self.set_robot_error(job.robot_id)
+            job.error = True
             return False
         elif item_id != job.task.item_id:
             logging.error(
                 f"Robot was holding wrong item: {item_id}, needed {job.task.item_id}")
+            job.error = True
             return False
 
         # TODO : Validate item added successfully
@@ -386,13 +390,13 @@ class RobotAllocator:
 
     def job_restart(self, job):
         logging.error(f'{job} in error, resetting job and robot etc.')
-        
+
         # Make robot available and drop any held items
         robot = self.get_robot(job.robot_id)
         robot.state = RobotStatus.AVAILABLE
         robot.held_item_id = None
         self.wdb.update_robots([robot])
-        
+
         # Reset the job
         job.reset()
         # Set robots start pos to where it is currently
@@ -406,7 +410,7 @@ class RobotAllocator:
             return False
         if job.error:
             return self.job_restart(job)
-        
+
         if not job.started:
             return self.job_start(job)
         elif not job.item_picked:

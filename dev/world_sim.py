@@ -189,7 +189,6 @@ class World(object):
 
 
 if __name__ == '__main__':
-    
     TIME_STEP_SEC = 0.25
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
