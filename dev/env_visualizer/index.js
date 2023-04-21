@@ -31,10 +31,10 @@ server.listen(port, () => {
   console.info(`Listening on *:${port}`);
 });
 
-// Task Database (unneeded)
-const { robot_dbm } = require("./database");
+// Open databases
+const { robot_dbm, dbm } = require("./database");
 robot_dbm.open_db();
-// robot_dbm.get_robots().then((x) => console.info(x))
+dbm.open_db();
 
 // World
 
@@ -136,6 +136,22 @@ robot_dbm.get_dt_sec().then(data => {
   setInterval(update_robots, world.dt_s * 1000);
 })
 
+function update_ims() {
+  // TODO : Use this to show station states
+  // Update IMS stations/orders/items viz
+  processStationsAndOrderItems()
+}
+
+async function processStationsAndOrderItems() {
+  try {
+    const stations = await dbm.get_stations();
+    const order_ids = stations.map(station => station.order_id);
+    const order_items = await dbm.get_order_items_by_ids(order_ids);
+    // do_something();
+  } catch (error) {
+    console.error("Error processing stations and order items:", error);
+  }
+}
 
 function update_robots() {
   Promise.all([robot_dbm.get_timestamp(), robot_dbm.get_robots()]).then(
