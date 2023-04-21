@@ -2,6 +2,7 @@
 import time
 import random
 import logging
+import sys
 from .Item import ItemCounter, ItemId
 from .database_order_manager import DatabaseOrderManager, MAIN_DB
 
@@ -14,21 +15,37 @@ logger.addHandler(log_handler)
 
 dbm = DatabaseOrderManager(MAIN_DB)
 
-fixed_item_list_options = [
-    [0, 1, 2, 3],
-    [2, 3, 3],
-    [1, 0, 1],
-    [0],
-]
+# fixed_item_list_options = [
+#     [0, 1, 2, 3],
+#     [2, 3, 3],
+#     [1, 0, 1],
+#     [0],
+# ]
 
-for i in range(10):
+def send_random_order():
+    """Creates new random order and adds it to the database"""
     item_list = ItemCounter(
-        map(ItemId, fixed_item_list_options[i % len(fixed_item_list_options)]))
+        [ItemId(random.randint(0, 3)) for _ in range(random.randint(1, MAX_ITEMS))])
     order = dbm.add_order(item_list, created_by=1)
-    logger.info(f'{i} - Added new order {order}')
+    logger.info(f'{i} - Send new order {order}')
 
-    # delay = random.random() * 1.0  # random 0-5 second delay
-    delay = random.randint(2, 8)
-    logger.info(f" waiting {delay:.2f} seconds")
-    time.sleep(delay)
-print("Done")
+if __name__ == '__main__':
+    db_orders = DatabaseOrderManager(MAIN_DB)
+    MAX_ITEMS = 4
+
+    NUM_ORDERS = 1
+    DELAY = 1
+
+    # Pass num orders as param, delay as well
+    if len(sys.argv) == 2:
+        NUM_ORDERS = int(sys.argv[1])
+    elif len(sys.argv) == 3:
+        NUM_ORDERS = int(sys.argv[1])
+        DELAY = int(sys.argv[2])
+    
+    for i in range(NUM_ORDERS):
+        send_random_order()
+        
+        logger.info(f" waiting {DELAY:.2f} seconds")
+        time.sleep(DELAY)
+    print("Done")
