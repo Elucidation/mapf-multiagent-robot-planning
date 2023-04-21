@@ -98,7 +98,7 @@ path {
     position: absolute;
     top: 0;
     left: 0;
-    stroke: rgb(179, 138, 50);
-    stroke-width: 4;
+    stroke: rgba(179, 138, 50, 0.466);
+    stroke-width: 2;
     fill: none;
 }

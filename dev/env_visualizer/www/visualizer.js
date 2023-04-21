@@ -11,7 +11,7 @@ const TILE_SIZE = 80;
 
 // ---------------------------------------------------
 // SVG Visualizations
-var robots_svg;  // Stores an array of SVG elements for each robot + their labels and held items
+var robots_svg; // Stores an array of SVG elements for each robot + their labels and held items
 var paths_svg; // A group containing an array of SVG elements for each robot path
 var prev_robots; // Tracks previous state of robots (prior position etc.)
 
@@ -86,66 +86,82 @@ function svg_create_robot_home_zones(zones) {
 }
 
 function svg_create_robots(robots) {
-  return robots.map(robot => {
+  return robots.map((robot) => {
     // robot has id and pos (x,y)
     const circle = createCircle("robot");
     const circleId = `robot_${robot.id}`;
-    const labelText = createCircleLabel(circleId, `Robot ${robot.id}`, "robot_label");
-    const heldItemText = createCircleLabel(`${circleId}_held_item`, '', "robot_held_item_label");
-    heldItemText.setAttribute("y", TILE_SIZE*0.2); // Offset below
+    const labelText = createCircleLabel(
+      circleId,
+      `Robot ${robot.id}`,
+      "robot_label"
+    );
+    const heldItemText = createCircleLabel(
+      `${circleId}_held_item`,
+      "",
+      "robot_held_item_label"
+    );
+    heldItemText.setAttribute("y", TILE_SIZE * 0.2); // Offset below
     const circleGroup = createSVGElement("g");
-    circleGroup.setAttribute('circleId', circleId);  // Store circleId in the group
+    circleGroup.setAttribute("circleId", circleId); // Store circleId in the group
     circleGroup.appendChild(circle);
     circleGroup.appendChild(labelText);
-    circleGroup.appendChild(heldItemText);    
+    circleGroup.appendChild(heldItemText);
     return circleGroup;
-  }) 
+  });
 }
 
 function svg_update_robots(robots, t) {
   robots.forEach((robot, idx) => {
-    let svg_robot = robots_svg[idx];  // Group containing the circle and labels
-    let prev_robot = prev_robots[idx]
-    updateCircleGroupPosition(
-      svg_robot, prev_robot.pos.x, prev_robot.pos.y, robot.pos.x, robot.pos.y, t);
+    let svg_robot = robots_svg[idx]; // Group containing the circle and labels
+    let prev_robot = prev_robots[idx];
+    // Get interpolated position based on t
+    let robot_interp_tile_pos = interp_position(
+      prev_robot.pos.x,
+      prev_robot.pos.y,
+      robot.pos.x,
+      robot.pos.y,
+      t
+    );
+    
+    // SVG x,y interpolated robot position
+    const x = robot_interp_tile_pos.x * TILE_SIZE + TILE_SIZE / 2;
+    const y = robot_interp_tile_pos.y * TILE_SIZE + TILE_SIZE / 2;
+
+    // Move the circle group
+    svg_robot.setAttribute("transform", `translate(${x}, ${y})`);
 
     // Update held items if it exists
-    let item_name = '-';
+    let item_name = "-";
     if (robot.held_item_id != undefined) {
       if (world.item_names[robot.held_item_id] == undefined) {
         console.error(
           `undefined item name: ${robot.held_item_id} for ${robot}`
-          );
-      }
-      else {
+        );
+      } else {
         item_name = world.item_names[robot.held_item_id];
       }
-        
     }
-      
+
     // Hard-coded use 3rd child element [circle, robot label, held item label]
     let svg_held_item = svg_robot.children[2];
     svg_held_item.textContent = item_name;
 
     // Assumes path index is same as robots
-    let path = paths_svg.children[idx]
-    updatePath(path, robot.path)
-  })
+    let svg_path = paths_svg.children[idx];
+    let robot_path = undefined;
+    if (robot.path) {
+      // Add current robot position to head of path
+      robot_path = [[robot_interp_tile_pos.x, robot_interp_tile_pos.y]].concat(robot.path);
+    }
+    updatePath(svg_path, robot_path);
+  });
 }
 
-function updateCircleGroupPosition(circleGroup, tileX1, tileY1, tileX2, tileY2, t) {
-  const centerX1 = tileX1 * TILE_SIZE + TILE_SIZE / 2;
-  const centerY1 = tileY1 * TILE_SIZE + TILE_SIZE / 2;
-  const centerX2 = tileX2 * TILE_SIZE + TILE_SIZE / 2;
-  const centerY2 = tileY2 * TILE_SIZE + TILE_SIZE / 2;
-
-  const centerX = centerX1 + (centerX2 - centerX1) * t;
-  const centerY = centerY1 + (centerY2 - centerY1) * t;
-
-  // Move the circle group
-  circleGroup.setAttribute("transform", `translate(${centerX}, ${centerY})`);
+function interp_position(X1, Y1, X2, Y2, t) {
+  const X = X1 + (X2 - X1) * t;
+  const Y = Y1 + (Y2 - Y1) * t;
+  return { x: X, y: Y };
 }
-
 
 function createCircle(className) {
   const circle = createSVGElement("circle");
@@ -170,8 +186,8 @@ function createCircleLabel(tag, text, className) {
 // Create paths for each robot, all under a group
 function svg_create_paths(robots) {
   const pathGroup = createSVGElement("g");
-  pathGroup.setAttribute("id", "robot_paths")
-  robots.map(robot => {
+  pathGroup.setAttribute("id", "robot_paths");
+  robots.map((robot) => {
     const circleId = `robot_${robot.id}`;
     pathGroup.appendChild(createPath(circleId));
   });
@@ -191,17 +207,15 @@ function updatePath(path, coordinates) {
     return;
   }
   const pathData = coordinates
-  .map((coord, index) => {
-    const x = coord[0] * TILE_SIZE + TILE_SIZE / 2;
-    const y = coord[1] * TILE_SIZE + TILE_SIZE / 2;
-    return (index === 0 ? "M" : "L") + x + "," + y;
-  })
-  .join(" ");
-  // console.log(path, coordinates, pathData)
-  
+    .map((coord, index) => {
+      const x = coord[0] * TILE_SIZE + TILE_SIZE / 2;
+      const y = coord[1] * TILE_SIZE + TILE_SIZE / 2;
+      return (index === 0 ? "M" : "L") + x + "," + y;
+    })
+    .join(" ");
+
   path.setAttribute("d", pathData);
 }
-
 
 function generateGridSVG(gridData) {
   const svg = createSVGElement("svg");
@@ -276,11 +290,11 @@ socket.on("set_world", (/** @type {any} */ msg) => {
   curr_robots = world.robots;
   prev_robots = curr_robots;
   robots_svg = svg_create_robots(world.robots);
-  robots_svg.forEach(robot => gridSVG.appendChild(robot));
+  robots_svg.forEach((robot) => gridSVG.appendChild(robot));
 
   paths_svg = svg_create_paths(world.robots);
   gridSVG.appendChild(paths_svg);
-  
+
   svg_update_robots(world.robots, 0); // Update their initial positions and held items
 });
 
@@ -304,7 +318,6 @@ socket.on("update", (/** @type {any} */ msg) => {
     update_time(msg.t);
   }
 });
-
 
 // ---------------------------------------------------
 // Graphics Related
