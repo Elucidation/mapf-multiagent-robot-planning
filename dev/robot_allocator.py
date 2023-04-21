@@ -64,9 +64,17 @@ class Job:
         self.robot_home = robot_home_zone
 
         # Paths
-        self.path_robot_to_item: Path = []
-        self.path_item_to_station: Path = []
-        self.path_station_to_home: Path = []
+        self.path_robot_to_item: Path
+        self.path_item_to_station: Path
+        self.path_station_to_home: Path
+
+        self.reset()
+
+    def reset(self):
+        # Paths
+        self.path_robot_to_item = []
+        self.path_item_to_station = []
+        self.path_station_to_home = []
 
         # State tracker, ladder logic
         self.started = False
@@ -75,13 +83,15 @@ class Job:
         self.returning_home = False
         self.robot_returned = False
         self.complete = False
+        self.error = False
 
     def get_current_robot_pos(self, world_dbm: WorldDatabaseManager) -> Tuple[int, int]:
         return world_dbm.get_robot(self.robot_id).pos
 
     def __repr__(self):
         state = [self.started, self.item_picked,
-                 self.item_dropped, self.returning_home, self.robot_returned, self.complete]
+                 self.item_dropped, self.returning_home,
+                 self.robot_returned, self.complete, self.error]
         state = [int(s) for s in state]
         return (f'Job [Robot {self.robot_id},Task {self.task.task_id},Order {self.task.order_id}]'
                 f' Move {self.task.item_id} to {self.task.station_id}: Progress {state}')
@@ -369,13 +379,34 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         robot.state = RobotStatus.AVAILABLE
         self.wdb.update_robots([robot])
+
+        # Remove job from allocations
+        self.allocations[job.robot_id] = None
         return True
+
+    def job_restart(self, job):
+        logging.error(f'{job} in error, resetting job and robot etc.')
+        
+        # Make robot available and drop any held items
+        robot = self.get_robot(job.robot_id)
+        robot.state = RobotStatus.AVAILABLE
+        robot.held_item_id = None
+        self.wdb.update_robots([robot])
+        
+        # Reset the job
+        job.reset()
+        # Set robots start pos to where it is currently
+        job.robot_start_pos = robot.pos
+        return False
 
     def check_and_update_job(self, job: Job) -> bool:
         # Go through state ladder for a job
         # TODO : Send event logs to DB for metrics later.
         if job.complete:
             return False
+        if job.error:
+            return self.job_restart(job)
+        
         if not job.started:
             return self.job_start(job)
         elif not job.item_picked:
