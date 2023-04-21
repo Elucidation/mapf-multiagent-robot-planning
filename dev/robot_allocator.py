@@ -171,8 +171,10 @@ class RobotAllocator:
             # Add all positions along future path
             for t, pos in enumerate(robot.future_path):
                 dynamic_obstacles.add((pos[0], pos[1], t))
-                # Also add it at future time
+                # Also add it at future and past time to keep robots from slipping nearby
                 dynamic_obstacles.add((pos[0], pos[1], t+1))
+                # TODO : This is hacky, get more precise on when robots go along paths.
+                dynamic_obstacles.add((pos[0], pos[1], t-1))
 
             path_t = len(robot.future_path)
             if robot.future_path:
