@@ -66,6 +66,9 @@ class World {
     /** @type {number} The current time step (discrete, increments) */
     this.t = 0;
 
+    /** @type {number} The time step delta in seconds */
+    this.dt_s = NaN;
+
     /** @type {Point[]} Robot Home positions in this world */
     this.robot_home_zones = data.robot_home_zones.map((rc) => new Point(rc[1], rc[0]));
 
@@ -125,10 +128,13 @@ class World {
   }
 }
 
-let world = World.from_yaml("./warehouses/warehouse2.yaml");
+var world = World.from_yaml("./warehouses/warehouse2.yaml");
 
 // Update robot positions at the rate of dt_sec
-robot_dbm.get_dt_sec().then((data) => {setInterval(update_robots, data[0]);})
+robot_dbm.get_dt_sec().then(data => {
+  world.dt_s = data.value;
+  setInterval(update_robots, world.dt_s * 1000);
+})
 
 
 function update_robots() {
@@ -163,7 +169,7 @@ function update_robots() {
         });
       }
 
-      let msg = { t: world.t, robots: robots };
+      let msg = { t: world.t, robots: robots, dt_s:world.dt_s };
       io.emit("update", msg);
     }
   );

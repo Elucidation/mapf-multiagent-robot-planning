@@ -8,13 +8,12 @@ function Point(/** @type {number} */ x, /** @type {number} */ y) {
 var grid = null;
 var world = null;
 const TILE_SIZE = 80;
-// const ITEM_ZONE_SIZE = 5;
-// const STATION_ZONE_SIZE = 10;
 
 // ---------------------------------------------------
 // SVG Visualizations
 var robots_svg;  // Stores an array of SVG elements for each robot + their labels and held items
 var paths_svg; // A group containing an array of SVG elements for each robot path
+var prev_robots; // Tracks previous state of robots (prior position etc.)
 
 function createSVGElement(tagName) {
   return document.createElementNS("http://www.w3.org/2000/svg", tagName);
@@ -103,11 +102,12 @@ function svg_create_robots(robots) {
   }) 
 }
 
-function svg_update_robots(robots) {
+function svg_update_robots(robots, t) {
   robots.forEach((robot, idx) => {
     let svg_robot = robots_svg[idx];  // Group containing the circle and labels
-    let t = 0; // interpolation param TODO
-    updateCircleGroupPosition(svg_robot,robot.pos.x, robot.pos.y, robot.pos.x, robot.pos.y, t);
+    let prev_robot = prev_robots[idx]
+    updateCircleGroupPosition(
+      svg_robot, prev_robot.pos.x, prev_robot.pos.y, robot.pos.x, robot.pos.y, t);
 
     // Update held items if it exists
     let item_name = '-';
@@ -273,16 +273,21 @@ socket.on("set_world", (/** @type {any} */ msg) => {
   );
 
   // Create robots and store in global variable for use by updates
+  curr_robots = world.robots;
+  prev_robots = curr_robots;
   robots_svg = svg_create_robots(world.robots);
   robots_svg.forEach(robot => gridSVG.appendChild(robot));
 
   paths_svg = svg_create_paths(world.robots);
   gridSVG.appendChild(paths_svg);
   
-  svg_update_robots(world.robots); // Update their initial positions and held items
+  svg_update_robots(world.robots, 0); // Update their initial positions and held items
 });
 
-var latest_msg = undefined;
+var latest_msg;
+
+var t_start;
+var curr_robots;
 socket.on("update", (/** @type {any} */ msg) => {
   // if (!document.hasFocus()) {
   //   // Skip Updating visuals when window not in focus
@@ -290,16 +295,35 @@ socket.on("update", (/** @type {any} */ msg) => {
   // }
   // msg is list of x/y positions [{x:..., y:...}, ...] for each robot
   console.debug("Updating world state", msg);
+  prev_robots = curr_robots;
+  curr_robots = msg.robots;
+
   latest_msg = msg;
+  t_start = Date.now();
   if (msg.t != null) {
     update_time(msg.t);
   }
-  // Update robot postions, held items, paths
-  svg_update_robots(msg.robots);
 });
+
 
 // ---------------------------------------------------
 // Graphics Related
+
+// Update graphics at a fixed rate based on latest message
+const ANIMATION_UPDATE_RATE_MS = 50;
+t_start = Date.now();
+var interval = setInterval(() => {
+  if (!latest_msg) {
+    return;
+  }
+  // Update robot postions, held items, paths
+  let t = 0;
+  if (latest_msg.dt_s) {
+    t = (Date.now() - t_start) / (latest_msg.dt_s * 1000);
+    t = Math.max(Math.min(t, 1.0), 0.0);
+  }
+  svg_update_robots(latest_msg.robots, t);
+}, ANIMATION_UPDATE_RATE_MS);
 
 function update_time(t) {
   let tblock = document.getElementById("time");
