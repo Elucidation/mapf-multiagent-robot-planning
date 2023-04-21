@@ -305,8 +305,7 @@ class RobotAllocator:
             return False
         job.item_picked = True
 
-        logging.info(
-            f'Item picked! Sending robot to station for task {job.task}')
+        logging.info(f'Item picked {item_in_hand}')
         return True
 
     def job_go_to_station(self, job: Job) -> bool:
@@ -319,6 +318,8 @@ class RobotAllocator:
         # Send robot to station
         robot_mgr.wdb.set_robot_path(
             job.robot_id, job.path_item_to_station)
+        logging.info(
+            f'Sending robot to station for task {job.task}')
         return True
 
     def job_drop_item_at_station(self, job: Job) -> bool:
