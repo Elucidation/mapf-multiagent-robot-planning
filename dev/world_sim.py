@@ -192,7 +192,7 @@ if __name__ == '__main__':
     TIME_STEP_SEC = 0.1
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
-        'warehouses/warehouse2.yaml')
+        'warehouses/warehouse3.yaml')
     # Create robots at start positions (row,col) -> (x,y)
     robots = [Robot(RobotId(i), (col, row))
               for i, (row, col) in enumerate(robot_home_zones)]

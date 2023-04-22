@@ -128,7 +128,7 @@ class World {
   }
 }
 
-var world = World.from_yaml("./warehouses/warehouse2.yaml");
+var world = World.from_yaml("./warehouses/warehouse3.yaml");
 
 // Update robot positions at the rate of dt_sec
 robot_dbm.get_dt_sec().then(data => {
