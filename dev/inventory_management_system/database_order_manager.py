@@ -114,6 +114,8 @@ class DatabaseOrderManager:
         self.add_station()
         self.add_station()
         self.add_station()
+        self.add_station()
+        self.add_station() # TODO : Hacky amount
 
     def init_items(self):
         item_names = get_item_names()
