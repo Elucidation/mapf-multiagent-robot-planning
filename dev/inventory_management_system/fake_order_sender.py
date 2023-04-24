@@ -23,12 +23,15 @@ dbm = DatabaseOrderManager(MAIN_DB)
 # ]
 
 MAX_ITEM_ID = 5
+
+
 def send_random_order():
     """Creates new random order and adds it to the database"""
     item_list = ItemCounter(
         [ItemId(random.randint(0, MAX_ITEM_ID)) for _ in range(random.randint(1, MAX_ITEMS))])
     order = dbm.add_order(item_list, created_by=1)
     logger.info(f'{i} - Send new order {order}')
+
 
 if __name__ == '__main__':
     db_orders = DatabaseOrderManager(MAIN_DB)
@@ -43,10 +46,10 @@ if __name__ == '__main__':
     elif len(sys.argv) == 3:
         NUM_ORDERS = int(sys.argv[1])
         DELAY = int(sys.argv[2])
-    
+
     for i in range(NUM_ORDERS):
         send_random_order()
-        
+
         logger.info(f" waiting {DELAY:.2f} seconds")
         time.sleep(DELAY)
     print("Done")

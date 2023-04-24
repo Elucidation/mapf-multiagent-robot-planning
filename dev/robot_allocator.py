@@ -112,10 +112,12 @@ class Job:
             state_str = "STARTED"
         else:
             state_str = "OPEN"
-            
+
         state = [int(s) for s in state]
         return (f'Job [Robot {self.robot_id},Task {self.task.task_id},Order {self.task.order_id}]'
-                f' Move {self.task.item_id} to {self.task.station_id}: Progress {state_str}, P {len(self.path_robot_to_item)} {len(self.path_item_to_station)} {len(self.path_station_to_home)}')
+                f' Move {self.task.item_id} to {self.task.station_id}: Progress {state_str}, '
+                f'P {len(self.path_robot_to_item)} {len(self.path_item_to_station)} '
+                f'{len(self.path_station_to_home)}')
 
 
 class RobotAllocator:
@@ -309,12 +311,13 @@ class RobotAllocator:
         job.path_robot_to_item = self.generate_path(current_pos, job.item_zone)
         if not job.path_robot_to_item:
             logging.warning(f'Robot {job.robot_id} no path to item zone')
-            
+
             if job.robot_home == current_pos:
                 return False
             # Not at home, so try going home instead for now
             path_to_home = self.generate_path(current_pos, job.robot_home)
-            logging.warning(f'Going home? {job.robot_home} - {current_pos} = {path_to_home}')
+            logging.warning(
+                f'Going home? {job.robot_home} - {current_pos} = {path_to_home}')
             if path_to_home:
                 robot_mgr.wdb.set_robot_path(job.robot_id, path_to_home)
             return False  # Did not start job as no path existed yet
@@ -341,7 +344,8 @@ class RobotAllocator:
             job.robot_id, job.task.item_id)
         if not success:
             logging.error(
-                f'Robot {job.robot_id} could not pick item for job {job}, already holding {item_in_hand}')
+                f'Robot {job.robot_id} could not pick item for '
+                f'job {job}, already holding {item_in_hand}')
             job.error = True
             return False
         job.item_picked = True
@@ -400,7 +404,8 @@ class RobotAllocator:
             return False
         elif item_id != job.task.item_id:
             logging.error(
-                f"Robot {job.robot_id} was holding wrong item: {item_id}, needed {job.task.item_id}")
+                f"Robot {job.robot_id} was holding wrong "
+                f"item: {item_id}, needed {job.task.item_id}")
             job.error = True
             return False
 
@@ -429,7 +434,8 @@ class RobotAllocator:
             job.robot_id, job.path_station_to_home)
         job.returning_home = True
         logging.info(
-            f'Sending Robot {job.robot_id} back home for task {job.task}: {job.path_station_to_home}')
+            f'Sending Robot {job.robot_id} back home for '
+            f'task {job.task}: {job.path_station_to_home}')
         return True
 
     def job_arrive_home(self, job: Job) -> bool:
@@ -443,7 +449,8 @@ class RobotAllocator:
             logging.debug(
                 f'Robot {job.robot_id} not yet to robot home {robot.pos} -> {job.robot_home}')
             return False
-        logging.info(f'Robot {job.robot_id} returned home, job complete for task {job.task}')
+        logging.info(
+            f'Robot {job.robot_id} returned home, job complete for task {job.task}')
         job.robot_returned = True
         job.complete = True
 
@@ -457,7 +464,8 @@ class RobotAllocator:
         return True
 
     def job_restart(self, job):
-        logging.error(f'{job} in error for, resetting job and Robot {job.robot_id} etc.')
+        logging.error(
+            f'{job} in error for, resetting job and Robot {job.robot_id} etc.')
 
         # Make robot available and drop any held items
         robot = self.get_robot(job.robot_id)
