@@ -2,6 +2,7 @@
 from enum import Enum
 from typing import List, Tuple, Dict, Optional, Any  # Python 3.8
 from datetime import datetime
+import logging
 from time import sleep
 import numpy as np
 from warehouses.warehouse_loader import load_warehouse_yaml
@@ -24,7 +25,10 @@ class World(object):
     """A grid which robots can be placed and moved in."""
 
     def __init__(self, grid: np.ndarray, robots: List[Robot], time_step_sec: float,
-                 item_load_zones: List[Position] = [], station_zones: List[Position] = []):
+                 item_load_zones: List[Position] = [], station_zones: List[Position] = [],
+                 logger=logging):
+        self.logger = logger
+        self.logger.debug('World init start')
         self.grid = grid
         self.height = self.grid.shape[0]  # Rows
         self.width = self.grid.shape[1]  # Cols
@@ -50,6 +54,7 @@ class World(object):
         self.wdb.reset()
         self.wdb.add_robots(self.robots)
         self.wdb.set_dt_sec(self.dt_sec)
+        self.logger.debug('World initialized')
 
     def get_all_state_data(self):
         return {
@@ -95,6 +100,8 @@ class World(object):
             if grid_val != EnvType.SPACE:
                 self.collision = (robot.robot_id, robot.pos,
                                   robot.get_last_pos())
+                self.logger.error(
+                    f'Robot collided with non-space tile {self.collision}')
                 return False
 
             # vertex conflict
@@ -106,6 +113,7 @@ class World(object):
                 other_robot_past_pos = other_robot.get_last_pos()
                 self.collision = (robot.robot_id, robot.pos, past_pos,
                                   other_robot.robot_id, other_robot.pos, other_robot_past_pos)
+                self.logger.error(f'Robot collision {self.collision}')
                 return False
             else:
                 latest_positions[robot.pos] = robot.robot_id
@@ -124,7 +132,7 @@ class World(object):
                 r2_now = other_robot.pos
                 # Check if robots went directly through each other
                 if (r1_past == r2_now and r1_now == r2_past):
-                    print(
+                    self.logger.error(
                         f'Edge collision [{robot}] {r1_past}->{r1_now} <->'
                         f' [{other_robot}] {r2_past}->{r2_now}')
                     self.collision = (robot.robot_id, r1_now, r1_past,
@@ -138,7 +146,7 @@ class World(object):
         # For every robot in environment, pop an action and apply it
         # check that final state has no robots colliding with walls or
         # each other
-
+        self.logger.debug('Step start')
         self.robots = self.wdb.get_robots()
 
         self.past_robot_positions.clear()
@@ -158,15 +166,17 @@ class World(object):
         self.wdb.update_timestamp(self.t)
 
         if state_changed:
-            print(f'Robots moved: {self.robots}')
+            self.logger.debug(f'Robots moved: {self.robots}')
 
         # Return if any robot has moved or not
+        self.logger.debug(
+            f'Step end: T={self.t} VALID={self.world_state} state change={state_changed}')
         return state_changed
 
     def sleep(self):
         sleep(self.dt_sec)
 
-    def show_grid_ascii(self):
+    def get_grid_ascii(self):
         # Create grid string with walls or spaces
         grid_str = np.full_like(self.grid, dtype=str, fill_value='')
         for row in range(self.height):
@@ -179,16 +189,28 @@ class World(object):
         for robot in self.robots:
             row, col = robot.pos
             grid_str[row, col] = (grid_str[row, col] + 'R').strip()
-        print("---")
+
         # Print grid flipped vertically so up down match
-        print(np.flipud(grid_str))
-        print("---")
+        msg = f"---\n{np.flipud(grid_str)}\n---"
+        return msg
 
     def __repr__(self):
         return f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}'
 
 
+def create_logger():
+    logging.basicConfig(filename='world_sim.log', encoding='utf-8', filemode='w',
+                        level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger('world_sim')
+    logger.setLevel(logging.DEBUG)
+    stream_logger = logging.StreamHandler()
+    stream_logger.setLevel(logging.INFO)
+    logger.addHandler(stream_logger)
+    return logger
+
+
 if __name__ == '__main__':
+    logger = create_logger()
     TIME_STEP_SEC = 0.1
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
@@ -196,14 +218,15 @@ if __name__ == '__main__':
     # Create robots at start positions (row,col) -> (x,y)
     robots = [Robot(RobotId(i), (col, row))
               for i, (row, col) in enumerate(robot_home_zones)]
-    world = World(grid, robots, TIME_STEP_SEC, item_load_zones, station_zones)
-    print(world)
-    world.show_grid_ascii()
+    world = World(grid, robots, TIME_STEP_SEC, item_load_zones,
+                  station_zones, logger=logger)
+    logger.info(world)
+    logger.info(world.get_grid_ascii())
 
     # pylint: disable=invalid-name
     first_time = True
-    print('Main loop start...')
+    logger.info('Main loop start...')
     while True:
         world.step()
-        print(f'Step {world.t}')
+        logger.info(f'Step {world.t}')
         world.sleep()
