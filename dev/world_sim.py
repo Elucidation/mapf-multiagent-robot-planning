@@ -3,7 +3,7 @@ from enum import Enum
 from typing import List, Tuple, Dict, Optional, Any  # Python 3.8
 from datetime import datetime
 import logging
-from time import sleep
+import time
 import numpy as np
 from warehouses.warehouse_loader import load_warehouse_yaml
 from robot import Robot, RobotId
@@ -147,6 +147,7 @@ class World(object):
         # check that final state has no robots colliding with walls or
         # each other
         self.logger.debug('Step start')
+        t_start = time.perf_counter()
         self.robots = self.wdb.get_robots()
 
         self.past_robot_positions.clear()
@@ -168,13 +169,14 @@ class World(object):
         if state_changed:
             self.logger.debug(f'Robots moved: {self.robots}')
 
-        # Return if any robot has moved or not
         self.logger.debug(
-            f'Step end: T={self.t} VALID={self.world_state} state change={state_changed}')
+            f'Step end, took {time.perf_counter() - t_start:.6f} sec: '
+            f'T={self.t} VALID={self.world_state} state change={state_changed}')
+        # Return if any robot has moved or not
         return state_changed
 
     def sleep(self):
-        sleep(self.dt_sec)
+        time.sleep(self.dt_sec)
 
     def get_grid_ascii(self):
         # Create grid string with walls or spaces
@@ -212,6 +214,7 @@ def create_logger():
 if __name__ == '__main__':
     logger = create_logger()
     TIME_STEP_SEC = 0.1
+    logger.debug(f'TIME_STEP_SEC = {TIME_STEP_SEC}')
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
         'warehouses/warehouse3.yaml')
