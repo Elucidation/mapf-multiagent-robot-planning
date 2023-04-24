@@ -44,6 +44,7 @@ class World(object):
         self.station_zones = station_zones
 
         self.t = 0  # world time T
+        self.last_step_start_time: Optional[float] = None
         self.dt_sec = time_step_sec  # expected time step in seconds with self.sleep()
         self.ended = False
 
@@ -148,6 +149,8 @@ class World(object):
         # each other
         self.logger.debug('Step start')
         t_start = time.perf_counter()
+        self.last_step_start_time = t_start
+
         self.robots = self.wdb.get_robots()
 
         self.past_robot_positions.clear()
@@ -176,7 +179,10 @@ class World(object):
         return state_changed
 
     def sleep(self):
-        time.sleep(self.dt_sec)
+        delay = self.dt_sec
+        if self.last_step_start_time:
+            delay = max(0, self.dt_sec - (time.perf_counter() - self.last_step_start_time))
+        time.sleep(delay)
 
     def get_grid_ascii(self):
         # Create grid string with walls or spaces
