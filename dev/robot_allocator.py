@@ -513,7 +513,6 @@ if __name__ == '__main__':
     robot_mgr = RobotAllocator(logger=logger)
 
     # Main loop processing jobs from tasks
-    DELAY_SEC = 0.2
     logger.info('Robot Allocator running')
     while True:
         # logger.debug('-------')
@@ -521,7 +520,7 @@ if __name__ == '__main__':
         robot_mgr.update()
 
         if any(robot_mgr.allocations.values()):
-            logger.debug(f" waiting {DELAY_SEC} seconds")
+            logger.debug(f" waiting {robot_mgr.dt_sec} seconds")
             logger.debug('---')
             logger.debug('- Current available tasks: '
                          f'{[task.task_id for task in robot_mgr.get_available_tasks()]}')
