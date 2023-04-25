@@ -30,8 +30,8 @@ def load_log_file(filename):
     return data
 
 
-def get_world_sim_stats():
-    data_world_sim: list[dict] = load_log_file('logs2/world_sim.log')
+def get_world_sim_stats(filename='logs2/world_sim.log'):
+    data_world_sim: list[dict] = load_log_file(filename)
     # Get all update duration
     update_durations_list = []
     for entry in data_world_sim:
@@ -97,9 +97,8 @@ def get_world_sim_stats():
     }
 
 
-def get_robot_allocator_stats():
-    data_robot_allocator: list[dict] = load_log_file(
-        'logs2/robot_allocator.log')
+def get_robot_allocator_stats(filename):
+    data_robot_allocator: list[dict] = load_log_file(filename)
 
     # Get all update duration
     update_durations_list = []
@@ -150,9 +149,10 @@ def get_robot_allocator_stats():
         'total_step_durations_ms': np.diff(step_starts_0_start) * 1000,
     }
 
-
-stats_robot_allocator = get_robot_allocator_stats()
-stats_world_sim = get_world_sim_stats()
+##########################################################
+# Main script
+stats_robot_allocator = get_robot_allocator_stats('logs2/robot_allocator.log')
+stats_world_sim = get_world_sim_stats('logs2/world_sim.log')
 
 set_update = stats_world_sim['update']
 set_sleep = stats_world_sim['sleep']
