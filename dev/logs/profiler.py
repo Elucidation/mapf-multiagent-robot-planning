@@ -61,7 +61,7 @@ def get_world_sim_stats(filename, subset_n=None):
             match = re.search(r'\sT=(\d+)\s', entry['Message'])
             assert match
             step_idx_list.append(int(match.group(1)))
-        elif entry['Type'] == 'ERROR' and 'collision' in entry['Message']:
+        elif entry['Type'] == 'ERROR' and 'Robot collision' in entry['Message']:
             collisions.append(entry)
 
     step_starts = np.array(step_start_list)
@@ -168,8 +168,8 @@ def get_robot_allocator_stats(filename, offset_sec=0, subset_n=None):
 
 ##########################################################
 # Main script
-# LOG_FOLDER = 'logs7_C'
-LOG_FOLDER = '..'
+LOG_FOLDER = 'logs8_A'
+# LOG_FOLDER = '..'
 SAVE_PDF = True
 OUTPUT_FILENAME = f'{LOG_FOLDER}/profiler_result_{LOG_FOLDER}.pdf'
 
@@ -217,7 +217,7 @@ def make_step_gantt():
     # plt.xlabel(f"Step # RA update_mean={ra_durations.mean():.4f} ms std={ra_durations.std():.4f}")
     plt.xlabel("Step #")
     plt.ylabel('Events')
-    plt.title('Step Timeline')
+    plt.title(f'Step Timeline - {len(collisions)} collisions')
     plt.legend()
     plt.grid(linestyle='dotted', linewidth=0.1)
 
@@ -225,6 +225,7 @@ def make_step_gantt():
 collisions = stats_world_sim['collisions']
 
 total_step_durations_ms = stats_world_sim['total_step_durations_ms']
+ws_update = set_update['durations_full']
 ws_update_mean = set_update['durations_full'].mean()
 ws_total_step_mean = total_step_durations_ms.mean()
 ra_durations = ra_set_update['durations_full']
@@ -232,9 +233,13 @@ ra_durations = ra_set_update['durations_full']
 print(f'Logs: {LOG_FOLDER}')
 print(f'Number of collisions: {len(collisions)}')
 print(
-    f'WS update duration mean {total_step_durations_ms.mean():.2f} '
+    f'WS total step duration mean {total_step_durations_ms.mean():.2f} '
     f'[{total_step_durations_ms.min():.2f} - {total_step_durations_ms.max():.2f}], '
     f'std {total_step_durations_ms.std():.2f} ms')
+print(
+    f'WS update duration mean {ws_update.mean():.2f} '
+    f'[{ws_update.min():.2f} - {ws_update.max():.2f}], '
+    f'std {ws_update.std():.2f} ms')
 print(
     f'RA update duration mean {ra_durations.mean():.2f} '
     f'[{ra_durations.min():.2f} - {ra_durations.max():.2f}], std {ra_durations.std():.2f} ms')
