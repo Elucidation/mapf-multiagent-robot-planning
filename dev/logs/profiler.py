@@ -45,14 +45,17 @@ def get_world_sim_stats(filename):
     step_start_list = []
     step_end_list = []
     step_idx_list = []
+    collisions = []
     for entry in data_world_sim:
         if entry['Type'] == 'DEBUG' and entry['Message'].startswith('Step start'):
             step_start_list.append(entry['Date'])
-        if entry['Type'] == 'DEBUG' and entry['Message'].startswith('Step end'):
+        elif entry['Type'] == 'DEBUG' and entry['Message'].startswith('Step end'):
             step_end_list.append(entry['Date'])
             match = re.search(r'\sT=(\d+)\s', entry['Message'])
             assert match
             step_idx_list.append(int(match.group(1)))
+        elif entry['Type'] == 'ERROR' and 'collision' in entry['Message']:
+            collisions.append(entry)
 
     step_starts = np.array(step_start_list)
     step_ends = np.array(step_end_list)
@@ -94,7 +97,7 @@ def get_world_sim_stats(filename):
         'step_starts': step_starts,
         'step_starts_0_start': step_starts_0_start,
         'total_step_durations_ms': np.diff(step_starts_0_start) * 1000,
-
+        'collisions': collisions
     }
 
 
@@ -116,6 +119,7 @@ def get_robot_allocator_stats(filename, offset_sec=0):
             match = re.search(r'took (\d+.\d+) sec', entry['Message'])
             assert match
             update_durations_list.append(float(match.group(1)))
+        
 
     update_durations = np.array(update_durations_list)
     step_starts = np.array(step_starts_list)
@@ -197,6 +201,9 @@ def make_step_gantt():
     plt.legend()
     plt.grid()
 
+
+collisions = stats_world_sim['collisions']
+print(f'Number of collisions: {len(collisions)}\n: {collisions}')
 
 with PdfPages(OUTPUT_FILENAME) as pdf:
     # Step durations
