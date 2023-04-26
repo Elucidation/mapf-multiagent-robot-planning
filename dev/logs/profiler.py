@@ -9,9 +9,9 @@ Count of robot collision errors, and when they happened
 gantt chart of when world_sim (ws) steps go, versus when robot_allocator (ra) updates
 """
 import re
-import matplotlib.pyplot as plt  # type: ignore
-import numpy as np
 import datetime
+import numpy as np
+import matplotlib.pyplot as plt  # type: ignore
 from matplotlib.backends.backend_pdf import PdfPages  # type: ignore
 
 
@@ -168,7 +168,8 @@ def get_robot_allocator_stats(filename, offset_sec=0, subset_n=None):
 
 ##########################################################
 # Main script
-LOG_FOLDER = 'logs7_C'
+# LOG_FOLDER = 'logs7_C'
+LOG_FOLDER = '..'
 SAVE_PDF = True
 OUTPUT_FILENAME = f'{LOG_FOLDER}/profiler_result_{LOG_FOLDER}.pdf'
 
@@ -224,6 +225,8 @@ def make_step_gantt():
 collisions = stats_world_sim['collisions']
 
 total_step_durations_ms = stats_world_sim['total_step_durations_ms']
+ws_update_mean = set_update['durations_full'].mean()
+ws_total_step_mean = total_step_durations_ms.mean()
 ra_durations = ra_set_update['durations_full']
 
 print(f'Logs: {LOG_FOLDER}')
@@ -248,6 +251,16 @@ if SAVE_PDF:
         # Robot Allocator update step histogram
         plt.subplot(121)
         plt.hist(ra_durations, bins=40, alpha=0.5, label='RA')
+        min_ylim, max_ylim = plt.ylim()
+        # Mean line for WS
+        plt.axvline(ws_update_mean, color='blue', linestyle='dashed')
+        plt.text(ws_update_mean, max_ylim*0.9,
+                 f' WS Mean - {ws_update_mean:.2f} ms', fontsize=6)
+        # Mean line for RA
+        plt.axvline(ra_durations.mean(), color='orange', linestyle='dashed')
+        plt.text(ra_durations.mean(), max_ylim*0.8,
+                 f' RA Mean - {ra_durations.mean():.2f} ms', fontsize=6)
+
         plt.xlabel(
             f'Update step durations (ms)\nRA mean={ra_durations.mean():.2f} ms '
             f'std={ra_durations.std():.2f} ms')
@@ -256,13 +269,18 @@ if SAVE_PDF:
 
         # WS Total Step durations
         plt.subplot(122)
-        plt.axvline(100,color='red',linestyle='dashed')
-        plt.hist(total_step_durations_ms, bins=40)
+        plt.hist(total_step_durations_ms)
+        min_ylim, max_ylim = plt.ylim()
+        plt.axvline(100.0, color='black', linestyle='dashed')
+        plt.text(100, max_ylim*0.9, ' Desired Step - 100 ms', fontsize=6)
+        plt.axvline(ws_total_step_mean, color='red', linestyle='dashed')
+        plt.text(ws_total_step_mean, max_ylim*0.9,
+                 f' Mean Step - {ws_total_step_mean:.2f} ms', fontsize=6)
         plt.xlabel(
             f'Total Step durations (ms)\n'
-            f'WS mean={total_step_durations_ms.mean():.2f} ms std={total_step_durations_ms.std():.2f}')
+            f'WS mean={ws_total_step_mean:.2f} ms std={total_step_durations_ms.std():.2f}')
         plt.title('World Sim Total Step duration (Total Step = Update + Sleep)')
-        
+
         plt.tight_layout()
         pdf.savefig()
 

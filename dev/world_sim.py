@@ -61,6 +61,8 @@ class World(object):
         self.wdb.reset()
         self.wdb.add_robots(self.robots)
         self.wdb.set_dt_sec(self.dt_sec)
+        self.wdb.commit()
+
         self.logger.debug('World initialized')
 
     def get_all_state_data(self):
@@ -174,6 +176,9 @@ class World(object):
             self.wdb.update_robots(self.robots)
 
         self.wdb.update_timestamp(self.t)
+
+        # Commit robot and timestamp changes
+        self.wdb.commit()
 
         if state_changed:
             self.logger.debug(f'Robots moved: {self.robots}')

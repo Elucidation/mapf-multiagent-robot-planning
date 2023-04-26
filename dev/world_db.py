@@ -41,6 +41,7 @@ class WorldDatabaseManager:
     def reset(self):
         self.delete_tables()
         self.init_tables()
+        self.commit()
 
     @timeit
     def delete_tables(self):
@@ -78,6 +79,7 @@ class WorldDatabaseManager:
 
     @timeit
     def add_robots(self, robots: List[Robot]):
+        """Needs commit"""
         data = []
         # Array of tuples (id, "x,y") for each robot
         for robot in robots:
@@ -88,21 +90,20 @@ class WorldDatabaseManager:
         print('add_robots', data)
         sql = """INSERT INTO Robot (robot_id, position) VALUES (?, ?) """
         cursor.executemany(sql, data)
-        self.con.commit()
 
     @timeit
     def update_timestamp(self, t: int):
+        """Needs commit"""
         cursor = self.con.cursor()
         sql = """REPLACE INTO State (label, value) VALUES ('timestamp', ?)"""
         cursor.execute(sql, (t,))
-        self.con.commit()
 
     @timeit
     def set_dt_sec(self, dt_sec: float):
+        """Needs commit"""
         cursor = self.con.cursor()
         sql = """REPLACE INTO State (label, value) VALUES ('dt_sec', ?)"""
         cursor.execute(sql, (dt_sec,))
-        self.con.commit()
 
     @timeit
     def get_dt_sec(self) -> float:
@@ -113,6 +114,7 @@ class WorldDatabaseManager:
 
     @timeit
     def set_robot_path(self, robot_id: int, path: list):
+        """Needs commit"""
         # Note, tuples become lists with json.
         path_str = json.dumps(path)
         data = [path_str, robot_id]
@@ -120,10 +122,10 @@ class WorldDatabaseManager:
         cursor = self.con.cursor()
         sql = """UPDATE Robot SET path=? WHERE robot_id=?"""
         cursor.execute(sql, data)
-        self.con.commit()
 
     @timeit
     def update_robots(self, robots: List[Robot]):
+        """Needs commit"""
         data = []
         # Array of tuples ("[x,y]", robot_id) for each robot
         for robot in robots:
@@ -135,7 +137,6 @@ class WorldDatabaseManager:
         cursor = self.con.cursor()
         sql = """UPDATE Robot SET position=?, held_item_id=?, state=?, path=? WHERE robot_id=?"""
         cursor.executemany(sql, data)
-        self.con.commit()
 
     def _parse_position(self, position_str: str) -> Position:
         pos_x, pos_y = json.loads(position_str)
@@ -177,6 +178,11 @@ class WorldDatabaseManager:
                           state, path)
             robots.append(robot)
         return robots
+    
+    @timeit
+    def commit(self):
+        """Commit changes to DB"""
+        self.con.commit()
 
 
 if __name__ == '__main__':
@@ -184,3 +190,4 @@ if __name__ == '__main__':
     wdm.reset()
     wdm.add_robots([Robot(RobotId(0), (1, 2)), Robot(RobotId(1), (3, 5))])
     wdm.update_timestamp(3)
+    wdm.commit()

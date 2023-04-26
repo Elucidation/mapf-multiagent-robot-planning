@@ -134,6 +134,7 @@ class RobotAllocator:
             robot.held_item_id = None
             robot.state = RobotStatus.AVAILABLE
         self.wdb.update_robots(self.robots)
+        self.wdb.con.commit()
 
         # Get delta time step used by world sim
         self.dt_sec = self.wdb.get_dt_sec()
@@ -292,6 +293,7 @@ class RobotAllocator:
         self.ims_db.commit()
         # Batch update robots now
         self.wdb.update_robots(self.robots)
+        self.wdb.con.commit()
         logger.debug(
             f'update end, took {(time.perf_counter() - t_start)*1000:.3f} ms')
 
