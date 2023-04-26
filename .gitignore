@@ -156,4 +156,4 @@ cython_debug/
 node_modules
 
 *.pdf
-dev/env_visualizer/package-lock.json
+package-lock.json
