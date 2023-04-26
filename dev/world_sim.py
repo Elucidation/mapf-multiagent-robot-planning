@@ -234,6 +234,8 @@ if __name__ == '__main__':
     context = zmq.Context()
     socket = context.socket(zmq.PUB)
     socket.bind(f"tcp://*:{PORT}")
+    logger.info(f'Setting up 0MQ Publisher to port {PORT}')
+    time.sleep(1) # Give a little time for subscribers to join
 
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
@@ -252,5 +254,7 @@ if __name__ == '__main__':
     while True:
         world.step()
         logger.info(f'Step {world.t}')
+        if not world.get_current_state():
+            logger.error(f'World State invalid, collision(s): {world.collision}')
         socket.send_string(f'WORLD {world.t}')
         world.sleep()
