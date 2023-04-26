@@ -13,6 +13,7 @@ Robot Allocator:
 from typing import Optional, Tuple, NewType
 import logging
 import time
+import signal
 import multiagent_planner.pathfinding as pf
 from multiagent_planner.pathfinding import Position, Path
 from robot import Robot, RobotId, RobotStatus
@@ -24,6 +25,9 @@ from inventory_management_system.Station import Task
 from inventory_management_system.database_order_manager import DatabaseOrderManager, MAIN_DB
 from warehouses.warehouse_loader import load_warehouse_yaml_xy
 import zmq
+
+# Allow Ctrl-C to break while zmq socket.recv is going
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 # radb = DatabaseRobotTaskManager()
 # robot_task_allocations: list[tuple[Robot, Task]] = [()]
