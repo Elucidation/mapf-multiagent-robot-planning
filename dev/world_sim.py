@@ -2,6 +2,7 @@
 from enum import Enum
 from typing import List, Tuple, Dict, Optional, Any  # Python 3.8
 from datetime import datetime
+import ctypes
 import logging
 import time
 import numpy as np
@@ -9,9 +10,13 @@ from warehouses.warehouse_loader import load_warehouse_yaml
 from robot import Robot, RobotId
 from world_db import WorldDatabaseManager
 import socketio  # type: ignore
-import zmq # type: ignore
+import zmq  # type: ignore
 # pylint: disable=redefined-outer-name
 
+
+# Force Win10 timer to be accurate to 1ms (defaults to ~10-14ms accuracy otherwise)
+winmm = ctypes.WinDLL('winmm')
+winmm.timeBeginPeriod(1)
 
 Position = Tuple[int, int]
 
@@ -183,7 +188,8 @@ class World(object):
         delay = self.dt_sec
         if self.last_step_start_time:
             # Get delay needed to reach next time step based on the start of the last
-            delay = self.dt_sec - (time.perf_counter() - self.last_step_start_time)
+            delay = self.dt_sec - \
+                (time.perf_counter() - self.last_step_start_time)
             # If that time already passed, push delay as many time steps needed.
             while delay <= 0:
                 delay += self.dt_sec
@@ -223,12 +229,6 @@ def create_logger():
     return logger
 
 
-
-
-
-
-
-
 if __name__ == '__main__':
     logger = create_logger()
     TIME_STEP_SEC = 0.1
@@ -240,8 +240,7 @@ if __name__ == '__main__':
     socket = context.socket(zmq.PUB)
     socket.bind(f"tcp://*:{PORT}")
     logger.info(f'Setting up 0MQ Publisher to port {PORT}')
-    time.sleep(1) # Give a little time for subscribers to join
-
+    time.sleep(1)  # Give a little time for subscribers to join
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
         'warehouses/warehouse3.yaml')
@@ -260,6 +259,7 @@ if __name__ == '__main__':
         world.step()
         logger.info(f'Step {world.t}')
         if not world.get_current_state():
-            logger.error(f'World State invalid, collision(s): {world.collision}')
+            logger.error(
+                f'World State invalid, collision(s): {world.collision}')
         socket.send_string(f'WORLD {world.t}')
         world.sleep()
