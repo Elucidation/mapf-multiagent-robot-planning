@@ -174,7 +174,7 @@ class World(object):
             self.logger.debug(f'Robots moved: {self.robots}')
 
         self.logger.debug(
-            f'Step end, took {time.perf_counter() - t_start:.6f} sec: '
+            f'Step end, took {(time.perf_counter() - t_start)*1000:.6f} ms: '
             f'T={self.t} VALID={self.world_state} state change={state_changed}')
         # Return if any robot has moved or not
         return state_changed
@@ -209,7 +209,7 @@ class World(object):
 
 def create_logger():
     logging.basicConfig(filename='world_sim.log', encoding='utf-8', filemode='w',
-                        level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+                        level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger('world_sim')
     logger.setLevel(logging.DEBUG)
     stream_logger = logging.StreamHandler()

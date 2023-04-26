@@ -1,5 +1,7 @@
 """Order Manager DB contains Orders/Items/Stations/Tasks and their relationships"""
+import functools
 import sqlite3 as sl
+import time
 from typing import List, Optional, Tuple
 from datetime import datetime
 import logging
@@ -16,10 +18,20 @@ MAIN_DB = "./inventory_management_system/orders.db"
 
 # Set up logging
 logger = logging.getLogger("database_order_manager")
-logger.setLevel(logging.DEBUG)
-log_handler = logging.StreamHandler()
-log_handler.setLevel(logging.DEBUG)
-logger.addHandler(log_handler)
+
+
+def timeit(func):
+    """Decorator for timing functions in WDB"""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        logger.debug(f'{func.__name__!r} Start')
+        t_start = time.perf_counter()
+        result = func(*args, **kwargs)
+        t_end = time.perf_counter()
+        logger.debug(
+            f'{func.__name__!r} End. Took {(t_end - t_start)*1000:.3f} ms')
+        return result
+    return wrapper
 
 
 class DatabaseOrderManager:
@@ -27,6 +39,7 @@ class DatabaseOrderManager:
 
     def __init__(self, db_filename):
         self.con = sl.connect(db_filename)
+        logger.debug(f'DatabaseOrderManager DB connected to {db_filename}')
 
     def reset(self):
         self.delete_tables()
@@ -115,7 +128,7 @@ class DatabaseOrderManager:
         self.add_station()
         self.add_station()
         self.add_station()
-        self.add_station() # TODO : Hacky amount
+        self.add_station()  # TODO : Hacky amount
 
     def init_items(self):
         item_names = get_item_names()
@@ -129,6 +142,7 @@ class DatabaseOrderManager:
         with self.con:
             self.con.execute(sql)
 
+    @timeit
     def add_order(self, items: ItemCounter, created_by: int,
                   created: Optional[datetime] = None, description: str = "",
                   status: OrderStatus = OrderStatus.OPEN) -> Order:
@@ -168,6 +182,7 @@ class DatabaseOrderManager:
             items=items,
         )
 
+    @timeit
     def get_orders(self, limit_rows: int = 49999, status=None) -> List[Order]:
         cur = self.con.cursor()
         # order_id,created_by,created,finished,description,status
@@ -196,6 +211,7 @@ class DatabaseOrderManager:
             orders.append(order)
         return orders
 
+    @timeit
     def get_items_for_order(self, order_id: int) -> ItemCounter:
         """Returns Counter of {item_id : quantity} """
         result = self.con.execute(
@@ -205,6 +221,7 @@ class DatabaseOrderManager:
             items[ItemId(item_id)] += quantity
         return items
 
+    @timeit
     def get_available_stations(self, limit_rows=49999):
         # Find stations with unset order_id (ie. available)
         result = self.con.execute(
@@ -217,6 +234,7 @@ class DatabaseOrderManager:
 
         return stations
 
+    @timeit
     def get_station(self, station_id: StationId) -> Optional[Station]:
         # Get station by id if it exists.
         result = self.con.execute(
@@ -227,6 +245,7 @@ class DatabaseOrderManager:
         (station_id, order_id) = row
         return Station(station_id, order_id)
 
+    @timeit
     def get_stations(self, limit_rows: int = 49999) -> List[Station]:
         # A limited number of stations, so get them all at once
         result = self.con.execute(
@@ -238,6 +257,7 @@ class DatabaseOrderManager:
             stations.append(station)
         return stations
 
+    @timeit
     def set_order_status(self, order_id, status):
         sql = """UPDATE "Order" SET finished=?, status=? WHERE order_id=?;"""
         with self.con:
@@ -264,6 +284,7 @@ class DatabaseOrderManager:
     def clear_station(self, station_id: StationId):
         self.assign_order_to_station(None, station_id)
 
+    @timeit
     def assign_order_to_station(self, order_id: Optional[OrderId], station_id: StationId) -> bool:
         """Assign an order to a station, and add all tasks of items to station. 
 
@@ -302,6 +323,7 @@ class DatabaseOrderManager:
         self.set_order_in_progress(order_id)
         return True
 
+    @timeit
     def get_station_order(self, station_id: StationId) -> Optional[OrderId]:
         # Returns order ID assigned to station or None if station is empty/available
         result = self.con.execute(
@@ -311,6 +333,7 @@ class DatabaseOrderManager:
             return None
         return row[0]  # order_id
 
+    @timeit
     def get_station_with_order_id(self, order_id: OrderId) -> Optional[StationId]:
         # Returns station ID assigned to station or None if station is empty/available
         result = self.con.execute(
@@ -320,6 +343,7 @@ class DatabaseOrderManager:
             return None
         return row[0]  # station_id
 
+    @timeit
     def add_item_to_station(self, station_id: StationId, item_id: ItemId, quantity=1) -> bool:
         """Add items to a station: Updates or Completes Task and Station associated.
 
@@ -356,6 +380,7 @@ class DatabaseOrderManager:
             self._update_station(station_id)
         return True
 
+    @timeit
     def update_related_task(self, station_id: StationId, item_id: ItemId, quantity: int, status: TaskStatus):
         """Updates task with new quantity and status."""
         sql = """UPDATE "Task" SET quantity=?, status=? WHERE station_id=? AND item_id=? AND (status='OPEN' OR status='IN_PROGRESS');"""
@@ -363,12 +388,14 @@ class DatabaseOrderManager:
             self.con.execute(
                 sql, (quantity, status.value, station_id, item_id))
 
+    @timeit
     def update_task_status(self, task_id: TaskId, status: TaskStatus):
         """Updates task with new quantity and status."""
         sql = """UPDATE "Task" SET status=? WHERE task_id=?;"""
         with self.con:
             self.con.execute(sql, (status.value, task_id))
 
+    @timeit
     def get_stations_and_tasks(self) -> List[Tuple[Station, List[Task]]]:
         stations = self.get_stations()
         station_tasks = []
@@ -377,6 +404,7 @@ class DatabaseOrderManager:
             station_tasks.append((station, tasks))
         return station_tasks
 
+    @timeit
     def get_incomplete_station_tasks(self, station_id: int, limit_rows=49999) -> List[Task]:
         """Return incomplete tasks associated with a station"""
         result = self.con.execute(
@@ -390,6 +418,7 @@ class DatabaseOrderManager:
                 tasks.append(task)
         return tasks
 
+    @timeit
     def get_tasks(self, query_status: Optional[TaskStatus] = None, limit_rows=49999) -> List[Task]:
         if query_status:
             sql = 'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE status=? LIMIT ?'
@@ -407,6 +436,7 @@ class DatabaseOrderManager:
             tasks.append(task)
         return tasks
 
+    @timeit
     def fill_available_station(self) -> bool:
         """Adds an open order to an available station if they both exist.
 
