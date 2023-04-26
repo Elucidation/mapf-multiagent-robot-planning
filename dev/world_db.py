@@ -4,31 +4,45 @@ Using sqlite instead of tinydb for a bit more concurrent read stability
 """
 import sqlite3 as sl
 from typing import List, Optional
+import functools
 import logging
 import json
+import time
 from robot import Robot, RobotId, RobotStatus, Position
 
 WORLD_DB_PATH = 'world.db'
 
 # Set up logging
 logger = logging.getLogger("database_world_manager")
-logger.setLevel(logging.DEBUG)
-log_handler = logging.StreamHandler()
-log_handler.setLevel(logging.DEBUG)
-logger.addHandler(log_handler)
+
+# Decorator for timing functions in WDB
+def timeit(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        logger.debug(f'{func.__name__!r} Start')
+        t_start = time.perf_counter()
+        result = func(*args, **kwargs)
+        t_end = time.perf_counter()
+        logger.debug(f'{func.__name__!r} End. Took {t_end - t_start:.6f} sec')
+        return result
+    return wrapper
 
 
 class WorldDatabaseManager:
     """DB Manager for world state"""
 
+    @timeit
     def __init__(self, db_filename):
         self.con = sl.connect(db_filename)
+        logger.debug('Initialized WorldDatabaseManager instance')
         # Note: need to reset if new db
 
+    @timeit
     def reset(self):
         self.delete_tables()
         self.init_tables()
 
+    @timeit
     def delete_tables(self):
         self.con.executescript(
             """
@@ -36,6 +50,7 @@ class WorldDatabaseManager:
             DROP TABLE IF EXISTS "State";
             """)
 
+    @timeit
     def init_tables(self):
         # path = text of list of grid positions (and timestamps?)
         # position = text of current x y grid position
@@ -61,6 +76,7 @@ class WorldDatabaseManager:
             );
             """)
 
+    @timeit
     def add_robots(self, robots: List[Robot]):
         data = []
         # Array of tuples (id, "x,y") for each robot
@@ -74,24 +90,28 @@ class WorldDatabaseManager:
         cursor.executemany(sql, data)
         self.con.commit()
 
+    @timeit
     def update_timestamp(self, t: int):
         cursor = self.con.cursor()
         sql = """REPLACE INTO State (label, value) VALUES ('timestamp', ?)"""
         cursor.execute(sql, (t,))
         self.con.commit()
 
+    @timeit
     def set_dt_sec(self, dt_sec: float):
         cursor = self.con.cursor()
         sql = """REPLACE INTO State (label, value) VALUES ('dt_sec', ?)"""
         cursor.execute(sql, (dt_sec,))
         self.con.commit()
 
+    @timeit
     def get_dt_sec(self) -> float:
         result = self.con.execute(
             'SELECT value FROM State WHERE label = "dt_sec" LIMIT 1')
         (dt_sec,) = result.fetchone()
         return dt_sec
 
+    @timeit
     def set_robot_path(self, robot_id: int, path: list):
         # Note, tuples become lists with json.
         path_str = json.dumps(path)
@@ -102,6 +122,7 @@ class WorldDatabaseManager:
         cursor.execute(sql, data)
         self.con.commit()
 
+    @timeit
     def update_robots(self, robots: List[Robot]):
         data = []
         # Array of tuples ("[x,y]", robot_id) for each robot
@@ -125,6 +146,7 @@ class WorldDatabaseManager:
         path = json.loads(path_str)
         return [(x, y) for x, y in path]  # Create position tuples
 
+    @timeit
     def get_robot(self, robot_id: RobotId) -> Robot:
         cursor = self.con.cursor()
         sql = ("SELECT robot_id, position, held_item_id, state, path FROM Robot "
@@ -136,6 +158,7 @@ class WorldDatabaseManager:
         state = RobotStatus.load(state_str)
         return Robot(robot_id, position, held_item_id, state, path)
 
+    @timeit
     def get_robots(self, query_state: Optional[str] = None) -> List[Robot]:
         cursor = self.con.cursor()
         if query_state:
