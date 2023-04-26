@@ -570,7 +570,9 @@ if __name__ == '__main__':
         world_sim_t = int(messagedata)
         logger.info(
             f'Step start T={world_sim_t} -----------------------------------------------------------------------------------------------')
-        robot_mgr.update()
+        # Hold locks for both DBs
+        with robot_mgr.ims_db.con, robot_mgr.wdb.con:
+            robot_mgr.update()
 
         if any(robot_mgr.allocations.values()):
             # logger.debug('- Current available tasks: '

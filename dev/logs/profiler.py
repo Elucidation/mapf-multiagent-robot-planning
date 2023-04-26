@@ -168,13 +168,13 @@ def get_robot_allocator_stats(filename, offset_sec=0, subset_n=None):
 
 ##########################################################
 # Main script
-LOG_FOLDER = 'logs8_A'
-# LOG_FOLDER = '..'
+# LOG_FOLDER = 'logs8_C'
+LOG_FOLDER = '..'
 SAVE_PDF = True
 OUTPUT_FILENAME = f'{LOG_FOLDER}/profiler_result_{LOG_FOLDER}.pdf'
 
 
-SUBSET_N = 500
+SUBSET_N = 1520
 stats_world_sim = get_world_sim_stats(
     f'{LOG_FOLDER}/world_sim.log', subset_n=SUBSET_N)
 offset_sec = stats_world_sim['step_starts'][0]  # First timestamp of starts

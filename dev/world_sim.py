@@ -261,7 +261,8 @@ if __name__ == '__main__':
     first_time = True
     logger.info('Main loop start...')
     while True:
-        world.step()
+        with world.wdb.con:
+            world.step()
         logger.info(f'Step {world.t}')
         if not world.get_current_state():
             logger.error(

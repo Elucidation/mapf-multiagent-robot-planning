@@ -32,7 +32,8 @@ if __name__ == '__main__':
     # - Check if any stations available and fill with an open order if it exists
     DELAY_S = 1
     while True:
-        if db_orders.fill_available_station():
-            logger.info('Assigned an order to a station.')
-        db_orders.commit()
+        with db_orders.con:
+            if db_orders.fill_available_station():
+                logger.info('Assigned an order to a station.')
+            db_orders.commit()
         time.sleep(DELAY_S)
