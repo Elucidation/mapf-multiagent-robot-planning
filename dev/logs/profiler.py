@@ -163,7 +163,7 @@ def get_robot_allocator_stats(filename, offset_sec=0, subset_n = None):
 
 ##########################################################
 # Main script
-LOG_FOLDER = 'logs3'
+LOG_FOLDER = 'logs2'
 OUTPUT_FILENAME = f'{LOG_FOLDER}/profiler_result_{LOG_FOLDER}.pdf'
 
 SUBSET_N = 500
@@ -177,17 +177,18 @@ ra_set_update = stats_robot_allocator['update']
 
 
 def make_step_gantt():
+    bar_height = 0.2
     y_positions1 = np.zeros(len(set_update['labels']))
-    y_positions2 = np.ones(len(ra_set_update['labels']))
+    y_positions2 = bar_height * np.ones(len(ra_set_update['labels']))
 
     for positions, event_set in zip(
         [y_positions1,  y_positions2],
             [set_update,  ra_set_update]):
         plt.barh(positions, event_set['durations'],
-                 left=event_set['starts'], height=0.5, label=event_set['label'])
+                 left=event_set['starts'], height=bar_height, label=event_set['label'])
 
     # Set x ticks to event labels
-    plt.yticks([0, 1], ['World Sim', 'Robot\nAllocator'])
+    plt.yticks([0, bar_height], ['World Sim', 'Robot\nAllocator'])
     plt.xticks(set_update['starts'], [
                f'T={label}, {t_start:.2f} ms' for t_start, label in zip(set_update['starts'], set_update['labels'])],
                fontsize=4, rotation='vertical')
