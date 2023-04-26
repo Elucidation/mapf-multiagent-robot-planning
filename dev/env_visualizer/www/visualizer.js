@@ -323,7 +323,7 @@ socket.on("update", (/** @type {any} */ msg) => {
 // Graphics Related
 
 // Update graphics at a fixed rate based on latest message
-const ANIMATION_UPDATE_RATE_MS = 50;
+const ANIMATION_UPDATE_RATE_MS = 20;
 t_start = Date.now();
 var interval = setInterval(() => {
   if (!latest_msg) {
