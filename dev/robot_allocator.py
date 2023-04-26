@@ -181,7 +181,7 @@ class RobotAllocator:
         # TODO : Update robot?
         return job
 
-    def get_current_dynamic_obstacles(self, robot_id: RobotId, max_t: int = 20) -> set[tuple[int, int, int]]:
+    def get_current_dynamic_obstacles(self, robot_id: RobotId) -> set[tuple[int, int, int]]:
         """Return existing robot future paths as dynamic obstacles
 
         Returns:
@@ -195,8 +195,9 @@ class RobotAllocator:
         for idx, dock in enumerate(self.robot_home_zones):
             if idx == robot_id:
                 continue
-            for t in range(max_t):
+            for t in range(self.max_steps):
                 dynamic_obstacles.add((dock[0], dock[1], t))
+        
         for robot in self.robots:
             # Add all positions along future path
             for t, pos in enumerate(robot.future_path):
@@ -210,15 +211,12 @@ class RobotAllocator:
             if robot.future_path:
                 # Add final position a few times to give space for robot to move
                 last_pos = robot.future_path[path_t-1]
-                # dynamic_obstacles.add((last_pos[0], last_pos[1], path_t))
-                # dynamic_obstacles.add((last_pos[0], last_pos[1], path_t + 1))
-                # dynamic_obstacles.add((last_pos[0], last_pos[1], path_t + 2))
                 for t in range(path_t, path_t+5):
                     dynamic_obstacles.add((last_pos[0], last_pos[1], t))
 
             else:
                 # Robot stationary, add current robot position up to limit
-                for t in range(max_t):
+                for t in range(self.max_steps):
                     dynamic_obstacles.add((robot.pos[0], robot.pos[1], t))
         return dynamic_obstacles
 
