@@ -23,7 +23,7 @@ def timeit(func):
         t_start = time.perf_counter()
         result = func(*args, **kwargs)
         t_end = time.perf_counter()
-        logger.debug(f'{func.__name__!r} End. Took {t_end - t_start:.6f} sec')
+        logger.debug(f'{func.__name__!r} End. Took {(t_end - t_start)*1000:.3f} ms')
         return result
     return wrapper
 
