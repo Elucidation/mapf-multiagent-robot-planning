@@ -302,7 +302,7 @@ class RobotAllocator:
         self.ims_db.commit()
         # Batch update robots now
         self.wdb.update_robots(self.robots)
-        self.wdb.con.commit()
+        self.wdb.commit()
         update_duration_ms = (time.perf_counter() - t_start)*1000
         logger.debug(
             f'update end, took {update_duration_ms:.3f} ms')

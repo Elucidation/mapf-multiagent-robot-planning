@@ -180,12 +180,16 @@ class World(object):
         # Commit robot and timestamp changes
         self.wdb.commit()
 
+        update_duration_ms = (time.perf_counter() - t_start)*1000
+
         if state_changed:
             self.logger.debug(f'Robots moved: {self.robots}')
 
         self.logger.debug(
-            f'Step end, took {(time.perf_counter() - t_start)*1000:.6f} ms: '
+            f'Step end, took {update_duration_ms:.6f} ms: '
             f'T={self.t} VALID={self.world_state} state change={state_changed}')
+        if update_duration_ms > 100:
+            self.logger.error(f'update took {update_duration_ms:.2f} > 100 ms')
         # Return if any robot has moved or not
         return state_changed
 
