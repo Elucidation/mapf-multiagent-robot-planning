@@ -9,6 +9,7 @@ from warehouses.warehouse_loader import load_warehouse_yaml
 from robot import Robot, RobotId
 from world_db import WorldDatabaseManager
 import socketio  # type: ignore
+import zmq # type: ignore
 # pylint: disable=redefined-outer-name
 
 
@@ -217,10 +218,23 @@ def create_logger():
     return logger
 
 
+
+
+
+
+
+
 if __name__ == '__main__':
     logger = create_logger()
     TIME_STEP_SEC = 0.1
     logger.debug(f'TIME_STEP_SEC = {TIME_STEP_SEC}')
+
+    # 0MQ publishing when world has just updated with the new time step
+    PORT = "50523"
+    context = zmq.Context()
+    socket = context.socket(zmq.PUB)
+    socket.bind(f"tcp://*:{PORT}")
+
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
         'warehouses/warehouse3.yaml')
@@ -238,4 +252,5 @@ if __name__ == '__main__':
     while True:
         world.step()
         logger.info(f'Step {world.t}')
+        socket.send_string(f'WORLD {world.t}')
         world.sleep()

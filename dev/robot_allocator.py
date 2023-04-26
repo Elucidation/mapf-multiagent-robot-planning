@@ -23,6 +23,7 @@ from inventory_management_system.TaskStatus import TaskStatus
 from inventory_management_system.Station import Task
 from inventory_management_system.database_order_manager import DatabaseOrderManager, MAIN_DB
 from warehouses.warehouse_loader import load_warehouse_yaml_xy
+import zmq
 
 # radb = DatabaseRobotTaskManager()
 # robot_task_allocations: list[tuple[Robot, Task]] = [()]
@@ -510,18 +511,33 @@ def create_logger():
 
 if __name__ == '__main__':
     logger = create_logger()
+
+    # 0MQ Socket to subscribe to world sim state updates
+    PORT = "50523"
+    context = zmq.Context()
+    socket = context.socket(zmq.SUB)
+    socket.connect(f"tcp://localhost:{PORT}")
+
     robot_mgr = RobotAllocator(logger=logger)
+
+    # Subscribe to world 0mq updates
+    socket.setsockopt_string(zmq.SUBSCRIBE, "WORLD")
+
 
     # Main loop processing jobs from tasks
     logger.info('Robot Allocator running')
+
+
     while True:
-        # logger.debug('-------')
-        logger.debug('------- Step start')
+        logger.debug('Waiting for 0mq world update')
+        string = socket.recv()
+        topic, messagedata = string.split()
+        world_sim_t = int(messagedata)
+    #     # logger.debug('-------')
+        logger.info(f'Step start T={world_sim_t} ')
         robot_mgr.update()
 
         if any(robot_mgr.allocations.values()):
-            logger.debug(f" waiting {robot_mgr.dt_sec} seconds")
-            logger.debug('---')
             logger.debug('- Current available tasks: '
                          f'{[task.task_id for task in robot_mgr.get_available_tasks()]}')
             logger.debug('- Current job allocations')
@@ -533,5 +549,5 @@ if __name__ == '__main__':
             logger.debug('---')
 
         # Delay till next task
-        logger.debug('------- Step end, sleeping')
-        robot_mgr.sleep()
+        logger.debug('Step end')
+        # robot_mgr.sleep()
