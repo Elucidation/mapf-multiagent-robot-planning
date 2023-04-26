@@ -168,8 +168,10 @@ def get_robot_allocator_stats(filename, offset_sec=0, subset_n=None):
 
 ##########################################################
 # Main script
-LOG_FOLDER = 'logs4'
+LOG_FOLDER = 'logs6_B'
 OUTPUT_FILENAME = f'{LOG_FOLDER}/profiler_result_{LOG_FOLDER}.pdf'
+
+SAVE_PDF = False
 
 SUBSET_N = 500
 stats_world_sim = get_world_sim_stats(
@@ -220,47 +222,53 @@ def make_step_gantt():
 
 
 collisions = stats_world_sim['collisions']
-print(f'Number of collisions: {len(collisions)}\n: {collisions}')
 
-with PdfPages(OUTPUT_FILENAME) as pdf:
-    # Step durations
-    plt.figure()
-    plt.hist(set_update['durations_full'])
-    plt.xlabel('Update duration (ms)')
-    plt.title('world_sim Update durations')
-    pdf.savefig()
+total_step_durations_ms = stats_world_sim['total_step_durations_ms']
+ra_durations = ra_set_update['durations_full']
 
-    # Step start times
-    plt.figure()
-    total_step_durations_ms = stats_world_sim['total_step_durations_ms']
-    plt.hist(total_step_durations_ms)
-    plt.xlabel(
-        f'Total Step durations (ms) mean={total_step_durations_ms.mean()} ms std={total_step_durations_ms.std():.3f}')
-    plt.title('world_sim Total Step duration (Total Step = Update + Sleep)')
-    pdf.savefig()
+print(f'Number of collisions: {len(collisions)}')
+print(f'WS update duration mean {total_step_durations_ms.mean():.2f} [{total_step_durations_ms.min():.2f} - {total_step_durations_ms.max():.2f}], std {total_step_durations_ms.std():.2f} ms')
+print(f'RA update duration mean {ra_durations.mean():.2f} [{ra_durations.min():.2f} - {ra_durations.max():.2f}], std {ra_durations.std():.2f} ms')
 
-    # Estimate sleep time by taking the time between step starts and subtract the calculated step duration from them
-    # step_starts_0_start = stats_world_sim['step_starts_0_start']
-    # update_durations = set_update['durations_full']
-    # sleep_estimates = np.diff(step_starts_0_start) - update_durations[:-1] / 1000.0
-    # plt.figure()
-    # plt.hist(sleep_estimates * 1000)
-    # plt.xlabel('Step sleep estimate (ms)')
-    # plt.title('world_sim estimated sleep between steps')
-    # pdf.savefig()
 
-    # Gantt
-    plt.figure(figsize=(25, 5))
-    make_step_gantt()
-    pdf.savefig()
+if SAVE_PDF:
+    with PdfPages(OUTPUT_FILENAME) as pdf:
+        # Step durations
+        plt.figure()
+        plt.hist(set_update['durations_full'])
+        plt.xlabel('Update duration (ms)')
+        plt.title('world_sim Update durations')
+        pdf.savefig()
 
-    # Robot Allocator update step histogram
-    plt.figure(figsize=(5, 5))
-    ra_durations = ra_set_update['durations_full']
-    print(ra_durations.mean(), ra_durations.std(),
-          ra_durations.min(), ra_durations.max())
-    plt.hist(ra_durations)
-    plt.xlabel(
-        f'Update step durations (ms)\nmean={ra_durations.mean():.4f} ms std={ra_durations.std():.4f} ms')
-    plt.title('Robot Allocator Update duration')
-    pdf.savefig()
+        # Step start times
+        plt.figure()
+        
+        plt.hist(total_step_durations_ms)
+        plt.xlabel(
+            f'Total Step durations (ms) mean={total_step_durations_ms.mean()} ms std={total_step_durations_ms.std():.3f}')
+        plt.title('world_sim Total Step duration (Total Step = Update + Sleep)')
+        pdf.savefig()
+
+        # Estimate sleep time by taking the time between step starts and subtract the calculated step duration from them
+        # step_starts_0_start = stats_world_sim['step_starts_0_start']
+        # update_durations = set_update['durations_full']
+        # sleep_estimates = np.diff(step_starts_0_start) - update_durations[:-1] / 1000.0
+        # plt.figure()
+        # plt.hist(sleep_estimates * 1000)
+        # plt.xlabel('Step sleep estimate (ms)')
+        # plt.title('world_sim estimated sleep between steps')
+        # pdf.savefig()
+
+        # Gantt
+        plt.figure(figsize=(25, 5))
+        make_step_gantt()
+        pdf.savefig()
+
+        # Robot Allocator update step histogram
+        plt.figure(figsize=(5, 5))
+        
+        plt.hist(ra_durations)
+        plt.xlabel(
+            f'Update step durations (ms)\nmean={ra_durations.mean():.4f} ms std={ra_durations.std():.4f} ms')
+        plt.title('Robot Allocator Update duration')
+        pdf.savefig()
