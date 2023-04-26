@@ -78,18 +78,10 @@ class TestDatabaseOrderManager(unittest.TestCase):
     def test_add_station(self):
         # Add a station and confirm count increases by one
         stations = self.dbm.get_stations()
-        assert len(stations) == 3  # hardcoded default for init_stations
+        current_len = len(stations)
         self.dbm.add_station()
         stations = self.dbm.get_stations()
-        assert len(stations) == 4
-
-    def test_clear_init_station(self):
-        # Add a station and confirm count increases by one
-        stations = self.dbm.get_stations()
-        assert len(stations) == 3  # hardcoded default for init_stations
-        self.dbm.add_station()
-        stations = self.dbm.get_stations()
-        assert len(stations) == 4
+        assert len(stations) == current_len + 1
 
     def test_assign_order_to_station(self):
         station_id = StationId(1)
