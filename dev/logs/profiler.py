@@ -21,11 +21,18 @@ def load_log_file(filename):
     with open(filename, 'r', encoding='utf8') as file:
         for line in file.readlines():
             parts = line.split(' - ')
-            if len(parts) >= 3:
+            if len(parts) == 3:
                 data.append({
                     'Date': datetime.datetime.strptime(parts[0].strip(), '%Y-%m-%d %H:%M:%S,%f'),
                     'Type': parts[1].strip(),
                     'Message': parts[2].strip()
+                })
+            elif len(parts) == 4:
+                data.append({
+                    'Date': datetime.datetime.strptime(parts[0].strip(), '%Y-%m-%d %H:%M:%S,%f'),
+                    'Name': parts[1].strip(),
+                    'Type': parts[2].strip(),
+                    'Message': parts[3].strip()
                 })
     return data
 

@@ -504,7 +504,7 @@ class RobotAllocator:
 
 def create_logger():
     logging.basicConfig(filename='robot_allocator.log', encoding='utf-8', filemode='w',
-                        level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+                        level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger_ra = logging.getLogger('robot_allocator')
     logger_ra.setLevel(logging.DEBUG)
     stream_logger = logging.StreamHandler()
