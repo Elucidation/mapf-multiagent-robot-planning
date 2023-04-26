@@ -33,6 +33,6 @@ if __name__ == '__main__':
     DELAY_S = 1
     while True:
         if db_orders.fill_available_station():
-            db_orders.commit()
             logger.info('Assigned an order to a station.')
+        db_orders.commit()
         time.sleep(DELAY_S)
