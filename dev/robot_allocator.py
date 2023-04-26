@@ -303,8 +303,13 @@ class RobotAllocator:
         # Batch update robots now
         self.wdb.update_robots(self.robots)
         self.wdb.con.commit()
+        update_duration_ms = (time.perf_counter() - t_start)*1000
         logger.debug(
-            f'update end, took {(time.perf_counter() - t_start)*1000:.3f} ms')
+            f'update end, took {update_duration_ms:.3f} ms')
+        if update_duration_ms > 100:
+            logger.error(
+            f'update took {update_duration_ms:.3f} ms > 100ms')
+        
 
     def sleep(self):
         time.sleep(self.dt_sec)

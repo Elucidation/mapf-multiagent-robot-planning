@@ -31,14 +31,17 @@ if __name__ == '__main__':
     MAX_ITEMS = 4
 
     NUM_ORDERS = 1
-    DELAY = 1
+    DELAY = 1.0
 
     # Pass num orders as param, delay as well
     if len(sys.argv) == 2:
         NUM_ORDERS = int(sys.argv[1])
     elif len(sys.argv) == 3:
         NUM_ORDERS = int(sys.argv[1])
-        DELAY = int(sys.argv[2])
+        DELAY = float(sys.argv[2])
+        if DELAY == 0:
+            logger.warning('Sending multiple orders at once will write-lock DB, '
+                           'causing errors for the WS/RA systems')
 
     random.seed(123)  # Use a fixed seed to make this repeatable
     for i in range(NUM_ORDERS):
