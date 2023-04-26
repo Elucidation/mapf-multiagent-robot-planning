@@ -30,7 +30,7 @@ def load_log_file(filename):
     return data
 
 
-def get_world_sim_stats(filename='logs2/world_sim.log'):
+def get_world_sim_stats(filename):
     data_world_sim: list[dict] = load_log_file(filename)
     # Get all update duration
     update_durations_list = []
@@ -68,7 +68,7 @@ def get_world_sim_stats(filename='logs2/world_sim.log'):
 
     step_ends_0_start = np.fromiter((step.total_seconds()
                                     for step in step_ends_0_start), dtype=float)
-    subset_n = 20
+    subset_n = 200
 
     # Event processing time for update
     set_update = {
@@ -91,13 +91,14 @@ def get_world_sim_stats(filename='logs2/world_sim.log'):
     return {
         'update': set_update,
         'sleep': set_sleep,
+        'step_starts': step_starts,
         'step_starts_0_start': step_starts_0_start,
         'total_step_durations_ms': np.diff(step_starts_0_start) * 1000,
 
     }
 
 
-def get_robot_allocator_stats(filename):
+def get_robot_allocator_stats(filename, offset_sec=0):
     data_robot_allocator: list[dict] = load_log_file(filename)
 
     # Get all update duration
@@ -107,9 +108,9 @@ def get_robot_allocator_stats(filename):
     # step/update start are at the same time
     # step/update end are at the same time, use update end to get timed duration
     for entry in data_robot_allocator:
-        if entry['Type'] == 'DEBUG' and 'Step start' in entry['Message']:
+        if 'Step start' in entry['Message']:
             step_starts_list.append(entry['Date'])
-        elif entry['Type'] == 'DEBUG' and 'update end' in entry['Message']:
+        elif 'update end' in entry['Message']:
             step_ends_list.append(entry['Date'])
             # update end, took 0.002030 sec
             match = re.search(r'took (\d+.\d+) sec', entry['Message'])
@@ -121,8 +122,8 @@ def get_robot_allocator_stats(filename):
     step_ends = np.array(step_ends_list)
 
     # Offset everything to zero start
-    step_starts_0_start = step_starts - step_starts[0]
-    step_ends_0_start = step_ends - step_starts[0]
+    step_starts_0_start = step_starts - offset_sec
+    step_ends_0_start = step_ends - offset_sec
 
     # dt_s = 0.1  # hard-coded
     # step_starts = np.fromiter((step.total_seconds() - dt_s * t for t, step in enumerate(step_starts)), dtype=np.float)
@@ -132,10 +133,10 @@ def get_robot_allocator_stats(filename):
     step_ends_0_start = np.fromiter((step.total_seconds()
                                     for step in step_ends_0_start), dtype=float)
 
-    subset_n = 20
+    subset_n = 200
 
     # Event processing time for update
-    set_update = {
+    set_update_ra = {
         'label': 'RA Update',
         'starts': step_starts_0_start[:subset_n-1],
         'durations': np.array(update_durations)[:subset_n-1],
@@ -143,16 +144,22 @@ def get_robot_allocator_stats(filename):
         'labels': range(subset_n-1)
     }
     return {
-        'update': set_update,
+        'update': set_update_ra,
         # 'sleep': set_sleep,
         'step_starts_0_start': step_starts_0_start,
         'total_step_durations_ms': np.diff(step_starts_0_start) * 1000,
     }
 
+
 ##########################################################
 # Main script
-stats_robot_allocator = get_robot_allocator_stats('logs2/robot_allocator.log')
-stats_world_sim = get_world_sim_stats('logs2/world_sim.log')
+LOG_FOLDER = 'logs3'
+OUTPUT_FILENAME = f'{LOG_FOLDER}/profiler_result_{LOG_FOLDER}.pdf'
+
+
+stats_world_sim = get_world_sim_stats(f'{LOG_FOLDER}/world_sim.log')
+offset_sec = stats_world_sim['step_starts'][0] # First timestamp of starts
+stats_robot_allocator = get_robot_allocator_stats(f'{LOG_FOLDER}/robot_allocator.log', offset_sec=offset_sec)
 
 set_update = stats_world_sim['update']
 set_sleep = stats_world_sim['sleep']
@@ -172,7 +179,8 @@ def make_step_gantt():
     # Set x ticks to event labels
     plt.yticks([0, 1], ['World Sim', 'Robot\nAllocator'])
     plt.xticks(set_update['starts'], [
-               f'T={label}\n{t_start:.2f} ms' for t_start, label in zip(set_update['starts'], set_update['labels'])])
+               f'T={label}, {t_start:.2f} ms' for t_start, label in zip(set_update['starts'], set_update['labels'])],
+               fontsize=4, rotation='vertical')
 
     # Add lines for step start, keep ylim the same
     bot, top = plt.ylim()
@@ -181,15 +189,16 @@ def make_step_gantt():
     #            linewidth=0.1
     #            )
     plt.ylim(bot, top)
-
-    plt.xlabel('Step #')
+    
+    # plt.xlabel(f"Step # RA update_mean={ra_durations.mean():.4f} ms std={ra_durations.std():.4f}")
+    plt.xlabel("Step #")
     plt.ylabel('Events')
     plt.title('Step Timeline')
     plt.legend()
     plt.grid()
 
 
-with PdfPages('profiler_result.pdf') as pdf:
+with PdfPages(OUTPUT_FILENAME) as pdf:
     # Step durations
     plt.figure()
     plt.hist(set_update['durations_full'] * 1000)
@@ -219,4 +228,14 @@ with PdfPages('profiler_result.pdf') as pdf:
     # Gantt
     plt.figure(figsize=(25, 5))
     make_step_gantt()
+    pdf.savefig()
+
+    # Robot Allocator update step histogram
+    plt.figure(figsize=(5,5))
+    ra_durations = ra_set_update['durations_full']
+    print(ra_durations.mean(), ra_durations.std(), ra_durations.min(), ra_durations.max())
+    plt.hist(ra_durations * 1000)
+    plt.xlabel(
+        f'Update step durations (ms)\nmean={ra_durations.mean()*1000:.4f} ms std={ra_durations.std()*1000:.4f} ms')
+    plt.title('Robot Allocator Update duration')
     pdf.savefig()
