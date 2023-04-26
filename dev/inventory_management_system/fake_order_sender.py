@@ -1,6 +1,6 @@
 """Fake order creator adds fake orders to the DB"""
-import time
 import random
+import time
 import logging
 import sys
 from .Item import ItemCounter, ItemId
@@ -14,13 +14,6 @@ log_handler.setLevel(logging.DEBUG)
 logger.addHandler(log_handler)
 
 dbm = DatabaseOrderManager(MAIN_DB)
-
-# fixed_item_list_options = [
-#     [0, 1, 2, 3],
-#     [2, 3, 3],
-#     [1, 0, 1],
-#     [0],
-# ]
 
 MAX_ITEM_ID = 5
 
@@ -47,6 +40,7 @@ if __name__ == '__main__':
         NUM_ORDERS = int(sys.argv[1])
         DELAY = int(sys.argv[2])
 
+    random.seed(123)  # Use a fixed seed to make this repeatable
     for i in range(NUM_ORDERS):
         send_random_order()
 
