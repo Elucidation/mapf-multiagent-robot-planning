@@ -199,7 +199,7 @@ def make_step_gantt():
     plt.ylabel('Events')
     plt.title('Step Timeline')
     plt.legend()
-    plt.grid()
+    plt.grid(linestyle='dotted', linewidth=0.1)
 
 
 collisions = stats_world_sim['collisions']
