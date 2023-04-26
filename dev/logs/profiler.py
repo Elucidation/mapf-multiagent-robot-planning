@@ -30,7 +30,7 @@ def load_log_file(filename):
     return data
 
 
-def get_world_sim_stats(filename):
+def get_world_sim_stats(filename, subset_n = None):
     data_world_sim: list[dict] = load_log_file(filename)
     # Get all update duration
     update_durations_list = []
@@ -71,7 +71,10 @@ def get_world_sim_stats(filename):
 
     step_ends_0_start = np.fromiter((step.total_seconds()
                                     for step in step_ends_0_start), dtype=float)
-    subset_n = 200
+    if subset_n:
+        subset_n = min(len(step_starts), subset_n)
+    else:
+        subset_n = len(step_starts)
 
     # Event processing time for update
     set_update = {
@@ -101,7 +104,7 @@ def get_world_sim_stats(filename):
     }
 
 
-def get_robot_allocator_stats(filename, offset_sec=0):
+def get_robot_allocator_stats(filename, offset_sec=0, subset_n = None):
     data_robot_allocator: list[dict] = load_log_file(filename)
 
     # Get all update duration
@@ -137,7 +140,10 @@ def get_robot_allocator_stats(filename, offset_sec=0):
     step_ends_0_start = np.fromiter((step.total_seconds()
                                     for step in step_ends_0_start), dtype=float)
 
-    subset_n = 200
+    if subset_n:
+        subset_n = min(len(step_starts), subset_n)
+    else:
+        subset_n = len(step_starts)
 
     # Event processing time for update
     set_update_ra = {
@@ -160,10 +166,10 @@ def get_robot_allocator_stats(filename, offset_sec=0):
 LOG_FOLDER = 'logs3'
 OUTPUT_FILENAME = f'{LOG_FOLDER}/profiler_result_{LOG_FOLDER}.pdf'
 
-
-stats_world_sim = get_world_sim_stats(f'{LOG_FOLDER}/world_sim.log')
+SUBSET_N = 500
+stats_world_sim = get_world_sim_stats(f'{LOG_FOLDER}/world_sim.log', subset_n=SUBSET_N)
 offset_sec = stats_world_sim['step_starts'][0] # First timestamp of starts
-stats_robot_allocator = get_robot_allocator_stats(f'{LOG_FOLDER}/robot_allocator.log', offset_sec=offset_sec)
+stats_robot_allocator = get_robot_allocator_stats(f'{LOG_FOLDER}/robot_allocator.log', offset_sec=offset_sec, subset_n=SUBSET_N)
 
 set_update = stats_world_sim['update']
 set_sleep = stats_world_sim['sleep']
@@ -186,12 +192,14 @@ def make_step_gantt():
                f'T={label}, {t_start:.2f} ms' for t_start, label in zip(set_update['starts'], set_update['labels'])],
                fontsize=4, rotation='vertical')
 
-    # Add lines for step start, keep ylim the same
+    # Add vertical lines at the time step when world state was invalid / had collision
     bot, top = plt.ylim()
-    # plt.vlines(set_update['starts'], ymin=bot, ymax=top,
-    #            linestyles='dotted', color='black', label='Step Start',
-    #            linewidth=0.1
-    #            )
+    offset_sec = stats_world_sim['step_starts'][0]
+    collision_x_pts = [(collision['Date'] - offset_sec).total_seconds() for collision in stats_world_sim['collisions']]
+    plt.vlines(collision_x_pts, ymin=bot, ymax=top,
+               linestyles='dotted', color='red', label='Step Start',
+               linewidth=0.5
+               )
     plt.ylim(bot, top)
     
     # plt.xlabel(f"Step # RA update_mean={ra_durations.mean():.4f} ms std={ra_durations.std():.4f}")
