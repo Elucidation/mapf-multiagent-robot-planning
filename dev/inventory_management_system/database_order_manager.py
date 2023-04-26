@@ -58,7 +58,7 @@ class DatabaseOrderManager:
             DROP TABLE IF EXISTS "Task";
             """
         )
-    
+
     @timeit
     def commit(self):
         self.con.commit()
@@ -166,7 +166,7 @@ class DatabaseOrderManager:
         )
         if created is None:
             created = datetime.now()  # Use current time if none provided.
-        
+
         cur = self.con.cursor()
         cur.execute(order_sql, (created_by, created,
                                 description, str(status)))
@@ -382,13 +382,14 @@ class DatabaseOrderManager:
         self.update_related_task(station_id, item_id, new_quantity, new_status)
         if new_status == TaskStatus.COMPLETE:
             # Check if station has any tasks left or update if it's complete
-            self._update_station(station_id)  # TODO : commit once instead of these several
+            # TODO : commit once instead of these several
+            self._update_station(station_id)
         return True
 
     @timeit
     def add_item_to_station_fast(
-        self, station_id: StationId, prev_quantity:int, 
-        task_id: TaskId, quantity=1) -> bool:
+            self, station_id: StationId, prev_quantity: int,
+            task_id: TaskId, quantity=1) -> bool:
         """Add items to a station: Updates or Completes Task and Station associated.
         Needs a commit.
 
@@ -429,7 +430,7 @@ class DatabaseOrderManager:
         """Updates task with new status. Needs commit."""
         sql = """UPDATE "Task" SET status=? WHERE task_id=?;"""
         self.con.execute(sql, (status.value, task_id))
-    
+
     @timeit
     def update_task_quantity_and_status(self, task_id: TaskId, quantity: int, status: TaskStatus):
         """Updates task with new quantity and status. Needs commit."""
