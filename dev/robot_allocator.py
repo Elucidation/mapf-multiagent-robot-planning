@@ -74,9 +74,6 @@ class Job:
         self.complete = False
         self.error = False
 
-    def get_current_robot_pos(self, world_dbm: WorldDatabaseManager) -> Tuple[int, int]:
-        return world_dbm.get_robot(self.robot_id).pos
-
     def __repr__(self):
         state = [self.started, self.item_picked, self.going_to_station,
                  self.item_dropped, self.returning_home,
@@ -131,12 +128,12 @@ class RobotAllocator:
 
         # Get all robots regardless of state
         # assume no robots will be added or removed for duration of this instance
-        robots = self.wdb.get_robots()
+        self.robots = self.wdb.get_robots()
         # Reset Robot states and drop any held items
-        for robot in robots:
+        for robot in self.robots:
             robot.held_item_id = None
             robot.state = RobotStatus.AVAILABLE
-        self.wdb.update_robots(robots)
+        self.wdb.update_robots(self.robots)
 
         # Get delta time step used by world sim
         self.dt_sec = self.wdb.get_dt_sec()
@@ -148,7 +145,7 @@ class RobotAllocator:
 
         # Track robot allocations as allocations[robot_id] = Job
         self.allocations: dict[RobotId, Optional[Job]] = {
-            robot.robot_id: None for robot in robots}
+            robot.robot_id: None for robot in self.robots}
 
     def make_job(self, task: Task, robot: Robot) -> Optional[Job]:
         """Try to generate and return job if pathing is possible, None otherwise"""
@@ -187,10 +184,9 @@ class RobotAllocator:
             set[tuple[int, int, int]]: set of (row, col, t) dynamic obstacles with current t=-1
         """
         # For dynamic obstacles, assume current moment is t=-1, next moment is t=0
-        robots = self.wdb.get_robots()  # Get current future paths for all other robots
         dynamic_obstacles: set[tuple[int, int, int]
                                ] = set()  # set{(row,col,t), ...}
-        for robot in robots:
+        for robot in self.robots:
             # Add all positions along future path
             for t, pos in enumerate(robot.future_path):
                 dynamic_obstacles.add((pos[0], pos[1], t))
@@ -215,13 +211,17 @@ class RobotAllocator:
                     dynamic_obstacles.add((robot.pos[0], robot.pos[1], t))
         return dynamic_obstacles
 
-    def get_robot(self, robot_id: RobotId):
-        return self.wdb.get_robot(robot_id)
+    def get_robot(self, robot_id: RobotId) -> Robot:
+        # TODO : Replace this with dict[robot_id] -> robot
+        for robot in self.robots:
+            if robot.robot_id == robot_id:
+                return robot
+        raise ValueError(f'get_robot called with invalid robot id {robot_id}')
 
     def robot_pick_item(self, robot_id: RobotId,
                         item_id: ItemId) -> Tuple[bool, Optional[ItemId]]:
         # Return fail if already holding an item
-        robot = self.wdb.get_robot(robot_id)
+        robot = self.get_robot(robot_id)
         if not robot.hold_item(item_id):
             return (False, robot.held_item_id)
 
@@ -231,7 +231,7 @@ class RobotAllocator:
 
     def robot_drop_item(self, robot_id: RobotId) -> Tuple[bool, Optional[ItemId]]:
         # Return fail if it wasn't holding an item
-        robot = self.wdb.get_robot(robot_id)
+        robot = self.get_robot(robot_id)
         item_id = robot.drop_item()
         if item_id is None:
             return (False, item_id)
@@ -243,10 +243,10 @@ class RobotAllocator:
 
     def get_available_robots(self) -> list[Robot]:
         # Finds all robots currently available
-        return self.wdb.get_robots(query_state=str(RobotStatus.AVAILABLE))
+        return [robot for robot in self.robots if robot.state == RobotStatus.AVAILABLE]
 
     def set_robot_error(self, robot_id: RobotId):
-        robot = self.wdb.get_robot(robot_id)
+        robot = self.get_robot(robot_id)
         robot.state = RobotStatus.ERROR
         self.wdb.update_robots([robot])
 
@@ -277,14 +277,20 @@ class RobotAllocator:
     def update(self):
         t_start = time.perf_counter()
         logger.debug('update start')
+        # Update to latest robots from WDB
+        self.robots = self.wdb.get_robots()
+
         # Check and update any jobs
-        for job in robot_mgr.jobs.values():
+        for job in self.jobs.values():
             self.check_and_update_job(job)
 
         # Now check for any available robots and tasks
-        robot_mgr.assign_task_to_robot()
-        logger.debug(f'update end, took {time.perf_counter() - t_start:.6f} sec')
-        
+        self.assign_task_to_robot()
+
+        # Batch update robots now
+        # self.wdb.update_robots(self.robots)
+        logger.debug(
+            f'update end, took {(time.perf_counter() - t_start)*1000:.3f} ms')
 
     def sleep(self):
         time.sleep(self.dt_sec)
@@ -295,14 +301,15 @@ class RobotAllocator:
         dynamic_obstacles = self.get_current_dynamic_obstacles(max_steps)
         path = pf.st_astar(
             self.world_grid, pos_a, pos_b, dynamic_obstacles, end_fast=True, max_time=max_steps)
-        logger.debug(f'generate_path took {time.perf_counter() - t_start:.6f} sec : {pos_a} -> {pos_b} max_steps={max_steps} : {path}')
+        logger.debug(
+            f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms : {pos_a} -> {pos_b} max_steps={max_steps} : {path}')
         return path
 
     def job_start(self, job: Job) -> bool:
         # TODO : Check if item zone lock available
         # take lock on item zone
         # else: don't start yet (go home)
-        current_pos = job.get_current_robot_pos(robot_mgr.wdb)
+        current_pos = self.get_robot(job.robot_id).pos
         # Try to generate new path for robot
         job.path_robot_to_item = self.generate_path(current_pos, job.item_zone)
         if not job.path_robot_to_item:
@@ -315,17 +322,17 @@ class RobotAllocator:
             self.logger.warning(
                 f'Going home? {job.robot_home} - {current_pos} = {path_to_home}')
             if path_to_home:
-                robot_mgr.wdb.set_robot_path(job.robot_id, path_to_home)
+                self.wdb.set_robot_path(job.robot_id, path_to_home)
             return False  # Did not start job as no path existed yet
 
         self.logger.info(f'Starting job {job} for Robot {job.robot_id}')
-        robot_mgr.wdb.set_robot_path(job.robot_id, job.path_robot_to_item)
+        self.wdb.set_robot_path(job.robot_id, job.path_robot_to_item)
         job.started = True
         return True
 
     def job_try_pick_item(self, job: Job) -> bool:
         # Check that robot is at item zone or has a path
-        robot = robot_mgr.wdb.get_robot(job.robot_id)
+        robot = self.get_robot(job.robot_id)
         if robot.pos != job.item_zone:
             if not robot.future_path:
                 self.logger.error('Robot path diverged from job, reset state')
@@ -353,7 +360,7 @@ class RobotAllocator:
         # TODO : Check if station zone lock available
         # take lock on station zone
         # else: don't start yet (go home)
-        current_pos = job.get_current_robot_pos(robot_mgr.wdb)
+        current_pos = self.get_robot(job.robot_id).pos
         # Try to generate new path for robot
         job.path_item_to_station = self.generate_path(
             current_pos, job.station_zone)
@@ -363,14 +370,14 @@ class RobotAllocator:
             path_to_home = self.generate_path(
                 current_pos, job.robot_home)
             if path_to_home:
-                robot_mgr.wdb.set_robot_path(job.robot_id, path_to_home)
+                self.wdb.set_robot_path(job.robot_id, path_to_home)
             return False  # Did not start job as no path existed yet
 
         # TODO : unlock item zone since we're moving
         # TODO : consider a step in-between to go to a waiting zone for items to stations
 
         # Send robot to station
-        robot_mgr.wdb.set_robot_path(
+        self.wdb.set_robot_path(
             job.robot_id, job.path_item_to_station)
         job.going_to_station = True
         self.logger.info(
@@ -379,7 +386,7 @@ class RobotAllocator:
 
     def job_drop_item_at_station(self, job: Job) -> bool:
         # Check that robot is at station zone
-        robot = robot_mgr.wdb.get_robot(job.robot_id)
+        robot = self.get_robot(job.robot_id)
         if robot.pos != job.station_zone:
             if not robot.future_path:
                 self.logger.error('Robot path diverged from job, reset state')
@@ -418,14 +425,14 @@ class RobotAllocator:
 
     def job_return_home(self, job: Job) -> bool:
         # Try to generate new path for robot
-        current_pos = job.get_current_robot_pos(robot_mgr.wdb)
+        current_pos = self.get_robot(job.robot_id).pos
         job.path_station_to_home = self.generate_path(
             current_pos, job.robot_home)
         if not job.path_station_to_home:
             self.logger.warning(f'Robot {job.robot_id} no path back home')
             return False  # Did not start job as no path existed yet
         # Send robot home
-        robot_mgr.wdb.set_robot_path(
+        self.wdb.set_robot_path(
             job.robot_id, job.path_station_to_home)
         job.returning_home = True
         self.logger.info(
@@ -435,7 +442,7 @@ class RobotAllocator:
 
     def job_arrive_home(self, job: Job) -> bool:
         # Check that robot is at home zone
-        robot = robot_mgr.wdb.get_robot(job.robot_id)
+        robot = self.get_robot(job.robot_id)
         if robot.pos != job.robot_home:
             if not robot.future_path:
                 self.logger.error('Robot path diverged from job, reset state')
@@ -471,10 +478,10 @@ class RobotAllocator:
         # Reset the job
         job.reset()
         # Try going home instead to leave space at station
-        current_pos = job.get_current_robot_pos(robot_mgr.wdb)
+        current_pos = self.get_robot(job.robot_id).pos
         path_to_home = self.generate_path(current_pos, job.robot_home)
         if path_to_home:
-            robot_mgr.wdb.set_robot_path(job.robot_id, path_to_home)
+            self.wdb.set_robot_path(job.robot_id, path_to_home)
         # Set robots start pos to where it is currently
         # job.robot_start_pos = robot.pos
         return False
@@ -527,18 +534,16 @@ if __name__ == '__main__':
     # Subscribe to world 0mq updates
     socket.setsockopt_string(zmq.SUBSCRIBE, "WORLD")
 
-
     # Main loop processing jobs from tasks
     logger.info('Robot Allocator running')
-
 
     while True:
         logger.debug('Waiting for 0mq world update')
         string = socket.recv()
         topic, messagedata = string.split()
         world_sim_t = int(messagedata)
-    #     # logger.debug('-------')
-        logger.info(f'Step start T={world_sim_t} ')
+        logger.info(
+            f'Step start T={world_sim_t} -----------------------------------------------------------------------------------------------')
         robot_mgr.update()
 
         if any(robot_mgr.allocations.values()):
@@ -549,7 +554,7 @@ if __name__ == '__main__':
                 logger.debug(
                     f'RobotId {allocated_robot_id} : {allocated_job}')
             logger.debug(
-                f'- Available Robots: {robot_mgr.get_available_robots()}')
+                f'- Robots: {robot_mgr.robots}')
             logger.debug('---')
 
         # Delay till next task
