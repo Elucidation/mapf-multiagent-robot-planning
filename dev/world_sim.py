@@ -1,5 +1,6 @@
 """Simulate world grid and robots, updating DB that web server sees."""
 from enum import Enum
+import functools
 from typing import List, Tuple, Dict, Optional, Any  # Python 3.8
 from datetime import datetime
 import ctypes
@@ -19,6 +20,22 @@ winmm = ctypes.WinDLL('winmm')
 winmm.timeBeginPeriod(1)
 
 Position = Tuple[int, int]
+
+# TODO : Consolidate timeit and have all modules use the same one.
+# Decorator for timing functions
+
+
+def timeit(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        logger.debug(f'{func.__name__!r} Start')
+        t_start = time.perf_counter()
+        result = func(*args, **kwargs)
+        t_end = time.perf_counter()
+        logger.debug(
+            f'{func.__name__!r} End. Took {(t_end - t_start)*1000:.3f} ms')
+        return result
+    return wrapper
 
 
 class EnvType(Enum):
@@ -101,6 +118,7 @@ class World(object):
         # True if valid, false if collision occurred in last step
         return self.world_state
 
+    @timeit
     def _check_valid_state(self) -> bool:
         latest_positions: Dict[Position, RobotId] = dict()
         for robot in self.robots:
@@ -151,6 +169,18 @@ class World(object):
         self.collision = None
         return True
 
+    @timeit
+    def step_robots(self) -> bool:
+        self.past_robot_positions.clear()
+        for robot in self.robots:
+            self.past_robot_positions[robot.pos] = robot.robot_id
+
+        state_changed = False
+        for robot in self.robots:
+            state_changed |= robot.move_to_next_position()
+        return state_changed
+
+    @timeit
     def step(self) -> bool:
         # For every robot in environment, pop an action and apply it
         # check that final state has no robots colliding with walls or
@@ -161,13 +191,7 @@ class World(object):
 
         self.robots = self.wdb.get_robots()
 
-        self.past_robot_positions.clear()
-        for robot in self.robots:
-            self.past_robot_positions[robot.pos] = robot.robot_id
-
-        state_changed = False
-        for robot in self.robots:
-            state_changed |= robot.move_to_next_position()
+        state_changed = self.step_robots()
 
         self.world_state = self._check_valid_state()
         self.t += 1
