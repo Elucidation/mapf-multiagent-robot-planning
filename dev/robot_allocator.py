@@ -308,8 +308,7 @@ class RobotAllocator:
             f'update end, took {update_duration_ms:.3f} ms')
         if update_duration_ms > 100:
             logger.error(
-            f'update took {update_duration_ms:.3f} ms > 100ms')
-        
+                f'update took {update_duration_ms:.3f} ms > 100ms')
 
     def sleep(self):
         time.sleep(self.dt_sec)
