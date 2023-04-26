@@ -46,6 +46,7 @@ class DatabaseOrderManager:
         self.init_tables()
         self.init_stations()
         self.init_items()
+        self.commit()
 
     def delete_tables(self):
         self.con.executescript(
@@ -57,6 +58,9 @@ class DatabaseOrderManager:
             DROP TABLE IF EXISTS "Task";
             """
         )
+    
+    @timeit
+    def commit(self):
         self.con.commit()
 
     def init_tables(self):
@@ -104,7 +108,6 @@ class DatabaseOrderManager:
                 FOREIGN KEY("order_id") REFERENCES "Order"("order_id")
                 FOREIGN KEY("item_id") REFERENCES "Item"("item_id")
             );""")
-        self.con.commit()
 
     @staticmethod
     def get_db_order_tuple(order: Order):
@@ -134,13 +137,11 @@ class DatabaseOrderManager:
         item_names = get_item_names()
         item_sql = 'INSERT INTO "Item" (name) values(?)'
         item_name_data = list(map(lambda item_name: (item_name,), item_names))
-        with self.con:
-            self.con.executemany(item_sql, item_name_data)
+        self.con.executemany(item_sql, item_name_data)
 
     def add_station(self):
         sql = 'INSERT INTO "Station" DEFAULT VALUES;'
-        with self.con:
-            self.con.execute(sql)
+        self.con.execute(sql)
 
     @timeit
     def add_order(self, items: ItemCounter, created_by: int,
@@ -165,15 +166,17 @@ class DatabaseOrderManager:
         )
         if created is None:
             created = datetime.now()  # Use current time if none provided.
-        with self.con:
-            cur = self.con.cursor()
-            cur.execute(order_sql, (created_by, created,
-                                    description, str(status)))
-            # Get row_id/primary key id of last insert by this cursor
-            order_id = OrderId(cur.lastrowid)
-            self.con.executemany(
-                order_item_sql, self.get_db_order_items_tuples(order_id, items)
-            )
+        
+        cur = self.con.cursor()
+        cur.execute(order_sql, (created_by, created,
+                                description, str(status)))
+        # Get row_id/primary key id of last insert by this cursor
+        order_id = OrderId(cur.lastrowid)
+        self.con.executemany(
+            order_item_sql, self.get_db_order_items_tuples(order_id, items)
+        )
+        self.commit()
+
         return Order(
             order_id=order_id,
             created_by=created_by,
@@ -259,18 +262,21 @@ class DatabaseOrderManager:
 
     @timeit
     def set_order_status(self, order_id, status):
+        """Needs a commit."""
         sql = """UPDATE "Order" SET finished=?, status=? WHERE order_id=?;"""
-        with self.con:
-            self.con.execute(sql, (datetime.now(), status, order_id))
+        self.con.execute(sql, (datetime.now(), status, order_id))
 
     def set_order_in_progress(self, order_id):
+        """Needs a commit."""
         self.set_order_status(order_id, "IN_PROGRESS")
 
     def complete_order(self, order_id):
+        """Needs a commit."""
         self.set_order_status(order_id, "COMPLETE")
 
     def _update_station(self, station_id: StationId) -> bool:
         """Check if station has any uncomplete tasks. 
+        Needs a commit.
         If all tasks are complete, complete the station order
         returns bool if station is cleared"""
         tasks = self.get_incomplete_station_tasks(station_id=station_id)
@@ -287,6 +293,7 @@ class DatabaseOrderManager:
     @timeit
     def assign_order_to_station(self, order_id: Optional[OrderId], station_id: StationId) -> bool:
         """Assign an order to a station, and add all tasks of items to station. 
+        Needs a commit.
 
         Args:
             order_id (OrderId): The ID of the order to be assigned, or None if empty.
@@ -314,12 +321,10 @@ class DatabaseOrderManager:
             'INSERT INTO "Task" (station_id, order_id, item_id, quantity, status) values(?, ?, ?, ?, ?)'
         )
 
-        with self.con:
-            # Assign order to station
-            self.con.execute(sql, (order_id, station_id))
-            # Add tasks for items->station for that order
-            self.con.executemany(tasks_sql, tasks)
-
+        # Assign order to station
+        self.con.execute(sql, (order_id, station_id))
+        # Add tasks for items->station for that order
+        self.con.executemany(tasks_sql, tasks)
         self.set_order_in_progress(order_id)
         return True
 
@@ -346,7 +351,7 @@ class DatabaseOrderManager:
     @timeit
     def add_item_to_station(self, station_id: StationId, item_id: ItemId, quantity=1) -> bool:
         """Add items to a station: Updates or Completes Task and Station associated.
-
+        Needs a commit.
         Args:
             station_id (StationId): The ID of the station to add the items to.
             item_id (ItemId): The ID of the item to be added.
@@ -377,23 +382,60 @@ class DatabaseOrderManager:
         self.update_related_task(station_id, item_id, new_quantity, new_status)
         if new_status == TaskStatus.COMPLETE:
             # Check if station has any tasks left or update if it's complete
+            self._update_station(station_id)  # TODO : commit once instead of these several
+        return True
+
+    @timeit
+    def add_item_to_station_fast(
+        self, station_id: StationId, prev_quantity:int, 
+        task_id: TaskId, quantity=1) -> bool:
+        """Add items to a station: Updates or Completes Task and Station associated.
+        Needs a commit.
+
+        Args:
+            station_id (StationId): The ID of the station to add the items to.
+            task_id (TaskId): The Task ID associated with this item/station/order
+            prev_quantity (int): The number of items currently in the task
+            quantity (int): The number of items to be added (ie. removed from the task).
+
+        Returns:
+            bool: success or failure
+        """
+        new_quantity = prev_quantity - quantity
+        if new_quantity == 0:
+            # Finish task since all items moved
+            new_status = TaskStatus.COMPLETE
+        elif new_quantity < 0:
+            # Error task since too many items moved
+            new_status = TaskStatus.ERROR
+        else:
+            # Make task available again
+            new_status = TaskStatus.OPEN
+        self.update_task_quantity_and_status(task_id, new_quantity, new_status)
+        if new_status == TaskStatus.COMPLETE:
+            # Check if station has any tasks left or update if it's complete
             self._update_station(station_id)
         return True
 
     @timeit
     def update_related_task(self, station_id: StationId, item_id: ItemId, quantity: int, status: TaskStatus):
-        """Updates task with new quantity and status."""
+        """Updates task with new quantity and status. Needs commit."""
         sql = """UPDATE "Task" SET quantity=?, status=? WHERE station_id=? AND item_id=? AND (status='OPEN' OR status='IN_PROGRESS');"""
-        with self.con:
-            self.con.execute(
-                sql, (quantity, status.value, station_id, item_id))
+        self.con.execute(
+            sql, (quantity, status.value, station_id, item_id))
 
     @timeit
     def update_task_status(self, task_id: TaskId, status: TaskStatus):
-        """Updates task with new quantity and status."""
+        """Updates task with new status. Needs commit."""
         sql = """UPDATE "Task" SET status=? WHERE task_id=?;"""
-        with self.con:
-            self.con.execute(sql, (status.value, task_id))
+        self.con.execute(sql, (status.value, task_id))
+    
+    @timeit
+    def update_task_quantity_and_status(self, task_id: TaskId, quantity: int, status: TaskStatus):
+        """Updates task with new quantity and status. Needs commit."""
+        sql = """UPDATE "Task" SET quantity=?, status=? WHERE task_id=?;"""
+        self.con.execute(
+            sql, (quantity, status.value, task_id))
 
     @timeit
     def get_stations_and_tasks(self) -> List[Tuple[Station, List[Task]]]:
@@ -439,7 +481,7 @@ class DatabaseOrderManager:
     @timeit
     def fill_available_station(self) -> bool:
         """Adds an open order to an available station if they both exist.
-
+        Needs commit.
         Returns:
             bool: Whether an order was assigned to a station
         """

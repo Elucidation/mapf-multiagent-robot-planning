@@ -142,6 +142,7 @@ class RobotAllocator:
         tasks = self.ims_db.get_tasks(query_status=TaskStatus.IN_PROGRESS)
         for task in tasks:
             self.ims_db.update_task_status(task.task_id, TaskStatus.OPEN)
+        self.ims_db.commit()
 
         # Track robot allocations as allocations[robot_id] = Job
         self.allocations: dict[RobotId, Optional[Job]] = {
@@ -287,6 +288,8 @@ class RobotAllocator:
         # Now check for any available robots and tasks
         self.assign_task_to_robot()
 
+        # Commit transactions to IMS DB
+        self.ims_db.commit()
         # Batch update robots now
         self.wdb.update_robots(self.robots)
         logger.debug(
@@ -414,9 +417,10 @@ class RobotAllocator:
             return False
 
         # TODO : Validate item added successfully
-        self.ims_db.add_item_to_station(
-            job.task.station_id, job.task.item_id)
+        
+        self.ims_db.add_item_to_station_fast(job.task.station_id, job.task.quantity, job.task.task_id)
         # This only modifies the task instance in the job
+        job.task.quantity -= 1
         job.task.status = TaskStatus.COMPLETE
         self.logger.info(f'Task {job.task} complete, '
                          f'Robot {job.robot_id} successfully dropped item')
@@ -549,8 +553,8 @@ if __name__ == '__main__':
         robot_mgr.update()
 
         if any(robot_mgr.allocations.values()):
-            logger.debug('- Current available tasks: '
-                         f'{[task.task_id for task in robot_mgr.get_available_tasks()]}')
+            # logger.debug('- Current available tasks: '
+            #              f'{[task.task_id for task in robot_mgr.get_available_tasks()]}')
             logger.debug('- Current job allocations')
             for allocated_robot_id, allocated_job in robot_mgr.allocations.items():
                 logger.debug(

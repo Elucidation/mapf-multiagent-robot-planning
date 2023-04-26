@@ -5,11 +5,19 @@ import time
 from .database_order_manager import DatabaseOrderManager, MAIN_DB
 
 # Set up logging
-logger = logging.getLogger("order_processor_logger")
-logger.setLevel(logging.DEBUG)
-log_handler = logging.StreamHandler()
-log_handler.setLevel(logging.DEBUG)
-logger.addHandler(log_handler)
+def create_logger():
+    logging.basicConfig(filename='order_processor_logger.log', encoding='utf-8', filemode='w',
+                        level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    _logger = logging.getLogger('order_processor_logger')
+    _logger.setLevel(logging.DEBUG)
+    stream_logger = logging.StreamHandler()
+    stream_logger.setLevel(logging.INFO)
+    _logger.addHandler(stream_logger)
+    return _logger
+
+logger = create_logger()
+
+
 
 if __name__ == '__main__':
     db_orders = DatabaseOrderManager(MAIN_DB)
@@ -25,5 +33,6 @@ if __name__ == '__main__':
     DELAY_S = 1
     while True:
         if db_orders.fill_available_station():
+            db_orders.commit()
             logger.info('Assigned an order to a station.')
         time.sleep(DELAY_S)

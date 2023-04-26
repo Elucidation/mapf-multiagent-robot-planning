@@ -44,6 +44,7 @@ while True:
 
     # Submit task complete
     dboi.add_item_to_station(task.station_id, task.item_id)
+    dboi.commit()
     logger.info(f'Finished {task}')
 
     # Delay till next task

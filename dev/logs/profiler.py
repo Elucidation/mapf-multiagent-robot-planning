@@ -168,10 +168,10 @@ def get_robot_allocator_stats(filename, offset_sec=0, subset_n=None):
 
 ##########################################################
 # Main script
-LOG_FOLDER = 'logs6_B'
+LOG_FOLDER = 'logs7_C'
+SAVE_PDF = True
 OUTPUT_FILENAME = f'{LOG_FOLDER}/profiler_result_{LOG_FOLDER}.pdf'
 
-SAVE_PDF = False
 
 SUBSET_N = 500
 stats_world_sim = get_world_sim_stats(
@@ -226,6 +226,7 @@ collisions = stats_world_sim['collisions']
 total_step_durations_ms = stats_world_sim['total_step_durations_ms']
 ra_durations = ra_set_update['durations_full']
 
+print(f'Logs: {LOG_FOLDER}')
 print(f'Number of collisions: {len(collisions)}')
 print(f'WS update duration mean {total_step_durations_ms.mean():.2f} [{total_step_durations_ms.min():.2f} - {total_step_durations_ms.max():.2f}], std {total_step_durations_ms.std():.2f} ms')
 print(f'RA update duration mean {ra_durations.mean():.2f} [{ra_durations.min():.2f} - {ra_durations.max():.2f}], std {ra_durations.std():.2f} ms')
