@@ -68,8 +68,8 @@ function svg_create_item_zones(zones) {
 function svg_create_station_zones(zones) {
   return zones.map((zone, idx) => {
     const hover_label = createSVGElement("title");
-    hover_label.textContent = `Station Zone ${idx}`;
-    zone = drawSpecialZone(zone.x, zone.y, "station_zone", `Station ${idx}`);
+    hover_label.textContent = `Station Zone ${idx+1}`; // Hacky +1 for station ids
+    zone = drawSpecialZone(zone.x, zone.y, "station_zone", `Station ${idx+1}`);
     zone.appendChild(hover_label);
     return zone;
   });
