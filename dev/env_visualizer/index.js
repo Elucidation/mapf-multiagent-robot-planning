@@ -70,13 +70,15 @@ class World {
     this.dt_s = NaN;
 
     /** @type {Point[]} Robot Home positions in this world */
-    this.robot_home_zones = data.robot_home_zones.map((rc) => new Point(rc[1], rc[0]));
+    this.robot_home_zones = data.robot_home_zones.map(
+      (rc) => new Point(rc[1], rc[0])
+    );
 
     /** @type {Point[]} Item loading positions in this world */
     this.item_load_positions = data.item_load_zones.map(
       (rc) => new Point(rc[1], rc[0])
     );
-    
+
     /** @type {Point[]} Station positions in this world */
     this.station_positions = data.station_zones.map(
       (rc) => new Point(rc[1], rc[0])
@@ -130,22 +132,46 @@ class World {
 
 var world = World.from_yaml("./warehouses/warehouse3.yaml");
 
-// Update robot positions at the rate of dt_sec
-robot_dbm.get_dt_sec().then(data => {
+// Let visualizer know expected update rate
+robot_dbm.get_dt_sec().then((data) => {
   world.dt_s = data.value;
-  setInterval(update_robots, world.dt_s * 1000);
-})
+});
+
+// 0MQ Subscribe for world step updates
+const zmq = require("zeromq");
+const { stringify } = require("querystring");
+const PORT = "50523";
+
+async function run() {
+  const sock = new zmq.Subscriber();
+
+  sock.connect(`tcp://127.0.0.1:${PORT}`);
+  sock.subscribe("WORLD");
+  console.log(`Subscriber connected to port ${PORT}`);
+
+  // Parse world time step from the 0MQ published message ex: 'WORLD N'
+  for await (const [full_msg] of sock) {
+    let parts = String(full_msg).split(" ");
+    if (parts.length != 2 && parts[0] != "WORLD") {
+      continue;
+    }
+    world.t = parseInt(parts[1]);
+    update_robots();
+  }
+}
+
+run();
 
 function update_ims() {
   // TODO : Use this to show station states
   // Update IMS stations/orders/items viz
-  processStationsAndOrderItems()
+  processStationsAndOrderItems();
 }
 
 async function processStationsAndOrderItems() {
   try {
     const stations = await dbm.get_stations();
-    const order_ids = stations.map(station => station.order_id);
+    const order_ids = stations.map((station) => station.order_id);
     const order_items = await dbm.get_order_items_by_ids(order_ids);
     // do_something();
   } catch (error) {
@@ -154,39 +180,26 @@ async function processStationsAndOrderItems() {
 }
 
 function update_robots() {
-  Promise.all([robot_dbm.get_timestamp(), robot_dbm.get_robots()]).then(
-    (data) => {
-      let t_db_data = data[0];
-      let robots_db_data = data[1];
-      // Update time if exists
-      if (t_db_data) {
-        if (t_db_data.value == world.t) {
-          // No time change yet, skip this update
-          return;
-        }
-        world.t = t_db_data.value;
-      }
+  robot_dbm.get_robots().then((robots_db_data) => {
+    // Update robot positions
+    let robots = [];
+    for (let i = 0; i < robots_db_data.length; i++) {
+      const robot = robots_db_data[i];
+      let pos = JSON.parse(robot.position);
+      let path = JSON.parse(robot.path);
 
-      // Update robot positions
-      let robots = [];
-      for (let i = 0; i < robots_db_data.length; i++) {
-        const robot = robots_db_data[i];
-        let pos = JSON.parse(robot.position);
-        let path = JSON.parse(robot.path);
-
-        world.robots[i].pos.x = pos[0];
-        world.robots[i].pos.y = pos[1];
-        robots.push({
-          id: robot.robot_id,
-          pos: { x: pos[0], y: pos[1] },
-          state: robot.state,
-          held_item_id: robot.held_item_id,
-          path: path, // future path [(x,y), (x,y), ...], empty [] otherwise
-        });
-      }
-
-      let msg = { t: world.t, robots: robots, dt_s:world.dt_s };
-      io.emit("update", msg);
+      world.robots[i].pos.x = pos[0];
+      world.robots[i].pos.y = pos[1];
+      robots.push({
+        id: robot.robot_id,
+        pos: { x: pos[0], y: pos[1] },
+        state: robot.state,
+        held_item_id: robot.held_item_id,
+        path: path, // future path [(x,y), (x,y), ...], empty [] otherwise
+      });
     }
-  );
+
+    let msg = { t: world.t, robots: robots, dt_s: world.dt_s };
+    io.emit("update", msg);
+  });
 }
