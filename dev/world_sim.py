@@ -182,7 +182,12 @@ class World(object):
     def sleep(self):
         delay = self.dt_sec
         if self.last_step_start_time:
-            delay = max(0, self.dt_sec - (time.perf_counter() - self.last_step_start_time))
+            # Get delay needed to reach next time step based on the start of the last
+            delay = self.dt_sec - (time.perf_counter() - self.last_step_start_time)
+            # If that time already passed, push delay as many time steps needed.
+            while delay <= 0:
+                delay += self.dt_sec
+        logger.debug(f'sleep for {delay} sec')
         time.sleep(delay)
 
     def get_grid_ascii(self):
