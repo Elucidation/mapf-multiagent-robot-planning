@@ -122,6 +122,8 @@ class RobotAllocator:
          self.item_load_zones, self.station_zones) = load_warehouse_yaml_xy(
             'warehouses/warehouse3.yaml')
 
+        self.max_steps = 40  # hard-coded search tile limit for pathing
+
         # Keep track of all jobs, even completed
         self.job_id_counter: JobId = JobId(0)
         self.jobs: dict[JobId, Job] = {}
@@ -179,7 +181,7 @@ class RobotAllocator:
         # TODO : Update robot?
         return job
 
-    def get_current_dynamic_obstacles(self, max_t: int = 20) -> set[tuple[int, int, int]]:
+    def get_current_dynamic_obstacles(self, robot_id: RobotId, max_t: int = 20) -> set[tuple[int, int, int]]:
         """Return existing robot future paths as dynamic obstacles
 
         Returns:
@@ -188,6 +190,13 @@ class RobotAllocator:
         # For dynamic obstacles, assume current moment is t=-1, next moment is t=0
         dynamic_obstacles: set[tuple[int, int, int]
                                ] = set()  # set{(row,col,t), ...}
+
+        # Block off all other robot docks as dynamic obstacles
+        for idx, dock in enumerate(self.robot_home_zones):
+            if idx == robot_id:
+                continue
+            for t in range(max_t):
+                dynamic_obstacles.add((dock[0], dock[1], t))
         for robot in self.robots:
             # Add all positions along future path
             for t, pos in enumerate(robot.future_path):
@@ -300,14 +309,15 @@ class RobotAllocator:
     def sleep(self):
         time.sleep(self.dt_sec)
 
-    def generate_path(self, pos_a: Position, pos_b: Position, max_steps: int = 40) -> Path:
+    def generate_path(self, pos_a: Position, pos_b: Position, dynamic_obstacles) -> Path:
         """Generate a path from a to b avoiding existing robots"""
         t_start = time.perf_counter()
-        dynamic_obstacles = self.get_current_dynamic_obstacles(max_steps)
         path = pf.st_astar(
-            self.world_grid, pos_a, pos_b, dynamic_obstacles, end_fast=True, max_time=max_steps)
+            self.world_grid, pos_a, pos_b, dynamic_obstacles,
+            end_fast=True, max_time=self.max_steps)
         logger.debug(
-            f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms : {pos_a} -> {pos_b} max_steps={max_steps} : {path}')
+            f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms '
+            f': {pos_a} -> {pos_b} max_steps={self.max_steps} : {path}')
         return path
 
     def job_start(self, job: Job) -> bool:
@@ -317,14 +327,17 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
         # Try to generate new path for robot
-        job.path_robot_to_item = self.generate_path(current_pos, job.item_zone)
+        dynamic_obstacles = self.get_current_dynamic_obstacles(job.robot_id)
+        job.path_robot_to_item = self.generate_path(
+            current_pos, job.item_zone, dynamic_obstacles)
         if not job.path_robot_to_item:
             self.logger.warning(f'Robot {job.robot_id} no path to item zone')
 
             if job.robot_home == current_pos:
                 return False
             # Not at home, so try going home instead for now
-            path_to_home = self.generate_path(current_pos, job.robot_home)
+            path_to_home = self.generate_path(
+                current_pos, job.robot_home, dynamic_obstacles)
             self.logger.warning(
                 f'Going home? {job.robot_home} - {current_pos} = {path_to_home}')
             if path_to_home:
@@ -369,13 +382,14 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
         # Try to generate new path for robot
+        dynamic_obstacles = self.get_current_dynamic_obstacles(job.robot_id)
         job.path_item_to_station = self.generate_path(
-            current_pos, job.station_zone)
+            current_pos, job.station_zone, dynamic_obstacles)
         if not job.path_item_to_station:
             logger.warning(f'No path to station for {job}')
             # Try going home instead to leave space at station
             path_to_home = self.generate_path(
-                current_pos, job.robot_home)
+                current_pos, job.robot_home, dynamic_obstacles)
             if path_to_home:
                 robot.set_path(path_to_home)
             return False  # Did not start job as no path existed yet
@@ -419,8 +433,9 @@ class RobotAllocator:
             return False
 
         # TODO : Validate item added successfully
-        
-        self.ims_db.add_item_to_station_fast(job.task.station_id, job.task.quantity, job.task.task_id)
+
+        self.ims_db.add_item_to_station_fast(
+            job.task.station_id, job.task.quantity, job.task.task_id)
         # This only modifies the task instance in the job
         job.task.quantity -= 1
         job.task.status = TaskStatus.COMPLETE
@@ -434,8 +449,9 @@ class RobotAllocator:
         # Try to generate new path for robot
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
+        dynamic_obstacles = self.get_current_dynamic_obstacles(job.robot_id)
         job.path_station_to_home = self.generate_path(
-            current_pos, job.robot_home)
+            current_pos, job.robot_home, dynamic_obstacles)
         if not job.path_station_to_home:
             self.logger.warning(f'Robot {job.robot_id} no path back home')
             return False  # Did not start job as no path existed yet
@@ -466,7 +482,7 @@ class RobotAllocator:
         # Make robot available
         robot = self.get_robot(job.robot_id)
         robot.state = RobotStatus.AVAILABLE
-        # TODO : Update robot 
+        # TODO : Update robot
 
         # Remove job from allocations
         self.allocations[job.robot_id] = None
@@ -480,14 +496,16 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         robot.state = RobotStatus.AVAILABLE
         robot.held_item_id = None
-        # TODO : Update robot 
+        # TODO : Update robot
 
         # Reset the job
         job.reset()
         # Try going home instead to leave space at station
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
-        path_to_home = self.generate_path(current_pos, job.robot_home)
+        dynamic_obstacles = self.get_current_dynamic_obstacles(job.robot_id)
+        path_to_home = self.generate_path(
+            current_pos, job.robot_home, dynamic_obstacles)
         if path_to_home:
             robot.set_path(path_to_home)
         # Set robots start pos to where it is currently
