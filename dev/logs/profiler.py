@@ -10,6 +10,7 @@ gantt chart of when world_sim (ws) steps go, versus when robot_allocator (ra) up
 """
 import re
 import datetime
+from typing import Optional
 import numpy as np
 import matplotlib.pyplot as plt  # type: ignore
 from matplotlib.backends.backend_pdf import PdfPages  # type: ignore
@@ -174,7 +175,7 @@ SAVE_PDF = False
 OUTPUT_FILENAME = f'{LOG_FOLDER}/profiler_result_{LOG_FOLDER}.pdf'
 
 
-SUBSET_N = 1520
+SUBSET_N : Optional[int] = None  # Get all entries
 stats_world_sim = get_world_sim_stats(
     f'{LOG_FOLDER}/world_sim.log', subset_n=SUBSET_N)
 offset_sec = stats_world_sim['step_starts'][0]  # First timestamp of starts
