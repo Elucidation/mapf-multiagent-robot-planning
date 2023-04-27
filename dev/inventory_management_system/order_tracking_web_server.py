@@ -1,11 +1,12 @@
 """Flask Web server for seeing orders/stations being processed"""
 import json
 from datetime import datetime, timedelta
+from typing import Optional
 from flask import Flask, render_template
 from .database_order_manager import DatabaseOrderManager, MAIN_DB
 from .Item import ItemId, get_item_names
 
-#  dev> flask.exe --app inventory_management_system.order_tracking_web_server --debug run 
+#  dev> flask.exe --app inventory_management_system.order_tracking_web_server --debug run
 # Add --host=0.0.0.0 for external
 
 app = Flask(__name__)
@@ -63,8 +64,17 @@ def finished_orders_html():
     return render_template("fragment_finished_orders.html", orders=orders)
 
 
+@app.route("/order_station_tables/full")
+def get_full_json():
+    return get_all_json()
+
+
 @app.route("/order_station_tables")
-def get_all_json():
+def get_quick_json():
+    return get_all_json(10)
+
+
+def get_all_json(subset: Optional[int] = None):
     dboi = DatabaseOrderManager(MAIN_DB)
     orders = dboi.get_orders()
     stations_and_tasks = dboi.get_stations_and_tasks()
@@ -72,10 +82,15 @@ def get_all_json():
     progress_orders = [
         order for order in orders if (order.is_open() or order.is_in_progress())]
     finished_orders = [order for order in orders if order.is_finished()]
+
+    if subset:
+        progress_orders = progress_orders[:subset]
+        finished_orders = finished_orders[-subset:]  # pylint: disable=invalid-unary-operand-type
+
     open_tmp = render_template(
-        "fragment_open_orders.html", orders=progress_orders[:10])
+        "fragment_open_orders.html", orders=progress_orders)
     finished_tmp = render_template(
-        "fragment_finished_orders.html", orders=finished_orders[-10:])
+        "fragment_finished_orders.html", orders=finished_orders)
     stations_tmp = render_template(
         "fragment_stations.html",
         stations_and_tasks=stations_and_tasks,
