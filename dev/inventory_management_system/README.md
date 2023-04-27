@@ -19,13 +19,13 @@ The IMS Database is a system to manage orders, items, and tasks in a production 
 
 1. `Order` table: Stores information about orders, including an order ID, who created it, when it was created, when it was finished, a description, and the order status.
 
-2. `Item` table: Stores information about individual items, including an item ID, name, description, and color.
+2. `Item` table: Stores information about individual items.
 
 3. `OrderItem` table: Represents the relationship between orders and items. It shows which items are part of an order and the quantity of each item in the order.
 
 4. `Station` table: Stores information about workstations or assembly stations, including a station ID and the order currently being processed at the station.
 
-5. `Task` table: Stores information about tasks associated with processing an order at a specific station. It includes a task ID, station ID, order ID, item ID, quantity, and task status.
+5. `Task` table: Stores information about tasks associated with processing an order at a specific station.
 
 * Order contains Items
 * Stations consolidate Orders
