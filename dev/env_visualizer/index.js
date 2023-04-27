@@ -23,8 +23,12 @@ app.get("/", (req, res) => {
 
 io.on("connection", (socket) => {
   // Create arbitrary grid and initial robots.
+  console.log(`New connection: ${socket.id} - ${socket.conn.remoteAddress}`)
   socket.emit("set_world", world);
   socket.emit("update", world);
+  socket.conn.on("close", (reason) => {
+    console.log(`Closed connection: ${socket.id} - ${socket.conn.remoteAddress} - ${reason}`)
+  });
 });
 
 server.listen(port, () => {
