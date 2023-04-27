@@ -1,6 +1,7 @@
 """Simulate world grid and robots, updating DB that web server sees."""
 from enum import Enum
 import functools
+import sys
 from typing import List, Tuple, Dict, Optional, Any  # Python 3.8
 from datetime import datetime
 import ctypes
@@ -75,12 +76,17 @@ class World(object):
 
         world_db_filename = 'world.db'  # TODO Move this to config param
         self.wdb = WorldDatabaseManager(world_db_filename)
+
+        self.logger.debug('World initialized')
+
+    def reset(self):
         self.wdb.reset()
         self.wdb.add_robots(self.robots)
         self.wdb.set_dt_sec(self.dt_sec)
         self.wdb.commit()
 
-        self.logger.debug('World initialized')
+    def update_timestamp_from_db(self):
+        self.t = self.wdb.get_timestamp()
 
     def get_all_state_data(self):
         return {
@@ -277,11 +283,17 @@ if __name__ == '__main__':
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
         'warehouses/warehouse3.yaml')
+
     # Create robots at start positions (row,col) -> (x,y)
     robots = [Robot(RobotId(i), (col, row))
               for i, (row, col) in enumerate(robot_home_zones)]
     world = World(grid, robots, TIME_STEP_SEC, item_load_zones,
                   station_zones, logger=logger)
+    if 'reset' in sys.argv:
+        print('Resetting database')
+        world.reset()
+    else:
+        world.update_timestamp_from_db()
     logger.info(world)
     logger.info(world.get_grid_ascii())
 

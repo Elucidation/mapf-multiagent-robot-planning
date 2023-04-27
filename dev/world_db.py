@@ -92,6 +92,13 @@ class WorldDatabaseManager:
         cursor.executemany(sql, data)
 
     @timeit
+    def get_timestamp(self) -> int:
+        result = self.con.execute(
+        'SELECT value FROM State WHERE label = "timestamp" LIMIT 1')
+        (timestamp,) = result.fetchone()
+        return timestamp
+
+    @timeit
     def update_timestamp(self, t: int):
         """Needs commit"""
         cursor = self.con.cursor()
