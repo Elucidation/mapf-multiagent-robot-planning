@@ -73,9 +73,9 @@ def get_all_json():
         order for order in orders if (order.is_open() or order.is_in_progress())]
     finished_orders = [order for order in orders if order.is_finished()]
     open_tmp = render_template(
-        "fragment_open_orders.html", orders=progress_orders)
+        "fragment_open_orders.html", orders=progress_orders[:10])
     finished_tmp = render_template(
-        "fragment_finished_orders.html", orders=finished_orders)
+        "fragment_finished_orders.html", orders=finished_orders[-10:])
     stations_tmp = render_template(
         "fragment_stations.html",
         stations_and_tasks=stations_and_tasks,
