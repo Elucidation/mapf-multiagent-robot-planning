@@ -170,7 +170,7 @@ def get_robot_allocator_stats(filename, offset_sec=0, subset_n=None):
 # Main script
 # LOG_FOLDER = 'logs9_A'
 LOG_FOLDER = '..'
-SAVE_PDF = True
+SAVE_PDF = False
 OUTPUT_FILENAME = f'{LOG_FOLDER}/profiler_result_{LOG_FOLDER}.pdf'
 
 

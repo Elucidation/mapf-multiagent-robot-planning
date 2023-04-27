@@ -97,7 +97,7 @@ class Robot(object):
             return False  # Didn't change
         next_pos = self._pop_next_pos()
         self.last_pos = self.pos
-        print(self.pos, next_pos)
+        # print(self.pos, next_pos)
         self.pos = next_pos
         # TODO : Consider adding repeated positions to history?
         self.pos_history.append(self.pos)

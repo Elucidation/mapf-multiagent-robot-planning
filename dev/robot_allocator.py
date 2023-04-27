@@ -122,6 +122,12 @@ class RobotAllocator:
          self.item_load_zones, self.station_zones) = load_warehouse_yaml_xy(
             'warehouses/warehouse3.yaml')
 
+        # locks for zones
+        self.item_locks: dict[Position, Optional[JobId]] = {
+            pos: None for pos in self.item_load_zones}
+        self.station_locks: dict[Position, Optional[JobId]] = {
+            pos: None for pos in self.station_zones}
+
         self.max_steps = 40  # hard-coded search tile limit for pathing
 
         # Keep track of all jobs, even completed
@@ -181,7 +187,10 @@ class RobotAllocator:
         # TODO : Update robot?
         return job
 
-    def get_current_dynamic_obstacles(self, robot_id: RobotId) -> set[tuple[int, int, int]]:
+    def get_current_dynamic_obstacles(self, robot_id: RobotId,
+                                      item_zone_pos: Optional[Position] = None,
+                                      station_zone_pos: Optional[Position] = None,
+                                      ) -> set[tuple[int, int, int]]:
         """Return existing robot future paths as dynamic obstacles
 
         Returns:
@@ -191,13 +200,28 @@ class RobotAllocator:
         dynamic_obstacles: set[tuple[int, int, int]
                                ] = set()  # set{(row,col,t), ...}
 
+        # TODO : Consider creating static obstacles instead of time-bound ones
         # Block off all other robot docks as dynamic obstacles
         for idx, dock in enumerate(self.robot_home_zones):
             if idx == robot_id:
                 continue
             for t in range(self.max_steps):
                 dynamic_obstacles.add((dock[0], dock[1], t))
-        
+
+        # Block off all item zones (except any given one)
+        for pos in self.item_load_zones:
+            if pos == item_zone_pos:
+                continue
+            for t in range(self.max_steps):
+                dynamic_obstacles.add((pos[0], pos[1], t))
+
+        # Block off all station zones (except any given one)
+        for pos in self.station_zones:
+            if pos == station_zone_pos:
+                continue
+            for t in range(self.max_steps):
+                dynamic_obstacles.add((pos[0], pos[1], t))
+
         for robot in self.robots:
             # Add all positions along future path
             for t, pos in enumerate(robot.future_path):
@@ -323,13 +347,17 @@ class RobotAllocator:
         return path
 
     def job_start(self, job: Job) -> bool:
-        # TODO : Check if item zone lock available
-        # take lock on item zone
-        # else: don't start yet (go home)
+        # Check if item zone lock available
+        if self.item_locks[job.item_zone] and self.item_locks[job.item_zone] != job.job_id:
+            # Item zone in use
+            return False
+        self.item_locks[job.item_zone] = job.job_id  # take lock on item zone
+
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
         # Try to generate new path for robot
-        dynamic_obstacles = self.get_current_dynamic_obstacles(job.robot_id)
+        dynamic_obstacles = self.get_current_dynamic_obstacles(
+            job.robot_id, item_zone_pos=job.item_zone)
         job.path_robot_to_item = self.generate_path(
             current_pos, job.item_zone, dynamic_obstacles)
         if not job.path_robot_to_item:
@@ -378,13 +406,18 @@ class RobotAllocator:
         return True
 
     def job_go_to_station(self, job: Job) -> bool:
-        # TODO : Check if station zone lock available
+        # Check if station zone lock available
+        if (self.station_locks[job.station_zone] and
+                self.station_locks[job.station_zone] != job.job_id):
+            return False  # Item zone in use
         # take lock on station zone
-        # else: don't start yet (go home)
+        self.station_locks[job.station_zone] = job.job_id
+
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
         # Try to generate new path for robot
-        dynamic_obstacles = self.get_current_dynamic_obstacles(job.robot_id)
+        dynamic_obstacles = self.get_current_dynamic_obstacles(
+            job.robot_id, item_zone_pos=job.item_zone, station_zone_pos=job.station_zone)
         job.path_item_to_station = self.generate_path(
             current_pos, job.station_zone, dynamic_obstacles)
         if not job.path_item_to_station:
@@ -396,7 +429,8 @@ class RobotAllocator:
                 robot.set_path(path_to_home)
             return False  # Did not start job as no path existed yet
 
-        # TODO : unlock item zone since we're moving
+        # unlock item zone since we're moving
+        self.item_locks[job.item_zone] = None
         # TODO : consider a step in-between to go to a waiting zone for items to stations
 
         # Send robot to station
@@ -419,7 +453,7 @@ class RobotAllocator:
             return False
 
         # Add Item to station (this finishes the task too)
-        # TODO : Drop item from held items for robot
+        # Drop item from held items for robot
         drop_success, item_id = self.robot_drop_item(job.robot_id)
         if not drop_success:
             self.logger.error(
@@ -434,8 +468,7 @@ class RobotAllocator:
             job.error = True
             return False
 
-        # TODO : Validate item added successfully
-
+        # Add item to station
         self.ims_db.add_item_to_station_fast(
             job.task.station_id, job.task.quantity, job.task.task_id)
         # This only modifies the task instance in the job
@@ -451,7 +484,8 @@ class RobotAllocator:
         # Try to generate new path for robot
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
-        dynamic_obstacles = self.get_current_dynamic_obstacles(job.robot_id)
+        dynamic_obstacles = self.get_current_dynamic_obstacles(
+            job.robot_id, station_zone_pos=job.station_zone)
         job.path_station_to_home = self.generate_path(
             current_pos, job.robot_home, dynamic_obstacles)
         if not job.path_station_to_home:
@@ -460,6 +494,8 @@ class RobotAllocator:
         # Send robot home
         robot.set_path(job.path_station_to_home)
         job.returning_home = True
+        # Release lock on station
+        self.station_locks[job.station_zone] = None
         self.logger.info(
             f'Sending Robot {job.robot_id} back home for '
             f'task {job.task}: {job.path_station_to_home}')
@@ -484,8 +520,6 @@ class RobotAllocator:
         # Make robot available
         robot = self.get_robot(job.robot_id)
         robot.state = RobotStatus.AVAILABLE
-        # TODO : Update robot
-
         # Remove job from allocations
         self.allocations[job.robot_id] = None
         return True
@@ -498,10 +532,15 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         robot.state = RobotStatus.AVAILABLE
         robot.held_item_id = None
-        # TODO : Update robot
 
         # Reset the job
         job.reset()
+        # Clear any locks it may have had
+        if robot.pos in self.item_locks and self.item_locks[robot.pos] == job.job_id:
+            self.item_locks[robot.pos] = None
+        if robot.pos in self.station_locks and self.station_locks[robot.pos] == job.job_id:
+            self.station_locks[robot.pos] = None
+
         # Try going home instead to leave space at station
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
@@ -585,6 +624,8 @@ if __name__ == '__main__':
                     f'RobotId {allocated_robot_id} : {allocated_job}')
             logger.debug(
                 f'- Robots: {robot_mgr.robots}')
+            logger.debug(f'- Item Zone Locks: {robot_mgr.item_locks}')
+            logger.debug(f'- Station Zone Locks: {robot_mgr.station_locks}')
             logger.debug('---')
 
         # Delay till next task

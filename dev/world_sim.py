@@ -264,7 +264,7 @@ def create_logger():
 
 if __name__ == '__main__':
     logger = create_logger()
-    TIME_STEP_SEC = 0.1
+    TIME_STEP_SEC = 0.3
     logger.debug(f'TIME_STEP_SEC = {TIME_STEP_SEC}')
 
     # 0MQ publishing when world has just updated with the new time step
@@ -291,7 +291,10 @@ if __name__ == '__main__':
     while True:
         with world.wdb.con:
             world.step()
-        logger.info(f'Step {world.t}')
+        if world.t % 5 == 0:
+            logger.info(f'Step {world.t}')
+        else:
+            logger.debug(f'Step {world.t}')
         if not world.get_current_state():
             logger.error(
                 f'World State invalid, collision(s): {world.collision}')
