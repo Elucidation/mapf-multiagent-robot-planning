@@ -5,7 +5,8 @@ from flask import Flask, render_template
 from .database_order_manager import DatabaseOrderManager, MAIN_DB
 from .Item import ItemId, get_item_names
 
-#  dev> flask.exe --app inventory_management_system.order_tracking_web_server --debug run
+#  dev> flask.exe --app inventory_management_system.order_tracking_web_server --debug run 
+# Add --host=0.0.0.0 for external
 
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
