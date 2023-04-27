@@ -9,6 +9,8 @@ This breaks up into two parts, the algorithm side (MAPF) and the logistics/datab
 
 *The [wiki](https://github.com/Elucidation/mapf-multiagent-robot-planning/wiki) contains the most recent information on this project.*
 
+https://user-images.githubusercontent.com/434925/234989748-8a36ec2a-aaec-4342-b32e-4234e35d7ee1.mp4
+
 ## Multi-Agent Path Planning (MAPF)  [`multiagent_planner`](dev/multiagent_planner/)
 Building a python module for finding paths in a 2D grid world for single and multiple agents simultaneously without collisions.
 
