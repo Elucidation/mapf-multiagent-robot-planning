@@ -1,9 +1,12 @@
 """Helper for creating loggers."""
 import logging
 import logging.handlers
+import os
 
 
 def create_warehouse_logger(name, folder='logs/curr/'):
+    if not os.path.exists(folder):
+        os.makedirs(folder)
     root_logger = logging.getLogger()
     file_path = f'{folder}{name}.log'
     rotating_handler = logging.handlers.TimedRotatingFileHandler(
