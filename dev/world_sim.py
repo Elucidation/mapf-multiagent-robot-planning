@@ -217,7 +217,8 @@ class World(object):
             f'Step end, took {update_duration_ms:.3f} ms: '
             f'T={self.t} VALID={self.world_state} state change={state_changed}')
         if update_duration_ms > self.dt_sec*1000:
-            self.logger.error(f'update took {update_duration_ms:.2f} > {self.dt_sec*1000} ms')
+            self.logger.error(
+                f'update took {update_duration_ms:.2f} > {self.dt_sec*1000} ms')
         # Return if any robot has moved or not
         return state_changed
 
@@ -255,9 +256,6 @@ class World(object):
         return f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}'
 
 
-
-
-
 if __name__ == '__main__':
     logger = create_warehouse_logger('world_sim')
     TIME_STEP_SEC = 0.3
@@ -293,8 +291,9 @@ if __name__ == '__main__':
     while True:
         with world.wdb.con:
             world.step()
-        
-        robot_str = '|'.join([f'{robot.pos[0]},{robot.pos[1]}' for robot in world.robots])
+
+        robot_str = '|'.join(
+            [f'{robot.pos[0]},{robot.pos[1]}' for robot in world.robots])
         if world.t % 5 == 0:
             logger.info(f'Step {world.t} {robot_str}')
         else:

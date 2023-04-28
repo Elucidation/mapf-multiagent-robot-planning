@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt  # type: ignore
 from matplotlib.backends.backend_pdf import PdfPages  # type: ignore
 
 
-def load_log_file(filename):
+def load_log_file(filename) -> list[dict]:
     # Expect to run everything locally within this directory
     data = []
     with open(filename, 'r', encoding='utf8') as file:
@@ -39,7 +39,7 @@ def load_log_file(filename):
 
 
 def get_world_sim_stats(filename, subset_n=None):
-    data_world_sim: list[dict] = load_log_file(filename)
+    data_world_sim = load_log_file(filename)
     # Get all update duration
     update_durations_list = []
     for entry in data_world_sim:
@@ -72,8 +72,6 @@ def get_world_sim_stats(filename, subset_n=None):
     step_starts_0_start = step_starts - step_starts[0]
     step_ends_0_start = step_ends - step_starts[0]
 
-    # dt_s = 0.1  # hard-coded
-    # step_starts = np.fromiter((step.total_seconds() - dt_s * t for t, step in enumerate(step_starts)), dtype=np.float)
     step_starts_0_start = np.fromiter((step.total_seconds()
                                        for step in step_starts_0_start), dtype=float)
 
@@ -113,7 +111,7 @@ def get_world_sim_stats(filename, subset_n=None):
 
 
 def get_robot_allocator_stats(filename, offset_sec=0, subset_n=None):
-    data_robot_allocator: list[dict] = load_log_file(filename)
+    data_robot_allocator = load_log_file(filename)
 
     # Get all update duration
     update_durations_list = []
@@ -138,8 +136,6 @@ def get_robot_allocator_stats(filename, offset_sec=0, subset_n=None):
     step_starts_0_start = step_starts - offset_sec
     step_ends_0_start = step_ends - offset_sec
 
-    # dt_s = 0.1  # hard-coded
-    # step_starts = np.fromiter((step.total_seconds() - dt_s * t for t, step in enumerate(step_starts)), dtype=np.float)
     step_starts_0_start = np.fromiter((step.total_seconds()
                                        for step in step_starts_0_start), dtype=float)
 
@@ -175,7 +171,7 @@ SAVE_PDF = False
 OUTPUT_FILENAME = f'{LOG_FOLDER}/profiler_result_{LOG_FOLDER}.pdf'
 
 
-SUBSET_N : Optional[int] = None  # Get all entries
+SUBSET_N: Optional[int] = None  # Get all entries
 stats_world_sim = get_world_sim_stats(
     f'{LOG_FOLDER}/world_sim.log', subset_n=SUBSET_N)
 offset_sec = stats_world_sim['step_starts'][0]  # First timestamp of starts
@@ -201,7 +197,8 @@ def make_step_gantt():
     # Set x ticks to event labels
     plt.yticks([0, bar_height], ['World Sim', 'Robot\nAllocator'])
     plt.xticks(set_update['starts'], [
-               f'T={label}, {t_start:.2f} ms' for t_start, label in zip(set_update['starts'], set_update['labels'])],
+               f'T={label}, {t_start:.2f} ms'
+               for t_start, label in zip(set_update['starts'], set_update['labels'])],
                fontsize=4, rotation='vertical')
 
     # Add vertical lines at the time step when world state was invalid / had collision

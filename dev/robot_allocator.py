@@ -26,6 +26,7 @@ from inventory_management_system.database_order_manager import DatabaseOrderMana
 from logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml_xy
 import zmq
+# pylint: disable=redefined-outer-name
 
 # Allow Ctrl-C to break while zmq socket.recv is going
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -577,7 +578,6 @@ class RobotAllocator:
         return False
 
 
-
 if __name__ == '__main__':
     logger = create_warehouse_logger('robot_allocator')
 
@@ -601,7 +601,8 @@ if __name__ == '__main__':
         topic, messagedata = string.split()
         world_sim_t = int(messagedata)
         logger.info(
-            f'Step start T={world_sim_t} -----------------------------------------------------------------------------------------------')
+            f'Step start T={world_sim_t} ---------------------------------------'
+            '--------------------------------------------------------')
         # Hold locks for both DBs
         with robot_mgr.ims_db.con, robot_mgr.wdb.con:
             robot_mgr.update()

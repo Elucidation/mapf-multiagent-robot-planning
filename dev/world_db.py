@@ -16,6 +16,8 @@ WORLD_DB_PATH = 'world.db'
 logger = logging.getLogger("database_world_manager")
 
 # Decorator for timing functions in WDB
+
+
 def timeit(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -23,7 +25,8 @@ def timeit(func):
         t_start = time.perf_counter()
         result = func(*args, **kwargs)
         t_end = time.perf_counter()
-        logger.debug(f'{func.__name__!r} End. Took {(t_end - t_start)*1000:.3f} ms')
+        logger.debug(
+            f'{func.__name__!r} End. Took {(t_end - t_start)*1000:.3f} ms')
         return result
     return wrapper
 
@@ -94,7 +97,7 @@ class WorldDatabaseManager:
     @timeit
     def get_timestamp(self) -> int:
         result = self.con.execute(
-        'SELECT value FROM State WHERE label = "timestamp" LIMIT 1')
+            'SELECT value FROM State WHERE label = "timestamp" LIMIT 1')
         (timestamp,) = result.fetchone()
         return timestamp
 
@@ -185,7 +188,7 @@ class WorldDatabaseManager:
                           state, path)
             robots.append(robot)
         return robots
-    
+
     @timeit
     def commit(self):
         """Commit changes to DB"""
