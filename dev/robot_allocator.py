@@ -590,7 +590,9 @@ if __name__ == '__main__':
      ZMQ_HOST = os.getenv("ZMQ_WORLD_SIM_HOST")
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
-    socket.connect(f"tcp://{ZMQ_HOST}:{ZMQ_PORT}")
+    socket_path =f"tcp://{ZMQ_HOST}:{ZMQ_PORT}"
+    socket.connect(socket_path)
+    logger.info(f'ZMQ Subscribing to {socket_path}')
 
     robot_mgr = RobotAllocator(logger=logger)
 
