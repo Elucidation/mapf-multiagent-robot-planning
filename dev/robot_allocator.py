@@ -23,6 +23,7 @@ from inventory_management_system.Item import ItemId
 from inventory_management_system.TaskStatus import TaskStatus
 from inventory_management_system.Station import Task
 from inventory_management_system.database_order_manager import DatabaseOrderManager, MAIN_DB
+from logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml_xy
 import zmq
 
@@ -576,19 +577,9 @@ class RobotAllocator:
         return False
 
 
-def create_logger():
-    logging.basicConfig(filename='robot_allocator.log', encoding='utf-8', filemode='w',
-                        level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    logger_ra = logging.getLogger('robot_allocator')
-    logger_ra.setLevel(logging.DEBUG)
-    stream_logger = logging.StreamHandler()
-    stream_logger.setLevel(logging.INFO)
-    logger_ra.addHandler(stream_logger)
-    return logger_ra
-
 
 if __name__ == '__main__':
-    logger = create_logger()
+    logger = create_warehouse_logger('robot_allocator')
 
     # 0MQ Socket to subscribe to world sim state updates
     PORT = "50523"

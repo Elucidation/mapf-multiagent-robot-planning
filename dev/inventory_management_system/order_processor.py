@@ -1,25 +1,12 @@
 """Process orders in database by filling available stations with orders."""
-import logging
 import sys
 import time
+from logger import create_warehouse_logger
 from .database_order_manager import DatabaseOrderManager, MAIN_DB
-
-# Set up logging
-def create_logger():
-    logging.basicConfig(filename='order_processor_logger.log', encoding='utf-8', filemode='w',
-                        level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    _logger = logging.getLogger('order_processor_logger')
-    _logger.setLevel(logging.DEBUG)
-    stream_logger = logging.StreamHandler()
-    stream_logger.setLevel(logging.INFO)
-    _logger.addHandler(stream_logger)
-    return _logger
-
-logger = create_logger()
-
 
 
 if __name__ == '__main__':
+    logger = create_warehouse_logger('order_processor')
     db_orders = DatabaseOrderManager(MAIN_DB)
 
     if 'reset' in sys.argv:

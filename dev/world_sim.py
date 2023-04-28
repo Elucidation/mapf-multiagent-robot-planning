@@ -8,6 +8,7 @@ import ctypes
 import logging
 import time
 import numpy as np
+from logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml
 from robot import Robot, RobotId
 from world_db import WorldDatabaseManager
@@ -257,19 +258,11 @@ class World(object):
         return f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}'
 
 
-def create_logger():
-    logging.basicConfig(filename='world_sim.log', encoding='utf-8', filemode='w',
-                        level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    logger = logging.getLogger('world_sim')
-    logger.setLevel(logging.DEBUG)
-    stream_logger = logging.StreamHandler()
-    stream_logger.setLevel(logging.INFO)
-    logger.addHandler(stream_logger)
-    return logger
+
 
 
 if __name__ == '__main__':
-    logger = create_logger()
+    logger = create_warehouse_logger('world_sim')
     TIME_STEP_SEC = 0.3
     logger.debug(f'TIME_STEP_SEC = {TIME_STEP_SEC}')
 

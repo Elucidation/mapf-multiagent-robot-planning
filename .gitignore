@@ -160,3 +160,5 @@ node_modules
 *.pdf
 package-lock.json
 
+# Ignore python TimedRotatingFileHandler output logs
+*.log.*
