@@ -12,6 +12,7 @@ Robot Allocator:
 """
 from typing import Optional, Tuple, NewType
 import logging
+import os
 import time
 import signal
 import multiagent_planner.pathfinding as pf
@@ -582,10 +583,14 @@ if __name__ == '__main__':
     logger = create_warehouse_logger('robot_allocator')
 
     # 0MQ Socket to subscribe to world sim state updates
-    PORT = "50523"
+    ZMQ_PORT = "50523"
+    ZMQ_HOST = "localhost"
+    # If ZMQ_WORLD_SIM_HOST set in environment, use that
+    if os.getenv("ZMQ_WORLD_SIM_HOST"):
+     ZMQ_HOST = os.getenv("ZMQ_WORLD_SIM_HOST")
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
-    socket.connect(f"tcp://localhost:{PORT}")
+    socket.connect(f"tcp://{ZMQ_HOST}:{ZMQ_PORT}")
 
     robot_mgr = RobotAllocator(logger=logger)
 
