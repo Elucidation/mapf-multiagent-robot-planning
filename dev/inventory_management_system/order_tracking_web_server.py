@@ -76,19 +76,18 @@ def get_quick_json():
 
 def get_all_json(subset: Optional[int] = None):
     dboi = DatabaseOrderManager(MAIN_DB)
-    orders = dboi.get_orders()
+    # TODO : Get all necessary orders in one SQL query
+    if subset:
+        open_orders = dboi.get_orders(
+            limit_rows=subset, direction="ASC", status="OPEN")
+        finished_orders = dboi.get_orders(limit_rows=subset, status="COMPLETE")
+    else:
+        open_orders = dboi.get_orders(status="OPEN")
+        finished_orders = dboi.get_orders(status="COMPLETE")
     stations_and_tasks = dboi.get_stations_and_tasks()
 
-    progress_orders = [
-        order for order in orders if (order.is_open() or order.is_in_progress())]
-    finished_orders = [order for order in orders if order.is_finished()]
-
-    if subset:
-        progress_orders = progress_orders[:subset]
-        finished_orders = finished_orders[-subset:]  # pylint: disable=invalid-unary-operand-type
-
     open_tmp = render_template(
-        "fragment_open_orders.html", orders=progress_orders)
+        "fragment_open_orders.html", orders=open_orders)
     finished_tmp = render_template(
         "fragment_finished_orders.html", orders=finished_orders)
     stations_tmp = render_template(

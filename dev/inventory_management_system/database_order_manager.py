@@ -186,14 +186,16 @@ class DatabaseOrderManager:
         )
 
     @timeit
-    def get_orders(self, limit_rows: int = 49999, status=None) -> List[Order]:
+    def get_orders(self, limit_rows: int = 49999, status=None, direction="DESC") -> List[Order]:
         cur = self.con.cursor()
         # order_id,created_by,created,finished,description,status
         if status:
             cur.execute(
-                'SELECT * FROM "Order" WHERE status=? LIMIT ?', (status, limit_rows))
+                'SELECT * FROM "Order" WHERE status=? ORDER BY '
+                f'created {direction} LIMIT ?', (status, limit_rows))
         else:
-            cur.execute('SELECT * FROM "Order" LIMIT ?', (limit_rows,))
+            cur.execute(
+                f'SELECT * FROM "Order" ORDER BY created {direction} LIMIT ?', (limit_rows,))
         orders = []
         while True:
             row = cur.fetchone()
@@ -442,13 +444,35 @@ class DatabaseOrderManager:
     def get_stations_and_tasks(self) -> List[Tuple[Station, List[Task]]]:
         stations = self.get_stations()
         station_tasks = []
+        # TODO : Get all tasks in one request
         for station in stations:
-            tasks = self.get_incomplete_station_tasks(station.station_id)
-            station_tasks.append((station, tasks))
+            if station.has_order:
+                tasks = self.get_station_order_tasks(
+                    station.station_id, station.order_id)
+                station_tasks.append((station, tasks))
         return station_tasks
 
     @timeit
-    def get_incomplete_station_tasks(self, station_id: int, limit_rows=49999) -> List[Task]:
+    def get_station_order_tasks(self, station_id: StationId,
+                                order_id: OrderId, limit_rows=49999) -> List[Task]:
+        """Return all tasks associated with a station and order"""
+        if not station_id or not order_id:
+            return []
+        result = self.con.execute(
+            'SELECT task_id, station_id, order_id, item_id, quantity, status '
+            'FROM "Task" WHERE station_id=? AND order_id=? LIMIT ?',
+            (station_id, order_id, limit_rows))
+        tasks = []
+        for row in result:
+            (task_id, station_id, order_id, item_id, quantity, status) = row
+            task = Task(TaskId(task_id), station_id=StationId(station_id),
+                        order_id=OrderId(order_id), item_id=ItemId(item_id),
+                        quantity=quantity, status=TaskStatus(status))
+            tasks.append(task)
+        return tasks
+
+    @timeit
+    def get_incomplete_station_tasks(self, station_id: StationId, limit_rows=49999) -> List[Task]:
         """Return incomplete tasks associated with a station"""
         result = self.con.execute(
             'SELECT task_id, station_id, order_id, item_id, quantity, status FROM "Task" WHERE station_id=? LIMIT ?', (station_id, limit_rows))
