@@ -4,8 +4,8 @@ import functools
 import sys
 from typing import List, Tuple, Dict, Optional, Any  # Python 3.8
 from datetime import datetime
-import ctypes
 import logging
+import os
 import time
 import numpy as np
 from logger import create_warehouse_logger
@@ -18,8 +18,10 @@ import zmq  # type: ignore
 
 
 # Force Win10 timer to be accurate to 1ms (defaults to ~10-14ms accuracy otherwise)
-winmm = ctypes.WinDLL('winmm')
-winmm.timeBeginPeriod(1)
+if os.name == 'nt':
+    import ctypes
+    winmm = ctypes.WinDLL('winmm')
+    winmm.timeBeginPeriod(1)
 
 Position = Tuple[int, int]
 
