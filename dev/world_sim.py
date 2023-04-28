@@ -213,14 +213,11 @@ class World(object):
 
         update_duration_ms = (time.perf_counter() - t_start)*1000
 
-        if state_changed:
-            self.logger.debug(f'Robots moved: {self.robots}')
-
         self.logger.debug(
-            f'Step end, took {update_duration_ms:.6f} ms: '
+            f'Step end, took {update_duration_ms:.3f} ms: '
             f'T={self.t} VALID={self.world_state} state change={state_changed}')
-        if update_duration_ms > 100:
-            self.logger.error(f'update took {update_duration_ms:.2f} > 100 ms')
+        if update_duration_ms > self.dt_sec*1000:
+            self.logger.error(f'update took {update_duration_ms:.2f} > {self.dt_sec*1000} ms')
         # Return if any robot has moved or not
         return state_changed
 
@@ -296,10 +293,12 @@ if __name__ == '__main__':
     while True:
         with world.wdb.con:
             world.step()
+        
+        robot_str = '|'.join([f'{robot.pos[0]},{robot.pos[1]}' for robot in world.robots])
         if world.t % 5 == 0:
-            logger.info(f'Step {world.t}')
+            logger.info(f'Step {world.t} {robot_str}')
         else:
-            logger.debug(f'Step {world.t}')
+            logger.debug(f'Step {world.t} {robot_str}')
         if not world.get_current_state():
             logger.error(
                 f'World State invalid, collision(s): {world.collision}')
