@@ -144,14 +144,16 @@ robot_dbm.get_dt_sec().then((data) => {
 // 0MQ Subscribe for world step updates
 const zmq = require("zeromq");
 const { stringify } = require("querystring");
-const PORT = "50523";
+const ZMQ_PORT = process.env.ZMQ_PORT || "50523";
+const ZMQ_HOST = process.env.ZMQ_HOST || "localhost";
+
 
 async function run() {
   const sock = new zmq.Subscriber();
 
-  sock.connect(`tcp://127.0.0.1:${PORT}`);
+  sock.connect(`tcp://${ZMQ_HOST}:${ZMQ_PORT}`);
   sock.subscribe("WORLD");
-  console.log(`Subscriber connected to port ${PORT}`);
+  console.log(`Subscriber connected to ${ZMQ_HOST}:${ZMQ_PORT}`);
 
   // Parse world time step from the 0MQ published message ex: 'WORLD N'
   for await (const [full_msg] of sock) {
