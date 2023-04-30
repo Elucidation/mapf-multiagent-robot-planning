@@ -1,9 +1,6 @@
 """Script to run multiagent sim and visualize it."""
 import numpy as np
 import yaml
-from . import pathfinding
-from .visualizer import Visualizer
-
 
 def get_scenario(filename: str) -> tuple[np.ndarray, list[tuple[int, int]], list[tuple[int, int]]]:
     with open(filename, 'r', encoding='utf8') as filestream:
@@ -16,6 +13,8 @@ def get_scenario(filename: str) -> tuple[np.ndarray, list[tuple[int, int]], list
 
 
 if __name__ == '__main__':
+    from .visualizer import Visualizer
+    from . import pathfinding
     grid, goals, starts = get_scenario(
         'multiagent_planner/scenarios/scenario4.yaml')
 

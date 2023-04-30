@@ -586,11 +586,12 @@ if __name__ == '__main__':
     ZMQ_PORT = "50523"
     ZMQ_HOST = "localhost"
     # If ZMQ_WORLD_SIM_HOST set in environment, use that
-    if os.getenv("ZMQ_WORLD_SIM_HOST"):
-     ZMQ_HOST = os.getenv("ZMQ_WORLD_SIM_HOST")
+    env_zmq_host = os.getenv("ZMQ_WORLD_SIM_HOST")
+    if env_zmq_host:
+        ZMQ_HOST = env_zmq_host
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
-    socket_path =f"tcp://{ZMQ_HOST}:{ZMQ_PORT}"
+    socket_path = f"tcp://{ZMQ_HOST}:{ZMQ_PORT}"
     socket.connect(socket_path)
     logger.info(f'ZMQ Subscribing to {socket_path}')
 
