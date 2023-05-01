@@ -113,7 +113,7 @@ def get_quick_json():
 
 
 def get_all_json(subset: Optional[int] = None):
-    open_orders, finished_orders, stations_and_tasks = data_loader.get_data_from_db(
+    open_orders, finished_orders, stations_and_tasks = data_loader.get_data(
         subset)
 
     open_tmp = render_template(
