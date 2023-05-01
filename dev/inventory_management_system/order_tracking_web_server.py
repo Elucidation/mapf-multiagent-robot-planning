@@ -13,6 +13,7 @@ from .Item import ItemId, get_item_names
 
 class DataLoader:
     """Helper class to memoize calls to DB for order/station data"""
+
     def __init__(self) -> None:
         self.latest_data = None
         self.last_time = None
@@ -124,3 +125,7 @@ def get_all_json(subset: Optional[int] = None):
         stations_and_tasks=stations_and_tasks,
     )
     return json.dumps({"open": open_tmp, "finished": finished_tmp, "stations": stations_tmp})
+
+
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", debug=False)
