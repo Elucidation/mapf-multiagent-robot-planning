@@ -285,8 +285,9 @@ if __name__ == '__main__':
         print('Resetting database')
         world.reset()
     else:
+        logger.info(f'Loading TIME_STEP_SEC from DB')
         world.update_timestamp_from_db()
-    logger.debug(f'TIME_STEP_SEC = {TIME_STEP_SEC}')
+    logger.info(f'TIME_STEP_SEC = {TIME_STEP_SEC}')
     logger.info(world)
     logger.info(world.get_grid_ascii())
 
