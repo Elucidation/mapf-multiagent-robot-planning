@@ -54,7 +54,7 @@ services:
       - 3000:3000
     environment:
       - ZMQ_HOST=world_sim
-    command: npm --prefix ./env_visualizer install && node env_simulator/
+    command: npm --prefix ./env_visualizer install && node env_visualizer/
 
 volumes:
   # Requires a pre-existing volume with the base dir pointing to this cloned git repo
