@@ -88,6 +88,9 @@ class World(object):
 
     def update_timestamp_from_db(self):
         self.t = self.wdb.get_timestamp()
+    
+    def update_dt_from_db(self):
+        self.dt_sec = self.wdb.get_dt_sec()
 
     def get_all_state_data(self):
         return {
@@ -285,8 +288,9 @@ if __name__ == '__main__':
         print('Resetting database')
         world.reset()
     else:
-        logger.info(f'Loading TIME_STEP_SEC from DB')
+        logger.info(f'Loading time and dt from DB')
         world.update_timestamp_from_db()
+        world.update_dt_from_db()
     logger.info(f'TIME_STEP_SEC = {world.dt_sec}')
     logger.info(world)
     logger.info(world.get_grid_ascii())
