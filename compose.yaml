@@ -8,7 +8,7 @@ services:
     networks:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
-    command: python -m world_sim reset
+    command: python -m world_sim
   # Robot Allocator
   robot_allocator:
     image: aw_base
@@ -30,7 +30,7 @@ services:
     networks:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
-    command: python -m inventory_management_system.order_processor reset
+    command: python -m inventory_management_system.order_processor
   # Flask Web Server
   web_flask:
     image: aw_base
@@ -40,7 +40,7 @@ services:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
     ports:
-      - 11001:5000
+      - 5000:5000
     command: python -m inventory_management_system.order_tracking_web_server
   # Node Web Server
   web_node:
@@ -51,7 +51,7 @@ services:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
     ports:
-      - 11002:3000
+      - 3000:3000
     environment:
       - ZMQ_HOST=world_sim
 
