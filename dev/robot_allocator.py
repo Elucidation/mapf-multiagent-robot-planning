@@ -118,7 +118,8 @@ class RobotAllocator:
         # Wait for databases to exist
         while True:
             if not os.path.isfile(WORLD_DB_PATH):
-                logger.warning(f'Unable to see DB "{WORLD_DB_PATH}" yet, waiting.')
+                logger.warning(
+                    f'Unable to see DB "{WORLD_DB_PATH}" yet, waiting.')
             elif not os.path.isfile(MAIN_DB):
                 logger.warning(f'Unable to see DB "{MAIN_DB}" yet, waiting.')
             else:
@@ -593,27 +594,22 @@ class RobotAllocator:
 if __name__ == '__main__':
     logger = create_warehouse_logger('robot_allocator')
 
+    # Init Robot Allocator (may wait for databases to exist)
+    robot_mgr = RobotAllocator(logger=logger)
+
     # 0MQ Socket to subscribe to world sim state updates
-    ZMQ_PORT = "50523"
-    ZMQ_HOST = "localhost"
-    # If ZMQ_WORLD_SIM_HOST set in environment, use that
-    env_zmq_host = os.getenv("ZMQ_WORLD_SIM_HOST")
-    if env_zmq_host:
-        ZMQ_HOST = env_zmq_host
+    ZMQ_HOST = os.getenv("ZMQ_WORLD_SIM_HOST", default="localhost")
+    ZMQ_PORT = os.getenv("ZMQ_WORLD_SIM_PORT", default="50523")
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     socket_path = f"tcp://{ZMQ_HOST}:{ZMQ_PORT}"
     socket.connect(socket_path)
-    logger.info(f'ZMQ Subscribing to {socket_path}')
-
-    robot_mgr = RobotAllocator(logger=logger)
-
     # Subscribe to world 0mq updates
     socket.setsockopt_string(zmq.SUBSCRIBE, "WORLD")
+    logger.info(f'ZMQ Subscribing to {socket_path}')
 
     # Main loop processing jobs from tasks
-    logger.info('Robot Allocator running')
-
+    logger.info('Robot Allocator started')
     while True:
         logger.debug('Waiting for 0mq world update')
         string = socket.recv()
