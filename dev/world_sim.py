@@ -11,7 +11,7 @@ import numpy as np
 from logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml
 from robot import Robot, RobotId
-from world_db import WorldDatabaseManager
+from world_db import WorldDatabaseManager, WORLD_DB_PATH
 import socketio  # type: ignore
 import zmq  # type: ignore
 # pylint: disable=redefined-outer-name
@@ -76,9 +76,7 @@ class World(object):
         self.ended = False
 
         self.init_socketio()
-
-        world_db_filename = 'world.db'  # TODO Move this to config param
-        self.wdb = WorldDatabaseManager(world_db_filename)
+        self.wdb = WorldDatabaseManager(WORLD_DB_PATH)
 
         self.logger.debug('World initialized')
 
@@ -260,8 +258,10 @@ class World(object):
 
 if __name__ == '__main__':
     logger = create_warehouse_logger('world_sim')
-    TIME_STEP_SEC = 0.3
-    logger.debug(f'TIME_STEP_SEC = {TIME_STEP_SEC}')
+
+    if not os.path.isfile(WORLD_DB_PATH) and 'reset' not in sys.argv:
+        raise FileNotFoundError(
+            f'Expected to see DB "{WORLD_DB_PATH}" but did not find.')
 
     # 0MQ publishing when world has just updated with the new time step
     PORT = "50523"
@@ -277,6 +277,8 @@ if __name__ == '__main__':
     # Create robots at start positions (row,col) -> (x,y)
     robots = [Robot(RobotId(i), (col, row))
               for i, (row, col) in enumerate(robot_home_zones)]
+
+    TIME_STEP_SEC = 0.3
     world = World(grid, robots, TIME_STEP_SEC, item_load_zones,
                   station_zones, logger=logger)
     if 'reset' in sys.argv:
@@ -284,6 +286,7 @@ if __name__ == '__main__':
         world.reset()
     else:
         world.update_timestamp_from_db()
+    logger.debug(f'TIME_STEP_SEC = {TIME_STEP_SEC}')
     logger.info(world)
     logger.info(world.get_grid_ascii())
 
