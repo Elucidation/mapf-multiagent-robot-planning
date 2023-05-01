@@ -367,8 +367,7 @@ class RobotAllocator:
             self.world_grid, pos_a, pos_b, dynamic_obstacles,
             end_fast=True, max_time=self.max_steps)
         logger.debug(
-            f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms '
-            f': {pos_a} -> {pos_b} max_steps={self.max_steps} : {path}')
+            f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms')
         return path
 
     def job_start(self, job: Job) -> bool:
@@ -522,8 +521,7 @@ class RobotAllocator:
         # Release lock on station
         self.station_locks[job.station_zone] = None
         self.logger.info(
-            f'Sending Robot {job.robot_id} back home for '
-            f'task {job.task}: {job.path_station_to_home}')
+            f'Sending Robot {job.robot_id} back home for {job.task}')
         return True
 
     def job_arrive_home(self, job: Job) -> bool:
