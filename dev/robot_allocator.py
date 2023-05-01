@@ -15,6 +15,7 @@ import logging
 import os
 import time
 import signal
+import sqlite3
 import multiagent_planner.pathfinding as pf
 from multiagent_planner.pathfinding import Position, Path
 from robot import Robot, RobotId, RobotStatus
@@ -114,6 +115,15 @@ class RobotAllocator:
 
     def __init__(self, logger=logging) -> None:
         self.logger = logger
+        # Wait for databases to exist
+        while True:
+            if not os.path.isfile(WORLD_DB_PATH):
+                logger.warning(f'Unable to see DB "{WORLD_DB_PATH}" yet, waiting.')
+            elif not os.path.isfile(MAIN_DB):
+                logger.warning(f'Unable to see DB "{MAIN_DB}" yet, waiting.')
+            else:
+                break
+            time.sleep(2)
         # Connect to databases
         self.wdb = WorldDatabaseManager(
             WORLD_DB_PATH)  # Contains World/Robot info
@@ -292,12 +302,17 @@ class RobotAllocator:
     def assign_task_to_robot(self) -> Optional[Job]:
         # Check if any available robots and available tasks
         # If yes, create a job for that robot, update states and return the job here
-        available_robots = self.get_available_robots()
-        if not available_robots:
-            return None
+        try:
+            available_robots = self.get_available_robots()
+            if not available_robots:
+                return None
 
-        available_tasks = self.get_available_tasks()
-        if not available_tasks:
+            available_tasks = self.get_available_tasks()
+            if not available_tasks:
+                return None
+        except sqlite3.Error as err:
+            logger.error(
+                f'Couldn\'t access DB, did not assign anything: {err}')
             return None
 
         # Available robots and tasks, create a job for the first pair
@@ -322,18 +337,14 @@ class RobotAllocator:
 
         # Now check for any available robots and tasks
         self.assign_task_to_robot()
+        self.ims_db.commit()  # Commit transactions to IMS DB
 
-        # Commit transactions to IMS DB
-        self.ims_db.commit()
         # Batch update robots now
         self.wdb.update_robots(self.robots)
         self.wdb.commit()
         update_duration_ms = (time.perf_counter() - t_start)*1000
         logger.debug(
             f'update end, took {update_duration_ms:.3f} ms')
-        if update_duration_ms > 100:
-            logger.error(
-                f'update took {update_duration_ms:.3f} ms > 100ms')
 
     def sleep(self):
         time.sleep(self.dt_sec)
@@ -616,18 +627,10 @@ if __name__ == '__main__':
             robot_mgr.update()
 
         if any(robot_mgr.allocations.values()):
-            # logger.debug('- Current available tasks: '
-            #              f'{[task.task_id for task in robot_mgr.get_available_tasks()]}')
             logger.debug('- Current job allocations')
             for allocated_robot_id, allocated_job in robot_mgr.allocations.items():
                 logger.debug(
                     f'RobotId {allocated_robot_id} : {allocated_job}')
-            logger.debug(
-                f'- Robots: {robot_mgr.robots}')
-            logger.debug(f'- Item Zone Locks: {robot_mgr.item_locks}')
-            logger.debug(f'- Station Zone Locks: {robot_mgr.station_locks}')
-            logger.debug('---')
 
         # Delay till next task
         logger.debug('Step end')
-        # robot_mgr.sleep()
