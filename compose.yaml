@@ -44,7 +44,7 @@ services:
     command: python -m inventory_management_system.order_tracking_web_server
   # Node Web Server
   web_node:
-    image: aw_node
+    image: node:alpine
     volumes:
       - vol1:/home/app
     networks:
@@ -54,7 +54,7 @@ services:
       - 3000:3000
     environment:
       - ZMQ_HOST=world_sim
-    command: npm --prefix ./env_visualizer install && node env_visualizer/
+    command: /bin/sh -c "npm --prefix ./env_visualizer install && node env_visualizer/"
 
 volumes:
   # Requires a pre-existing volume with the base dir pointing to this cloned git repo
