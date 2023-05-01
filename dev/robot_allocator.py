@@ -152,9 +152,19 @@ class RobotAllocator:
         # assume no robots will be added or removed for duration of this instance
         self.robots = self.wdb.get_robots()
         # Reset Robot states and drop any held items
-        for robot in self.robots:
+        for idx, robot in enumerate(self.robots):
             robot.held_item_id = None
             robot.state = RobotStatus.AVAILABLE
+            if robot.pos != self.robot_home_zones[idx]:
+                # Not at home, try to go home, assume current pos in any zone as not an obstacle
+                dynamic_obstacles = self.get_current_dynamic_obstacles(
+                    robot.robot_id, robot.pos, robot.pos)
+                path_to_home = self.generate_path(
+                    robot.pos, self.robot_home_zones[idx], dynamic_obstacles)
+                self.logger.warning(
+                    f'Starting outside of home, attempting to send home: {path_to_home}')
+                if path_to_home:
+                    robot.set_path(path_to_home)
         self.wdb.update_robots(self.robots)
         self.wdb.con.commit()
 
