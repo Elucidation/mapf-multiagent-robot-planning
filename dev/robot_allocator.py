@@ -19,7 +19,6 @@ import sqlite3
 import multiagent_planner.pathfinding as pf
 from multiagent_planner.pathfinding import Position, Path
 from robot import Robot, RobotId, RobotStatus
-# from db_robot_task import DatabaseRobotTaskManager
 from world_db import WorldDatabaseManager, WORLD_DB_PATH
 from inventory_management_system.Item import ItemId
 from inventory_management_system.TaskStatus import TaskStatus
@@ -32,9 +31,6 @@ import zmq
 
 # Allow Ctrl-C to break while zmq socket.recv is going
 signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-# radb = DatabaseRobotTaskManager()
-# robot_task_allocations: list[tuple[Robot, Task]] = [()]
 
 JobId = NewType('JobId', int)
 
@@ -195,9 +191,8 @@ class RobotAllocator:
         # Note: Hacky, off-by-one because sqlite3 db starts indexing at 1, not zero
         station_zone = self.station_zones[task.station_id - 1]
 
-        # Create job
-        job_id = self.job_id_counter  # TODO : This will move to DB auto increment
-        # Job success
+        # Create job and increment counter
+        job_id = self.job_id_counter
         self.job_id_counter = JobId(self.job_id_counter + 1)
         job = Job(job_id, robot_home, item_zone, station_zone, task, robot)
         self.jobs[job_id] = job  # Track job
@@ -208,7 +203,6 @@ class RobotAllocator:
         task.status = TaskStatus.IN_PROGRESS  # Update local task instance as well
         # Set robot state
         robot.state = RobotStatus.IN_PROGRESS
-        # TODO : Update robot?
         return job
 
     def get_current_dynamic_obstacles(self, robot_id: RobotId,
@@ -282,8 +276,6 @@ class RobotAllocator:
         if not robot.hold_item(item_id):
             return (False, robot.held_item_id)
 
-        # Update the robot in the DB
-        # TODO : Update robot?
         return (True, robot.held_item_id)
 
     def robot_drop_item(self, robot_id: RobotId) -> Tuple[bool, Optional[ItemId]]:
@@ -293,8 +285,6 @@ class RobotAllocator:
         if item_id is None:
             return (False, item_id)
 
-        # Update the robot in the DB
-        # TODO : Update robot?
         # Return success and the item dropped
         return (True, item_id)
 
@@ -305,7 +295,6 @@ class RobotAllocator:
     def set_robot_error(self, robot_id: RobotId):
         robot = self.get_robot(robot_id)
         robot.state = RobotStatus.ERROR
-        # TODO : Update robot?
 
     def get_available_tasks(self, limit_rows: int = 5) -> list[Task]:
         return self.ims_db.get_tasks(TaskStatus.OPEN, limit_rows)
@@ -455,7 +444,6 @@ class RobotAllocator:
 
         # unlock item zone since we're moving
         self.item_locks[job.item_zone] = None
-        # TODO : consider a step in-between to go to a waiting zone for items to stations
 
         # Send robot to station
         robot.set_path(job.path_item_to_station)
@@ -578,7 +566,6 @@ class RobotAllocator:
 
     def check_and_update_job(self, job: Job) -> bool:
         # Go through state ladder for a job
-        # TODO : Send event logs to DB for metrics later.
         if job.complete:
             return False
         if job.error:
