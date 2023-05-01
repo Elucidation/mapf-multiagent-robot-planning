@@ -88,7 +88,7 @@ class World(object):
 
     def update_timestamp_from_db(self):
         self.t = self.wdb.get_timestamp()
-    
+
     def update_dt_from_db(self):
         self.dt_sec = self.wdb.get_dt_sec()
 
