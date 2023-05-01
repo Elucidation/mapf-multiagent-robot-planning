@@ -54,6 +54,7 @@ services:
       - 3000:3000
     environment:
       - ZMQ_HOST=world_sim
+    command: npm --prefix ./env_simulator install && node env_simulator/
 
 volumes:
   # Requires a pre-existing volume with the base dir pointing to this cloned git repo
