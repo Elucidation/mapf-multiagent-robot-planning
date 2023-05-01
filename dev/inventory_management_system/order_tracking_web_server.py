@@ -9,7 +9,7 @@ from .Item import ItemId, get_item_names
 
 #  dev> flask.exe --app inventory_management_system.order_tracking_web_server --debug run
 # Add --host=0.0.0.0 for external
-
+FLASK_UPDATE_RATE_SEC = 1.0
 
 class DataLoader:
     """Helper class to memoize calls to DB for order/station data"""
@@ -17,7 +17,7 @@ class DataLoader:
     def __init__(self) -> None:
         self.latest_data = None
         self.last_time = None
-        self.update_rate_s = 1
+        self.update_rate_s = FLASK_UPDATE_RATE_SEC
 
     def get_data(self, subset):
         """Get latest data, update from DB if time since last update > update rate"""
