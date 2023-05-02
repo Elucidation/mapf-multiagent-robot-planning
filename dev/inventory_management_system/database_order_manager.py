@@ -186,7 +186,7 @@ class DatabaseOrderManager:
         )
 
     @timeit
-    def get_orders(self, limit_rows: int = 49999, status=None, direction="DESC") -> List[Order]:
+    def get_orders(self, limit_rows: int = 49999, status=None, direction="ASC") -> List[Order]:
         cur = self.con.cursor()
         # order_id,created_by,created,finished,description,status
         if status:

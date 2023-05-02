@@ -38,7 +38,7 @@ class TestDatabaseOrderManager(unittest.TestCase):
             returned_orders.append(order)
 
         # Order ascending by created, same as orders
-        orders = self.dbm.get_orders(direction="ASC")
+        orders = self.dbm.get_orders()
         assert orders == returned_orders
         assert len(orders) == 3
 
