@@ -1,7 +1,7 @@
-version: "3.9"
+version: "3.8"
 services:
   # World Simulator
-  world_sim:
+  world-sim:
     image: aw_base
     volumes:
       - vol1:/home/app
@@ -9,12 +9,12 @@ services:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
     environment:
-      - REDIS_HOST=redis_db
+      - REDIS_HOST=redis-db
     depends_on:
-      - redis_db # To publish world_t messages
+      - redis-db # To publish world_t messages
     command: python -m world_sim
   # Robot Allocator
-  robot_allocator:
+  robot-allocator:
     image: aw_base
     volumes:
       - vol1:/home/app
@@ -22,13 +22,13 @@ services:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
     environment:
-      - REDIS_HOST=redis_db
+      - REDIS_HOST=redis-db
     depends_on:
-      - order_processor # To set up IMS DB for getting tasks
-      - redis_db # To subscribe to world_t messages
+      - order-processor # To set up IMS DB for getting tasks
+      - redis-db # To subscribe to world_t messages
     command: python -m robot_allocator
   # Order Processor
-  order_processor:
+  order-processor:
     image: aw_base
     volumes:
       - vol1:/home/app
@@ -37,7 +37,7 @@ services:
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
     command: python -m inventory_management_system.order_processor
   # Flask Web Server
-  web_flask:
+  web-flask:
     image: aw_base
     volumes:
       - vol1:/home/app
@@ -48,7 +48,7 @@ services:
       - 5000:5000
     command: python -m inventory_management_system.order_tracking_web_server
   # Node Web Server
-  web_node:
+  web-node:
     image: node:alpine
     volumes:
       - vol1:/home/app
@@ -58,17 +58,18 @@ services:
     ports:
       - 3000:3000
     environment:
-      - REDIS_HOST=redis_db
+      - REDIS_HOST=redis-db
+      - IMS_URL=http://localhost:5000
     depends_on:
-      - redis_db # To subscribe to world_t messages
+      - redis-db # To subscribe to world_t messages
     command: /bin/sh -c "npm --prefix ./env_visualizer install && node env_visualizer/"
   # Redis DB
-  redis_db:
+  redis-db:
     image: redis:alpine
     networks:
       - aw-net
     volumes:
-      - redis_vol:/data
+      - redis-vol:/data
     ports:
       - 6379:6379
     command: redis-server --save 60 1 --loglevel warning
@@ -77,7 +78,7 @@ volumes:
   # Requires a pre-existing volume with the base dir pointing to this cloned git repo
   vol1:
     external: true
-  redis_vol:
+  redis-vol:
     external: true
 
 networks:
