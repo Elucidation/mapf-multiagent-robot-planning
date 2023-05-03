@@ -19,6 +19,7 @@ MAIN_DB = "./inventory_management_system/orders.db"
 # Set up logging
 logger = logging.getLogger("database_order_manager")
 
+# TODO : Add TimeTZ for datetime
 
 def timeit(func):
     """Decorator for timing functions in WDB"""
