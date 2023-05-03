@@ -21,6 +21,7 @@ logger = logging.getLogger("database_order_manager")
 
 # TODO : Add TimeTZ for datetime
 
+
 def timeit(func):
     """Decorator for timing functions in WDB"""
     @functools.wraps(func)
@@ -217,6 +218,13 @@ class DatabaseOrderManager:
             )
             orders.append(order)
         return orders
+
+    @timeit
+    def get_order_counts(self):
+        result = self.con.execute(
+            'SELECT count(order_id) as count, status FROM "Order" GROUP BY status')
+        # Returns a dict with order status str as key and count(orders) as value
+        return {status_str: count for count, status_str in result}
 
     @timeit
     def get_items_for_order(self, order_id: int) -> ItemCounter:

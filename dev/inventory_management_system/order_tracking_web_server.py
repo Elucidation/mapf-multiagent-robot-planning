@@ -43,7 +43,8 @@ class DataLoader:
             finished_orders = dboi.get_orders(
                 direction="DESC", status="COMPLETE", order_by='finished')
         stations_and_tasks = dboi.get_stations_and_tasks()
-        return (open_orders, finished_orders, stations_and_tasks)
+        counts = dboi.get_order_counts()
+        return (open_orders, finished_orders, stations_and_tasks, counts)
 
 
 data_loader = DataLoader()
@@ -115,7 +116,7 @@ def get_quick_json():
 
 
 def get_all_json(subset: Optional[int] = None):
-    open_orders, finished_orders, stations_and_tasks = data_loader.get_data(
+    open_orders, finished_orders, stations_and_tasks, counts = data_loader.get_data(
         subset)
 
     open_tmp = render_template(
@@ -126,7 +127,8 @@ def get_all_json(subset: Optional[int] = None):
         "fragment_stations.html",
         stations_and_tasks=stations_and_tasks,
     )
-    return json.dumps({"open": open_tmp, "finished": finished_tmp, "stations": stations_tmp})
+    return json.dumps(
+        {"open": open_tmp, "finished": finished_tmp, "stations": stations_tmp, "counts": counts})
 
 
 if __name__ == '__main__':
