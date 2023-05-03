@@ -1,8 +1,11 @@
 // @ts-check
 
+// Can use the following env variables:
+// PORT = port used by socket io
+// IMS_URL = url for flask server
+// REDIS_HOST & REDIS_PORT = url and port for redis server
+
 // TODO: Serve a web page that shows a live view of the robots
-// TODO: Show orders too?
-// TODO: Animate robot motion
 
 const express = require("express");
 const app = express();
@@ -25,6 +28,8 @@ io.on("connection", (socket) => {
   // Create arbitrary grid and initial robots.
   console.log(`New connection: ${socket.id} - ${socket.conn.remoteAddress}`);
   socket.emit("set_world", world);
+  const ims_url = process.env.IMS_URL || "http://warehouseims.tetralark.com";
+  socket.emit("set_ims_url", ims_url);
   socket.emit("update", world);
   socket.conn.on("close", (reason) => {
     console.log(

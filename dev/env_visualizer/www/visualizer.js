@@ -68,8 +68,13 @@ function svg_create_item_zones(zones) {
 function svg_create_station_zones(zones) {
   return zones.map((zone, idx) => {
     const hover_label = createSVGElement("title");
-    hover_label.textContent = `Station Zone ${idx+1}`; // Hacky +1 for station ids
-    zone = drawSpecialZone(zone.x, zone.y, "station_zone", `Station ${idx+1}`);
+    hover_label.textContent = `Station Zone ${idx + 1}`; // Hacky +1 for station ids
+    zone = drawSpecialZone(
+      zone.x,
+      zone.y,
+      "station_zone",
+      `Station ${idx + 1}`
+    );
     zone.appendChild(hover_label);
     return zone;
   });
@@ -122,7 +127,7 @@ function svg_update_robots(robots, t) {
       robot.pos.y,
       t
     );
-    
+
     // SVG x,y interpolated robot position
     const x = robot_interp_tile_pos.x * TILE_SIZE + TILE_SIZE / 2;
     const y = robot_interp_tile_pos.y * TILE_SIZE + TILE_SIZE / 2;
@@ -151,7 +156,9 @@ function svg_update_robots(robots, t) {
     let robot_path = undefined;
     if (robot.path) {
       // Add current robot position to head of path
-      robot_path = [[robot_interp_tile_pos.x, robot_interp_tile_pos.y]].concat(robot.path);
+      robot_path = [[robot_interp_tile_pos.x, robot_interp_tile_pos.y]].concat(
+        robot.path
+      );
     }
     updatePath(svg_path, robot_path);
   });
@@ -244,6 +251,7 @@ if (gridContainer == null) {
   throw Error("Missing grid-container element.");
 }
 
+
 function setGridSVG(gridData) {
   if (gridContainer == null) {
     console.error("Missing grid-container element.");
@@ -298,6 +306,16 @@ socket.on("set_world", (/** @type {any} */ msg) => {
   svg_update_robots(world.robots, 0); // Update their initial positions and held items
 });
 
+// Set iframe URL to the flask web server.
+socket.on("set_ims_url", (ims_url) => {
+  const ims_iframe = document.getElementById("ims-iframe");
+  if (ims_iframe == null) {
+    throw Error("Missing ims-iframe element.");
+  }
+  console.log(`setting ims_url to ${ims_url}`);
+  ims_iframe.setAttribute('src', ims_url);
+})
+
 var latest_msg;
 
 var t_start;
@@ -333,6 +351,9 @@ var interval = setInterval(() => {
   let t = 0;
   if (latest_msg.dt_s) {
     t = (Date.now() - t_start) / (latest_msg.dt_s * 1000);
+    if (t > 1) {
+      return; // No more changes, no need to update
+    }
     t = Math.max(Math.min(t, 1.0), 0.0);
   }
   svg_update_robots(latest_msg.robots, t);
