@@ -97,7 +97,7 @@ class World {
       this.robots.push(
         new Robot({
           id: i,
-          pos: new Point(robot_home_zone[1], robot_home_zone[0]),
+          pos: new Point(robot_home_zone.x, robot_home_zone.y),
         })
       );
     }
