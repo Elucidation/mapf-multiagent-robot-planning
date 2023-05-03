@@ -13,7 +13,7 @@ from warehouses.warehouse_loader import load_warehouse_yaml
 from robot import Robot, RobotId
 from world_db import WorldDatabaseManager, WORLD_DB_PATH
 import socketio  # type: ignore
-import zmq  # type: ignore
+import redis  # type: ignore
 # pylint: disable=redefined-outer-name
 
 
@@ -266,13 +266,14 @@ if __name__ == '__main__':
         raise FileNotFoundError(
             f'Expected to see DB "{WORLD_DB_PATH}" but did not find.')
 
-    # 0MQ publishing when world has just updated with the new time step
-    PORT = "50523"
-    context = zmq.Context()
-    socket = context.socket(zmq.PUB)
-    socket.bind(f"tcp://*:{PORT}")
-    logger.info(f'Setting up 0MQ Publisher to port {PORT}')
-    time.sleep(1)  # Give a little time for subscribers to join
+    # Set up redis
+    REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
+    REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
+    redis_con = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+
+    while not redis_con.ping():
+        logger.warning(f'Waiting for redis server {REDIS_HOST}:{REDIS_PORT}')
+        time.sleep(2)
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
         'warehouses/warehouse3.yaml')
@@ -281,7 +282,7 @@ if __name__ == '__main__':
     robots = [Robot(RobotId(i), (col, row))
               for i, (row, col) in enumerate(robot_home_zones)]
 
-    TIME_STEP_SEC = 0.3
+    TIME_STEP_SEC = 1
     world = World(grid, robots, TIME_STEP_SEC, item_load_zones,
                   station_zones, logger=logger)
     if 'reset' in sys.argv:
@@ -311,5 +312,5 @@ if __name__ == '__main__':
         if not world.get_current_state():
             logger.error(
                 f'World State invalid, collision(s): {world.collision}')
-        socket.send_string(f'WORLD {world.t}')
+        redis_con.publish('WORLD_T', world.t)
         world.sleep()

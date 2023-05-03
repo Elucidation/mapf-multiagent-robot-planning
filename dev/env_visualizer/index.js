@@ -23,16 +23,18 @@ app.get("/", (req, res) => {
 
 io.on("connection", (socket) => {
   // Create arbitrary grid and initial robots.
-  console.log(`New connection: ${socket.id} - ${socket.conn.remoteAddress}`)
+  console.log(`New connection: ${socket.id} - ${socket.conn.remoteAddress}`);
   socket.emit("set_world", world);
   socket.emit("update", world);
   socket.conn.on("close", (reason) => {
-    console.log(`Closed connection: ${socket.id} - ${socket.conn.remoteAddress} - ${reason}`)
+    console.log(
+      `Closed connection: ${socket.id} - ${socket.conn.remoteAddress} - ${reason}`
+    );
   });
 });
 
 server.listen(port, () => {
-  console.info(`Listening on *:${port}`);
+  console.info(`SocketIO listening on *:${port}`);
 });
 
 // Open databases
@@ -141,32 +143,32 @@ robot_dbm.get_dt_sec().then((data) => {
   world.dt_s = data.value;
 });
 
-// 0MQ Subscribe for world step updates
-const zmq = require("zeromq");
-const { stringify } = require("querystring");
-const ZMQ_PORT = process.env.ZMQ_PORT || "50523";
-const ZMQ_HOST = process.env.ZMQ_HOST || "localhost";
+// Set up Redis
+const redis = require("redis");
+(async () => {
+  const host = process.env.REDIS_HOST || "localhost";
+  const port = parseInt(process.env.REDIS_PORT || "6379");
+  const subscriber = redis.createClient({
+    socket: {
+      host: host,
+      port: port,
+    },
+  });
+  console.log(`Trying to subscribe to redis server ${host}:${port}`);
+  subscriber
+    .on("error", function () {
+      console.error("Could not connect to Redis");
+    })
+    .on("ready", function () {
+      console.log("Subscribing");
+      subscriber.subscribe("WORLD_T", (world_t_str) => {
+        world.t = parseInt(world_t_str);
+        update_robots();
+      });
+    });
 
-
-async function run() {
-  const sock = new zmq.Subscriber();
-
-  sock.connect(`tcp://${ZMQ_HOST}:${ZMQ_PORT}`);
-  sock.subscribe("WORLD");
-  console.log(`Subscriber connected to ${ZMQ_HOST}:${ZMQ_PORT}`);
-
-  // Parse world time step from the 0MQ published message ex: 'WORLD N'
-  for await (const [full_msg] of sock) {
-    let parts = String(full_msg).split(" ");
-    if (parts.length != 2 && parts[0] != "WORLD") {
-      continue;
-    }
-    world.t = parseInt(parts[1]);
-    update_robots();
-  }
-}
-
-run();
+  await subscriber.connect();
+})();
 
 function update_ims() {
   // TODO : Use this to show station states

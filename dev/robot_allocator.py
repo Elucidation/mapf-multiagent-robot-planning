@@ -26,7 +26,7 @@ from inventory_management_system.Station import Task
 from inventory_management_system.database_order_manager import DatabaseOrderManager, MAIN_DB
 from logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml_xy
-import zmq
+import redis
 # pylint: disable=redefined-outer-name
 
 # Allow Ctrl-C to break while zmq socket.recv is going
@@ -592,24 +592,18 @@ if __name__ == '__main__':
     # Init Robot Allocator (may wait for databases to exist)
     robot_mgr = RobotAllocator(logger=logger)
 
-    # 0MQ Socket to subscribe to world sim state updates
-    ZMQ_HOST = os.getenv("ZMQ_WORLD_SIM_HOST", default="localhost")
-    ZMQ_PORT = os.getenv("ZMQ_WORLD_SIM_PORT", default="50523")
-    context = zmq.Context()
-    socket = context.socket(zmq.SUB)
-    socket_path = f"tcp://{ZMQ_HOST}:{ZMQ_PORT}"
-    socket.connect(socket_path)
-    # Subscribe to world 0mq updates
-    socket.setsockopt_string(zmq.SUBSCRIBE, "WORLD")
-    logger.info(f'ZMQ Subscribing to {socket_path}')
+    # Set up redis
+    REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
+    REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
+    redis_con = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    redis_sub = redis_con.pubsub()
+    redis_sub.subscribe('WORLD_T')
+    logger.info('Redis Subscribed to WORLD_T updates')
 
     # Main loop processing jobs from tasks
     logger.info('Robot Allocator started')
-    while True:
-        logger.debug('Waiting for 0mq world update')
-        string = socket.recv()
-        topic, messagedata = string.split()
-        world_sim_t = int(messagedata)
+    for world_t_message in redis_sub.listen():
+        world_sim_t = int(world_t_message['data'])
         logger.info(
             f'Step start T={world_sim_t} ---------------------------------------'
             '--------------------------------------------------------')
