@@ -11,6 +11,7 @@ from .Item import ItemId, get_item_names
 # Add --host=0.0.0.0 for external
 FLASK_UPDATE_RATE_SEC = 1.0
 
+
 class DataLoader:
     """Helper class to memoize calls to DB for order/station data"""
 
@@ -36,10 +37,11 @@ class DataLoader:
             open_orders = dboi.get_orders(
                 limit_rows=subset, status="OPEN")
             finished_orders = dboi.get_orders(
-                limit_rows=subset, direction="DESC", status="COMPLETE")
+                limit_rows=subset, direction="DESC", status="COMPLETE", order_by='finished')
         else:
             open_orders = dboi.get_orders(status="OPEN")
-            finished_orders = dboi.get_orders(direction="DESC", status="COMPLETE")
+            finished_orders = dboi.get_orders(
+                direction="DESC", status="COMPLETE", order_by='finished')
         stations_and_tasks = dboi.get_stations_and_tasks()
         return (open_orders, finished_orders, stations_and_tasks)
 

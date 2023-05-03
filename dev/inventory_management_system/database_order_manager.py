@@ -186,16 +186,17 @@ class DatabaseOrderManager:
         )
 
     @timeit
-    def get_orders(self, limit_rows: int = 49999, status=None, direction="ASC") -> List[Order]:
+    def get_orders(self, limit_rows: int = 49999, status=None,
+                   direction="ASC", order_by='created') -> List[Order]:
         cur = self.con.cursor()
         # order_id,created_by,created,finished,description,status
         if status:
             cur.execute(
                 'SELECT * FROM "Order" WHERE status=? ORDER BY '
-                f'created {direction} LIMIT ?', (status, limit_rows))
+                f'{order_by} {direction} LIMIT ?', (status, limit_rows))
         else:
             cur.execute(
-                f'SELECT * FROM "Order" ORDER BY created {direction} LIMIT ?', (limit_rows,))
+                f'SELECT * FROM "Order" ORDER BY {order_by} {direction} LIMIT ?', (limit_rows,))
         orders = []
         while True:
             row = cur.fetchone()
