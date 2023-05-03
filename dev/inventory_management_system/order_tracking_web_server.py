@@ -37,11 +37,10 @@ class DataLoader:
             open_orders = dboi.get_orders(
                 limit_rows=subset, status="OPEN")
             finished_orders = dboi.get_orders(
-                limit_rows=subset, direction="DESC", status="COMPLETE", order_by='finished')
+                limit_rows=subset, status="COMPLETE", order_by='finished')
         else:
             open_orders = dboi.get_orders(status="OPEN")
-            finished_orders = dboi.get_orders(
-                direction="DESC", status="COMPLETE", order_by='finished')
+            finished_orders = dboi.get_orders(status="COMPLETE", order_by='finished')
         stations_and_tasks = dboi.get_stations_and_tasks()
         return (open_orders, finished_orders, stations_and_tasks)
 
