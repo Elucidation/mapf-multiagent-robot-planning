@@ -1,4 +1,5 @@
 """Process orders in database by filling available stations with orders."""
+import os
 import sys
 import time
 from logger import create_warehouse_logger
@@ -7,6 +8,9 @@ from .database_order_manager import DatabaseOrderManager, MAIN_DB
 
 if __name__ == '__main__':
     logger = create_warehouse_logger('order_processor')
+    if not os.path.isfile(MAIN_DB) and 'reset' not in sys.argv:
+        raise FileNotFoundError(
+            f'Expected to see DB "{MAIN_DB}" but did not find.')
     db_orders = DatabaseOrderManager(MAIN_DB)
 
     if 'reset' in sys.argv:
