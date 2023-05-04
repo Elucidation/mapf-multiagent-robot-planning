@@ -30,6 +30,8 @@ spec:
               value: "redis-service"
             - name: REDIS_PORT
               value: "36379"
+            - name: PORT # socket io port
+              value: "30001"
             - name: IMS_URL
               value: "http://localhost:5000"
           volumeMounts:
@@ -75,8 +77,9 @@ spec:
   ports:
     - protocol: TCP
       port: 3000
-      targetPort: 3000
-  type: LoadBalancer
+      targetPort: 30001
+      nodePort: 30001
+  type: NodePort
 ---
 apiVersion: v1
 kind: Service
