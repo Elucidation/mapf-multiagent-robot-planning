@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: automated-warehouse-web
+  labels:
+    app: mapf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mapf
+  template:
+    metadata:
+      labels:
+        app: mapf
+    spec:
+      containers:
+        # Node web UI
+        - name: web-node
+          workingDir: /home/app/mapf/dev
+          args:
+            - /bin/sh
+            - -c
+            - npm --prefix ./env_visualizer install && node env_visualizer/
+          image: node:alpine
+          ports:
+            - containerPort: 3000
+          env:
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "36379"
+            - name: IMS_URL
+              value: "http://localhost:5000"
+          volumeMounts:
+            - name: vol1
+              mountPath: /home/app
+            - name: vol-db
+              mountPath: /data
+        # Flask web UI
+        - name: web-flask
+          workingDir: /home/app/mapf/dev
+          args:
+            - python
+            - -m
+            - inventory_management_system.order_tracking_web_server
+          image: aw_base
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - name: vol1
+              mountPath: /home/app
+            - name: vol-db
+              mountPath: /data
+      restartPolicy: Always
+      volumes:
+        - name: vol1 # Assumes /home/app/mapf has git dir
+          persistentVolumeClaim:
+            claimName: vol1-claim
+        - name: redis-vol
+          persistentVolumeClaim:
+            claimName: redis-vol-claim
+        - name: vol-db # Assumes /data has world/order db files
+          persistentVolumeClaim:
+            claimName: vol-db-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-node-service
+spec:
+  selector:
+    app: mapf
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-flask-service
+spec:
+  selector:
+    app: mapf
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+  type: ClusterIP

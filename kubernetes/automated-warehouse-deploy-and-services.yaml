@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: automated-warehouse
+  labels:
+    app: mapf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mapf
+  template:
+    metadata:
+      labels:
+        app: mapf
+    spec:
+      containers:
+        # World Sim
+        - name: world-sim
+          workingDir: /home/app/mapf/dev
+          args:
+            - python
+            - -m
+            - world_sim
+          image: aw_base
+          imagePullPolicy: Never
+          volumeMounts:
+            - name: vol1
+              mountPath: /home/app
+            - name: vol-db
+              mountPath: /data
+        # Robot Allocator
+        - name: robot-allocator
+          workingDir: /home/app/mapf/dev
+          args:
+            - python
+            - -m
+            - robot_allocator
+          image: aw_base
+          imagePullPolicy: Never
+          volumeMounts:
+            - name: vol1
+              mountPath: /home/app
+            - name: vol-db
+              mountPath: /data
+        # Order Processor
+        - name: order-processor
+          workingDir: /home/app/mapf/dev
+          args:
+            - python
+            - -m
+            - inventory_management_system.order_processor
+          image: aw_base
+          imagePullPolicy: Never
+          volumeMounts:
+            - name: vol1
+              mountPath: /home/app
+            - name: vol-db
+              mountPath: /data
+        # Redis DB
+        - name: redis-db
+          args:
+            - redis-server
+            - --save
+            - "60"
+            - "1"
+            - --loglevel
+            - warning
+          image: redis:alpine
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-vol
+              mountPath: /data
+      restartPolicy: Always
+      volumes:
+        - name: vol1 # Assumes /home/app/mapf has git dir
+          persistentVolumeClaim:
+            claimName: vol1-claim
+        - name: redis-vol
+          persistentVolumeClaim:
+            claimName: redis-vol-claim
+        - name: vol-db # Assumes /data has world/order db files
+          persistentVolumeClaim:
+            claimName: vol-db-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+spec:
+  selector:
+    app: mapf
+  ports:
+    - protocol: TCP
+      port: 36379
+      targetPort: 6379
+  type: ClusterIP

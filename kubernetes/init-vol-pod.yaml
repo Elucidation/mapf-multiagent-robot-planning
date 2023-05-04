@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: setup-vol1-pod
+spec:
+  containers:
+  # Used for setting up the two persistent volumes manually with git and sqlite dbs
+  - name: setup-vol1-container
+    args: ["/bin/sh", "-c", "while sleep 3600; do :; done"]
+    image: alpine
+    workingDir: /home/app/
+    volumeMounts:
+    - mountPath: /home/app
+      name: vol1-mount
+    - mountPath: /data
+      name: vol-db
+  volumes:
+  - name: vol1-mount
+    persistentVolumeClaim:
+      claimName: vol1-claim
+  - name: vol-db
+    persistentVolumeClaim:
+      claimName: vol-db-claim
