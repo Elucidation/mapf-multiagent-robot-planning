@@ -1,6 +1,7 @@
 """Order Manager DB contains Orders/Items/Stations/Tasks and their relationships"""
 import functools
 import sqlite3 as sl
+import os
 import time
 from typing import List, Optional, Tuple
 from datetime import datetime
@@ -14,7 +15,7 @@ from .TaskStatus import TaskStatus
 from .Item import ItemCounter, ItemId, get_item_names
 # pylint: disable=C0301:line-too-long
 
-MAIN_DB = "/data/orders.db"
+MAIN_DB = os.environ.get('ORDERS_DB_PATH', '/data/orders.db')
 
 # Set up logging
 logger = logging.getLogger("database_order_manager")

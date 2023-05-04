@@ -7,10 +7,11 @@ from typing import List, Optional
 import functools
 import logging
 import json
+import os
 import time
 from robot import Robot, RobotId, RobotStatus, Position
 
-WORLD_DB_PATH = '/data/world.db'
+WORLD_DB_PATH = os.environ.get('WORLD_DB_PATH', '/data/world.db')
 
 # Set up logging
 logger = logging.getLogger("database_world_manager")
