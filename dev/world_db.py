@@ -10,7 +10,7 @@ import json
 import time
 from robot import Robot, RobotId, RobotStatus, Position
 
-WORLD_DB_PATH = 'world.db'
+WORLD_DB_PATH = '/data/world.db'
 
 # Set up logging
 logger = logging.getLogger("database_world_manager")

@@ -14,7 +14,7 @@ from .TaskStatus import TaskStatus
 from .Item import ItemCounter, ItemId, get_item_names
 # pylint: disable=C0301:line-too-long
 
-MAIN_DB = "./inventory_management_system/orders.db"
+MAIN_DB = "/data/orders.db"
 
 # Set up logging
 logger = logging.getLogger("database_order_manager")
