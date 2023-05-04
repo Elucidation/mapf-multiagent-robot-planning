@@ -264,7 +264,7 @@ if __name__ == '__main__':
 
     if not os.path.isfile(WORLD_DB_PATH) and 'reset' not in sys.argv:
         raise FileNotFoundError(
-            f'Expected to see DB "{WORLD_DB_PATH}" but did not find.')
+            f'Expected to see DB "{WORLD_DB_PATH}" but did not find (Note: Can set env WORLD_DB_PATH).')
 
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
