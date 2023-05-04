@@ -269,10 +269,17 @@ if __name__ == '__main__':
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
     REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
-    redis_con = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-
-    while not redis_con.ping():
-        logger.warning(f'Waiting for redis server {REDIS_HOST}:{REDIS_PORT}')
+    redis_con = redis.Redis(
+        host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    # Note this will fail if redis server not accessible
+    while True:
+        try:
+            if redis_con.ping():
+                break
+            else:
+                logger.warning(f'Ping failed for redis server {REDIS_HOST}:{REDIS_PORT}, waiting')
+        except redis.ConnectionError:
+            logger.error(f'Redis unable to connect {REDIS_HOST}:{REDIS_PORT}, waiting')
         time.sleep(2)
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
