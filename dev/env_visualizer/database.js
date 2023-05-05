@@ -13,7 +13,9 @@ class DatabaseManager {
       sqlite3.OPEN_READONLY,
       (err) => {
         if (err) {
-          console.error(err.message);
+          console.error(err.message, this.db_path);
+        } else {
+          console.info("Connected to SQLITE DB", this.db_path);
         }
       }
     );
@@ -79,7 +81,9 @@ class RobotDatabaseManager {
       sqlite3.OPEN_READONLY,
       (err) => {
         if (err) {
-          console.error(err.message);
+          console.error(err.message, this.db_path);
+        } else {
+          console.info("Connected to SQLITE DB", this.db_path);
         }
       }
     );
