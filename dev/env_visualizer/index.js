@@ -39,7 +39,7 @@ io.on("connection", (socket) => {
 });
 
 server.listen(port, () => {
-  console.info(`SocketIO listening on *:${port}`);
+  console.info(`SocketIO server listening on *:${port}`);
 });
 
 // Open databases
@@ -165,7 +165,7 @@ const redis = require("redis");
       console.error("Could not connect to Redis");
     })
     .on("ready", function () {
-      console.log("Subscribing");
+      console.log(`Subscribed to Redis server ${host}:${port}`);
       subscriber.subscribe("WORLD_T", (world_t_str) => {
         world.t = parseInt(world_t_str);
         update_robots();
