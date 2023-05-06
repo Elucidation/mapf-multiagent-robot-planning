@@ -47,10 +47,7 @@ class DatabaseManager {
   }
 
   async get_new_orders(limit_rows) {
-    // order_by column name; created or finished for example
-    // direction is ASC default, DESC for reverse
     const currentTime = Date.now();
-
     // If cache is valid and not older than cacheDuration, return the cached data
     if (
       this.cache.newOrders !== null &&
@@ -98,8 +95,51 @@ class DatabaseManager {
   }
 
   async get_finished_orders(limit_rows) {
-    // finished_orders = dboi.get_orders(
-    //   limit_rows=subset, direction="DESC", status="COMPLETE", order_by='finished')
+    const currentTime = Date.now();
+    // If cache is valid and not older than cacheDuration, return the cached data
+    if (
+      this.cache.finishedOrders !== null &&
+      this.cache.lastUpdateFinished !== null &&
+      currentTime - this.cache.lastUpdateFinished < this.cacheDurationMs
+    ) {
+      return this.cache.finishedOrders;
+    }
+
+    const query = `
+    SELECT
+    "Order".*,
+    GROUP_CONCAT(OrderItem.item_id) AS item_ids,
+	  GROUP_CONCAT(OrderItem.quantity) AS item_quantities
+    FROM
+        "Order"
+    JOIN
+        OrderItem ON "Order".order_id = OrderItem.order_id
+    WHERE
+        "Order".status = 'COMPLETE'
+    GROUP BY
+        "Order".order_id
+    ORDER BY
+        "Order".finished
+    DESC LIMIT ?;`;
+
+    return new Promise((resolve, reject) => {
+      this.db.all(query, [limit_rows], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          // split up item_ids/quantities into lists
+          rows.forEach((row) => {
+            row.item_ids = row.item_ids.split(",").map(Number);
+            row.item_quantities = row.item_quantities.split(",").map(Number);
+          });
+
+          // Update cache and return
+          this.cache.finishedOrders = rows;
+          this.cache.lastUpdateFinished = currentTime;
+          resolve(rows);
+        }
+      });
+    });
   }
 
   async get_order_items_by_ids(order_ids) {
