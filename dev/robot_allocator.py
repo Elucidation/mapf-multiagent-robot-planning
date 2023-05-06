@@ -14,7 +14,6 @@ from typing import Optional, Tuple, NewType
 import logging
 import os
 import time
-import signal
 import sqlite3
 import multiagent_planner.pathfinding as pf
 from multiagent_planner.pathfinding import Position, Path
@@ -28,9 +27,6 @@ from logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml_xy
 import redis
 # pylint: disable=redefined-outer-name
-
-# Allow Ctrl-C to break while zmq socket.recv is going
-signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 JobId = NewType('JobId', int)
 
@@ -595,7 +591,8 @@ if __name__ == '__main__':
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
     REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
-    redis_con = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    redis_con = redis.Redis(
+        host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
     redis_sub = redis_con.pubsub()
     redis_sub.subscribe('WORLD_T')
     logger.info('Redis Subscribed to WORLD_T updates')

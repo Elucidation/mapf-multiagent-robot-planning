@@ -12,7 +12,6 @@ from logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml
 from robot import Robot, RobotId
 from world_db import WorldDatabaseManager, WORLD_DB_PATH
-import socketio  # type: ignore
 import redis  # type: ignore
 # pylint: disable=redefined-outer-name
 
@@ -75,7 +74,6 @@ class World(object):
         self.dt_sec = time_step_sec  # expected time step in seconds with self.sleep()
         self.ended = False
 
-        self.init_socketio()
         self.wdb = WorldDatabaseManager(WORLD_DB_PATH)
 
         self.logger.debug('World initialized')
@@ -108,10 +106,6 @@ class World(object):
             't': self.t,
             'robots': [r.json_data() for r in self.robots]
         }
-
-    def init_socketio(self):
-        # TODO : Server listens for Robot allocator client
-        self.sio_server = socketio.Server(logger=True)
 
     def add_robot(self, robot: Robot):
         self.robots_by_id[robot.robot_id] = len(self.robots)
@@ -264,7 +258,8 @@ if __name__ == '__main__':
 
     if not os.path.isfile(WORLD_DB_PATH) and 'reset' not in sys.argv:
         raise FileNotFoundError(
-            f'Expected to see DB "{WORLD_DB_PATH}" but did not find (Note: Can set env WORLD_DB_PATH).')
+            f'Expected to see DB "{WORLD_DB_PATH}" '
+            'but did not find (Note: Can set env WORLD_DB_PATH).')
 
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
@@ -277,9 +272,11 @@ if __name__ == '__main__':
             if redis_con.ping():
                 break
             else:
-                logger.warning(f'Ping failed for redis server {REDIS_HOST}:{REDIS_PORT}, waiting')
+                logger.warning(
+                    f'Ping failed for redis server {REDIS_HOST}:{REDIS_PORT}, waiting')
         except redis.ConnectionError:
-            logger.error(f'Redis unable to connect {REDIS_HOST}:{REDIS_PORT}, waiting')
+            logger.error(
+                f'Redis unable to connect {REDIS_HOST}:{REDIS_PORT}, waiting')
         time.sleep(2)
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
@@ -296,26 +293,24 @@ if __name__ == '__main__':
         print('Resetting database')
         world.reset()
     else:
-        logger.info(f'Loading time and dt from DB')
+        logger.info('Loading time and dt from DB')
         world.update_timestamp_from_db()
         world.update_dt_from_db()
-    logger.info(f'TIME_STEP_SEC = {world.dt_sec}')
+    logger.info(f'World start: T = {world.t}, DT = {world.dt_sec}')
     logger.info(world)
     logger.info(world.get_grid_ascii())
 
-    # pylint: disable=invalid-name
-    first_time = True
     logger.info('Main loop start...')
     while True:
         with world.wdb.con:
             world.step()
 
-        robot_str = '|'.join(
+        ROBOT_STR = '|'.join(
             [f'{robot.pos[0]},{robot.pos[1]}' for robot in world.robots])
         if world.t % 5 == 0:
-            logger.info(f'Step {world.t} {robot_str}')
+            logger.info(f'Step {world.t} {ROBOT_STR}')
         else:
-            logger.debug(f'Step {world.t} {robot_str}')
+            logger.debug(f'Step {world.t} {ROBOT_STR}')
         if not world.get_current_state():
             logger.error(
                 f'World State invalid, collision(s): {world.collision}')

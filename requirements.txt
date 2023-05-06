@@ -1,7 +1,5 @@
 Flask
 matplotlib
 numpy
-python-socketio[client]
 PyYAML
-pyzmq
-zmq
+redis[hiredis]
