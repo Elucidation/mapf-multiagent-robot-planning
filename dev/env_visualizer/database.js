@@ -50,13 +50,14 @@ class DatabaseManager {
       return this.cache.stationOrders;
     }
 
+    // Stil
     const query = `
     SELECT
         Station.*,
         GROUP_CONCAT(CASE WHEN Task.status = 'COMPLETE' THEN Task.item_id ELSE NULL END) AS completed_item_ids,
         GROUP_CONCAT(CASE WHEN Task.status = 'COMPLETE' THEN OrderItem.quantity ELSE NULL END) AS completed_item_quantities,
-        GROUP_CONCAT(CASE WHEN Task.status = 'OPEN' THEN Task.item_id ELSE NULL END) AS open_item_ids,
-        GROUP_CONCAT(CASE WHEN Task.status = 'OPEN' THEN Task.quantity ELSE NULL END) AS open_item_quantities
+        GROUP_CONCAT(CASE WHEN Task.status = 'OPEN' OR Task.status = 'IN_PROGRESS' THEN Task.item_id ELSE NULL END) AS open_item_ids,
+        GROUP_CONCAT(CASE WHEN Task.status = 'OPEN' OR Task.status = 'IN_PROGRESS' THEN Task.quantity ELSE NULL END) AS open_item_quantities
     FROM
         Station
     LEFT JOIN
@@ -64,7 +65,7 @@ class DatabaseManager {
     LEFT JOIN
         Task ON "Order".order_id = Task.order_id
     LEFT JOIN
-        OrderItem ON Task.item_id = OrderItem.item_id AND Task.order_id = OrderItem.order_id
+        OrderItem ON Task.item_id = OrderItem.item_id AND "Order".order_id = OrderItem.order_id
     GROUP BY
         Station.station_id
     ORDER BY
