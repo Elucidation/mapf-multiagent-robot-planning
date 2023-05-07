@@ -24,6 +24,8 @@ class DatabaseManager {
       lastUpdateNew: null,
       finishedOrders: null,
       lastUpdateFinished: null,
+      stationOrders: null,
+      lastUpdateStation: null,
       cacheDurationMs: 1000,
     };
   }
@@ -36,12 +38,72 @@ class DatabaseManager {
     });
   }
 
-  async get_stations() {
-    // Returns station_id, optional order_id
+  async get_stations_and_order() {
+    // Returns station_id, and any/all order info associated
+    const currentTime = Date.now();
+    // If cache is valid and not older than cacheDuration, return the cached data
+    if (
+      this.cache.stationOrders !== null &&
+      this.cache.lastUpdateStation !== null &&
+      currentTime - this.cache.lastUpdateStation < this.cacheDurationMs
+    ) {
+      return this.cache.stationOrders;
+    }
+
+    const query = `
+    SELECT
+        Station.*,
+        "Order".*,
+        GROUP_CONCAT(CASE WHEN Task.status = 'COMPLETE' THEN Task.item_id ELSE NULL END) AS completed_item_ids,
+        GROUP_CONCAT(CASE WHEN Task.status = 'COMPLETE' THEN OrderItem.quantity ELSE NULL END) AS completed_item_quantities,
+        GROUP_CONCAT(CASE WHEN Task.status = 'OPEN' THEN Task.item_id ELSE NULL END) AS open_item_ids,
+        GROUP_CONCAT(CASE WHEN Task.status = 'OPEN' THEN Task.quantity ELSE NULL END) AS open_item_quantities
+    FROM
+        Station
+    LEFT JOIN
+        "Order" ON Station.order_id = "Order".order_id
+    LEFT JOIN
+        Task ON "Order".order_id = Task.order_id
+    LEFT JOIN
+        OrderItem ON Task.item_id = OrderItem.item_id AND Task.order_id = OrderItem.order_id
+    GROUP BY
+        Station.station_id
+    ORDER BY
+        Station.station_id
+    ;`;
+
     return new Promise((resolve, reject) => {
-      this.db.all("SELECT * FROM Station", (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows);
+      this.db.all(query, [], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          // split up item_ids/quantities into lists
+          rows.forEach((row) => {
+            if (row.completed_item_ids) {
+              row.completed_item_ids = row.completed_item_ids
+                .split(",")
+                .map(Number);
+            }
+            if (row.completed_item_quantities) {
+              row.completed_item_quantities = row.completed_item_quantities
+                .split(",")
+                .map(Number);
+            }
+            if (row.open_item_ids) {
+              row.open_item_ids = row.open_item_ids.split(",").map(Number);
+            }
+            if (row.open_item_quantities) {
+              row.open_item_quantities = row.open_item_quantities
+                .split(",")
+                .map(Number);
+            }
+          });
+
+          // Update cache and return
+          this.cache.stationOrders = rows;
+          this.cache.lastUpdateStation = currentTime;
+          resolve(rows);
+        }
       });
     });
   }

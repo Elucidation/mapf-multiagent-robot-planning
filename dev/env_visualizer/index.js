@@ -2,7 +2,6 @@
 
 // Can use the following env variables:
 // PORT = port used by socket io
-// IMS_URL = url for flask server
 // REDIS_HOST & REDIS_PORT = url and port for redis server
 
 // TODO: Serve a web page that shows a live view of the robots
@@ -28,8 +27,6 @@ io.on("connection", (socket) => {
   // Create arbitrary grid and initial robots.
   console.log(`New connection: ${socket.id} - ${socket.conn.remoteAddress}`);
   socket.emit("set_world", world);
-  const ims_url = process.env.IMS_URL || "http://warehouseims.tetralark.com";
-  socket.emit("set_ims_url", ims_url);
   socket.emit("update", world);
   socket.conn.on("close", (reason) => {
     console.log(
@@ -172,25 +169,21 @@ const redis = require("redis");
       });
     });
 
-  await subscriber.connect();
+  // await subscriber.connect();
 })();
 
-function update_ims() {
-  // TODO : Use this to show station states
-  // Update IMS stations/orders/items viz
-  processStationsAndOrderItems();
-}
-
-async function processStationsAndOrderItems() {
-  try {
-    const stations = await dbm.get_stations();
-    const order_ids = stations.map((station) => station.order_id);
-    const order_items = await dbm.get_order_items_by_ids(order_ids);
-    // do_something();
-  } catch (error) {
-    console.error("Error processing stations and order items:", error);
-  }
-}
+setInterval(() => {
+  // TODO : Put in one message?
+  dbm.get_new_orders(10).then(new_orders => {
+    io.emit("ims_new_orders", new_orders);
+  })
+  dbm.get_stations_and_order().then(station_orders => {
+    io.emit("ims_station_orders", station_orders);
+  })
+  dbm.get_finished_orders(10).then(finished_orders => {
+    io.emit("ims_finished_orders", finished_orders);
+  })
+}, 1000);
 
 function update_robots() {
   robot_dbm.get_robots().then((robots_db_data) => {

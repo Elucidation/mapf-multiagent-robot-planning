@@ -251,7 +251,6 @@ if (gridContainer == null) {
   throw Error("Missing grid-container element.");
 }
 
-
 function setGridSVG(gridData) {
   if (gridContainer == null) {
     console.error("Missing grid-container element.");
@@ -265,6 +264,141 @@ function setGridSVG(gridData) {
   }
   gridContainer.appendChild(gridSVG);
   return gridSVG;
+}
+
+function createItemCellTable(itemNames, itemQuantities, attrClass='') {
+  const table = document.createElement("table");
+  const tr = document.createElement("tr");
+
+  itemNames.forEach((item, idx) => {
+    const itemCell = document.createElement("td");
+    if (attrClass){
+      itemCell.setAttribute('class', attrClass);
+    }
+    itemCell.textContent = item;
+
+    const quantitySpan = document.createElement("span");
+    quantitySpan.className = "quantity-color";
+
+    quantitySpan.textContent = `x${itemQuantities[idx]}`;
+    itemCell.appendChild(quantitySpan);
+    tr.appendChild(itemCell);
+  });
+
+  table.appendChild(tr);
+  return table;
+}
+
+function updateNewOrderTable(table, orders) {
+  const tableBody = table.querySelector("tbody");
+  tableBody.innerHTML = "";
+
+  orders.forEach((order) => {
+    const row = document.createElement("tr");
+
+    const idCell = document.createElement("td");
+    idCell.textContent = order.order_id;
+    row.appendChild(idCell);
+
+    // items
+    const itemCell = document.createElement("td");
+    itemCell.appendChild(
+      createItemCellTable(order.item_names, order.item_quantities)
+    );
+    row.appendChild(itemCell);
+
+    const statusCell = document.createElement("td");
+    statusCell.textContent = order.status;
+    row.appendChild(statusCell);
+
+    tableBody.appendChild(row);
+  });
+}
+
+function updateFinishedOrderTable(table, orders) {
+  const tableBody = table.querySelector("tbody");
+  tableBody.innerHTML = "";
+
+  orders.forEach((order) => {
+    const row = document.createElement("tr");
+
+    // ID
+    const idCell = document.createElement("td");
+    idCell.textContent = order.order_id;
+    row.appendChild(idCell);
+
+    // status
+    const statusCell = document.createElement("td");
+    statusCell.textContent = order.status;
+    row.appendChild(statusCell);
+
+    // created
+    const createdCell = document.createElement("td");
+    createdCell.textContent = new Date(order.created).toLocaleString();
+    row.appendChild(createdCell);
+
+    // finished
+    const finishedCell = document.createElement("td");
+    finishedCell.textContent = new Date(order.finished).toLocaleString();
+    row.appendChild(finishedCell);
+
+    // processing time
+    const processTimeCell = document.createElement("td");
+    const processTimeMs =
+      Date.parse(order.finished) - Date.parse(order.created);
+    processTimeCell.textContent = `${(processTimeMs / 1000).toFixed(0)}s`;
+    row.appendChild(processTimeCell);
+
+    tableBody.appendChild(row);
+  });
+}
+
+function updateStationOrderTable(table, station_orders) {
+  const tableBody = table.querySelector("tbody");
+  tableBody.innerHTML = "";
+
+  station_orders.forEach((entry) => {
+    const row = document.createElement("tr");
+
+    // Station ID
+    const idCell = document.createElement("td");
+    idCell.textContent = entry.station_id;
+    row.appendChild(idCell);
+
+    // If no Order ID
+    if (!entry.order_id) {
+      return;
+    }
+
+    // Order ID
+    const orderIdCell = document.createElement("td");
+    orderIdCell.textContent = entry.order_id;
+    row.appendChild(orderIdCell);
+
+    // Items Completed
+    const itemsCompletedCell = document.createElement("td");
+    if (entry.completed_item_names) {
+      itemsCompletedCell.appendChild(
+        createItemCellTable(
+          entry.completed_item_names,
+          entry.completed_item_quantities,
+          'complete'
+        )
+      );
+    }
+    row.appendChild(itemsCompletedCell);
+
+    // Items Needed
+    const itemsNeededCell = document.createElement("td");
+    if (entry.open_item_names) {
+      itemsNeededCell.appendChild(
+        createItemCellTable(entry.open_item_names, entry.open_item_quantities)
+      );
+    }
+    row.appendChild(itemsNeededCell);
+
+    tableBody.appendChild(row);
+  });
 }
 
 // ---------------------------------------------------
@@ -306,16 +440,6 @@ socket.on("set_world", (/** @type {any} */ msg) => {
   svg_update_robots(world.robots, 0); // Update their initial positions and held items
 });
 
-// Set iframe URL to the flask web server.
-socket.on("set_ims_url", (ims_url) => {
-  const ims_iframe = document.getElementById("ims-iframe");
-  if (ims_iframe == null) {
-    throw Error("Missing ims-iframe element.");
-  }
-  console.log(`setting ims_url to ${ims_url}`);
-  ims_iframe.setAttribute('src', ims_url);
-})
-
 var latest_msg;
 
 var t_start;
@@ -335,6 +459,61 @@ socket.on("update", (/** @type {any} */ msg) => {
   if (msg.t != null) {
     update_time(msg.t);
   }
+});
+
+const newOrderTable = document.getElementById("neworders");
+if (newOrderTable == null) {
+  throw Error("Missing newOrderTable element.");
+}
+socket.on("ims_new_orders", (/** @type {any} */ orders) => {
+  // If world exists and has item_names set, add item names to order items
+  if (world) {
+    orders.forEach((order) => {
+      order.item_names = order.item_ids.map(
+        (item_id) => world.item_names[item_id]
+      );
+    });
+  }
+  updateNewOrderTable(newOrderTable, orders);
+});
+
+const finishedOrderTable = document.getElementById("finishedorders");
+if (finishedOrderTable == null) {
+  throw Error("Missing finishedOrderTable element.");
+}
+socket.on("ims_finished_orders", (/** @type {any} */ orders) => {
+  // If world exists and has item_names set, add item names to order items
+  if (world) {
+    orders.forEach((order) => {
+      order.item_names = order.item_ids.map(
+        (item_id) => world.item_names[item_id]
+      );
+    });
+  }
+  updateFinishedOrderTable(finishedOrderTable, orders);
+});
+
+const stationOrderTable = document.getElementById("stations");
+if (stationOrderTable == null) {
+  throw Error("Missing stationOrderTable element.");
+}
+socket.on("ims_station_orders", (/** @type {any} */ station_orders) => {
+  // If world exists and has item_names set, add item names to order items
+  if (world) {
+    station_orders.forEach((order) => {
+      if (order.completed_item_ids) {
+        order.completed_item_names = order.completed_item_ids.map(
+          (item_id) => world.item_names[item_id]
+        );
+      }
+      if (order.open_item_ids) {
+        order.open_item_names = order.open_item_ids.map(
+          (item_id) => world.item_names[item_id]
+        );
+      }
+    });
+  }
+  updateStationOrderTable(stationOrderTable, station_orders);
 });
 
 // ---------------------------------------------------
