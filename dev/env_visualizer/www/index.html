@@ -30,19 +30,6 @@
                                     <th>Status</th>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td>{{ order.order_id }}</td>
-                                        <td>
-                                            <table>
-                                                <tr>
-                                                    <td>{{ item_id | get_item_name }}{% if quantity > 1
-                                                        %}x{{quantity}}{%
-                                                        endif %}</td>
-                                                </tr>
-                                            </table>
-                                        </td>
-                                        <td class="inprogress">{{ order.status }}</td>
-                                    </tr>
                                 </tbody>
                             </table>
                         </td>
