@@ -53,7 +53,6 @@ class DatabaseManager {
     const query = `
     SELECT
         Station.*,
-        "Order".*,
         GROUP_CONCAT(CASE WHEN Task.status = 'COMPLETE' THEN Task.item_id ELSE NULL END) AS completed_item_ids,
         GROUP_CONCAT(CASE WHEN Task.status = 'COMPLETE' THEN OrderItem.quantity ELSE NULL END) AS completed_item_quantities,
         GROUP_CONCAT(CASE WHEN Task.status = 'OPEN' THEN Task.item_id ELSE NULL END) AS open_item_ids,
