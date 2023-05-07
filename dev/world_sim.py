@@ -286,7 +286,7 @@ if __name__ == '__main__':
     robots = [Robot(RobotId(i), (col, row))
               for i, (row, col) in enumerate(robot_home_zones)]
 
-    TIME_STEP_SEC = 1
+    TIME_STEP_SEC = 2
     world = World(grid, robots, TIME_STEP_SEC, item_load_zones,
                   station_zones, logger=logger)
     if 'reset' in sys.argv:
