@@ -172,6 +172,7 @@ const redis = require("redis");
   await subscriber.connect();
 })();
 
+const UPDATE_IMS_RATE_MS = 10000;
 setInterval(() => {
   // TODO : Put in one message?
   dbm.get_new_orders(10).then(new_orders => {
@@ -183,7 +184,7 @@ setInterval(() => {
   dbm.get_finished_orders(10).then(finished_orders => {
     io.emit("ims_finished_orders", finished_orders);
   })
-}, 1000);
+}, UPDATE_IMS_RATE_MS);
 
 function update_robots() {
   robot_dbm.get_robots().then((robots_db_data) => {
