@@ -202,12 +202,14 @@ function update_ims_table() {
   Promise.all(
     [dbm.get_new_orders(10),
     dbm.get_stations_and_order(),
-    dbm.get_finished_orders(10)]
+    dbm.get_finished_orders(10),
+    dbm.get_order_counts()]
   ).then(result => {
     const all_orders = {
       'new': result[0],
       'station': result[1],
-      'finished': result[2]
+      'finished': result[2],
+      'counts': result[3]
     }
 
     io.emit("ims_all_orders", all_orders);

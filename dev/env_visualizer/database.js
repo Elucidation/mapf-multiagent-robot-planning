@@ -208,27 +208,9 @@ class DatabaseManager {
     });
   }
 
-  async get_order_items_by_ids(order_ids) {
+  async get_order_counts() {
     return new Promise((resolve, reject) => {
-      if (!order_ids || !Array.isArray(order_ids) || order_ids.length === 0) {
-        return reject(
-          new Error("Invalid order IDs input. Must be a non-empty array.")
-        );
-      }
-      const placeholders = order_ids.map(() => "?").join(",");
-      const query = `SELECT order_id, item_id, quantity FROM "OrderItem" WHERE order_id IN (${placeholders})`;
-      this.db.all(query, order_ids, (err, rows) => {
-        if (err) {
-          return reject(err);
-        }
-        resolve(rows);
-      });
-    });
-  }
-
-  async get_tasks() {
-    return new Promise((resolve, reject) => {
-      this.db.all("SELECT rowid as id, * FROM Task", (err, rows) => {
+      this.db.all(`SELECT status, COUNT(*) as count FROM "Order" GROUP BY status`, (err, rows) => {
         if (err) return reject(err);
         resolve(rows);
       });
