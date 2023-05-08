@@ -266,14 +266,14 @@ function setGridSVG(gridData) {
   return gridSVG;
 }
 
-function createItemCellTable(itemNames, itemQuantities, attrClass='') {
+function createItemCellTable(itemNames, itemQuantities, attrClass = "") {
   const table = document.createElement("table");
   const tr = document.createElement("tr");
 
   itemNames.forEach((item, idx) => {
     const itemCell = document.createElement("td");
-    if (attrClass){
-      itemCell.setAttribute('class', attrClass);
+    if (attrClass) {
+      itemCell.setAttribute("class", attrClass);
     }
     itemCell.textContent = item;
 
@@ -281,7 +281,7 @@ function createItemCellTable(itemNames, itemQuantities, attrClass='') {
     if (itemQuantities[idx] > 1) {
       const quantitySpan = document.createElement("span");
       quantitySpan.className = "quantity-color";
-  
+
       quantitySpan.textContent = `x${itemQuantities[idx]}`;
       itemCell.appendChild(quantitySpan);
     }
@@ -387,7 +387,7 @@ function updateStationOrderTable(table, station_orders) {
         createItemCellTable(
           entry.completed_item_names,
           entry.completed_item_quantities,
-          'complete'
+          "complete"
         )
       );
     }
@@ -408,10 +408,16 @@ function updateStationOrderTable(table, station_orders) {
 
 function updateCounts(counts) {
   // counts dict {COMPLETE: ..., IN_PROGRESS: ..., OPEN: ...}
-  const new_order_count_elem = document.getElementById("new_order_count")
-  const finished_order_count_elem = document.getElementById("finished_order_count");
-  if (new_order_count_elem) { new_order_count_elem.textContent = counts.COMPLETE; }
-  if (finished_order_count_elem) { finished_order_count_elem.textContent = counts.OPEN; }
+  const new_order_count_elem = document.getElementById("new_order_count");
+  const finished_order_count_elem = document.getElementById(
+    "finished_order_count"
+  );
+  if (new_order_count_elem) {
+    new_order_count_elem.textContent = counts.OPEN || "-";
+  }
+  if (finished_order_count_elem) {
+    finished_order_count_elem.textContent = counts.COMPLETE || "-";
+  }
 }
 
 // ---------------------------------------------------
