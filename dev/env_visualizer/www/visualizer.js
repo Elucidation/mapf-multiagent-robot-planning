@@ -469,41 +469,31 @@ const newOrderTable = document.getElementById("neworders");
 if (newOrderTable == null) {
   throw Error("Missing newOrderTable element.");
 }
-socket.on("ims_new_orders", (/** @type {any} */ orders) => {
-  // If world exists and has item_names set, add item names to order items
-  if (world) {
-    orders.forEach((order) => {
-      order.item_names = order.item_ids.map(
-        (item_id) => world.item_names[item_id]
-      );
-    });
-  }
-  updateNewOrderTable(newOrderTable, orders);
-});
-
 const finishedOrderTable = document.getElementById("finishedorders");
 if (finishedOrderTable == null) {
   throw Error("Missing finishedOrderTable element.");
 }
-socket.on("ims_finished_orders", (/** @type {any} */ orders) => {
-  // If world exists and has item_names set, add item names to order items
-  if (world) {
-    orders.forEach((order) => {
-      order.item_names = order.item_ids.map(
-        (item_id) => world.item_names[item_id]
-      );
-    });
-  }
-  updateFinishedOrderTable(finishedOrderTable, orders);
-});
-
 const stationOrderTable = document.getElementById("stations");
 if (stationOrderTable == null) {
   throw Error("Missing stationOrderTable element.");
 }
-socket.on("ims_station_orders", (/** @type {any} */ station_orders) => {
+
+socket.on("ims_all_orders", (/** @type {any} */ all_orders) => {
+  const new_orders = all_orders["new"];
+  const finished_orders = all_orders["finished"];
+  const station_orders = all_orders["station"];
   // If world exists and has item_names set, add item names to order items
   if (world) {
+    new_orders.forEach((order) => {
+      order.item_names = order.item_ids.map(
+        (item_id) => world.item_names[item_id]
+      );
+    });
+    finished_orders.forEach((order) => {
+      order.item_names = order.item_ids.map(
+        (item_id) => world.item_names[item_id]
+      );
+    });
     station_orders.forEach((order) => {
       if (order.completed_item_ids) {
         order.completed_item_names = order.completed_item_ids.map(
@@ -517,6 +507,8 @@ socket.on("ims_station_orders", (/** @type {any} */ station_orders) => {
       }
     });
   }
+  updateNewOrderTable(newOrderTable, new_orders);
+  updateFinishedOrderTable(finishedOrderTable, finished_orders);
   updateStationOrderTable(stationOrderTable, station_orders);
 });
 

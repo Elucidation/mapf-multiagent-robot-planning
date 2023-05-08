@@ -172,17 +172,20 @@ const redis = require("redis");
   await subscriber.connect();
 })();
 
-const UPDATE_IMS_RATE_MS = 2000;
+const UPDATE_IMS_RATE_MS = 4000;
 setInterval(() => {
-  // TODO : Put in one message?
-  dbm.get_new_orders(10).then(new_orders => {
-    io.emit("ims_new_orders", new_orders);
-  })
-  dbm.get_stations_and_order().then(station_orders => {
-    io.emit("ims_station_orders", station_orders);
-  })
-  dbm.get_finished_orders(10).then(finished_orders => {
-    io.emit("ims_finished_orders", finished_orders);
+  Promise.all(
+    [dbm.get_new_orders(10),
+    dbm.get_stations_and_order(),
+    dbm.get_finished_orders(10)]
+  ).then(result => {
+    const all_orders = {
+      'new': result[0],
+      'station': result[1],
+      'finished': result[2]
+    }
+
+    io.emit("ims_all_orders", all_orders);
   })
 }, UPDATE_IMS_RATE_MS);
 
