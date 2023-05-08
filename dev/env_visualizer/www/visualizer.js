@@ -277,11 +277,15 @@ function createItemCellTable(itemNames, itemQuantities, attrClass='') {
     }
     itemCell.textContent = item;
 
-    const quantitySpan = document.createElement("span");
-    quantitySpan.className = "quantity-color";
+    // If more than one item, add a 'xN' to the item name
+    if (itemQuantities[idx] > 1) {
+      const quantitySpan = document.createElement("span");
+      quantitySpan.className = "quantity-color";
+  
+      quantitySpan.textContent = `x${itemQuantities[idx]}`;
+      itemCell.appendChild(quantitySpan);
+    }
 
-    quantitySpan.textContent = `x${itemQuantities[idx]}`;
-    itemCell.appendChild(quantitySpan);
     tr.appendChild(itemCell);
   });
 
