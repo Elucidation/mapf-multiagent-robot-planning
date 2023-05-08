@@ -1,15 +1,15 @@
 # Automated Warehouse & Multi-agent path planning
 
-What all goes into logistics? I explore this by building a simulated automated warehouse and the systems needed to consolidate orders with multiple agents.
+*The [wiki](https://github.com/Elucidation/mapf-multiagent-robot-planning/wiki) contains the most recent information on this project. [Potentially live demo](http://warehouse.tetralark.com/)*
 
-*A demonstration automated warehouse system may or may not be deployed live at http://warehouse.tetralark.com/*
+What all goes into logistics? I explore this by building a simulated automated warehouse and the systems needed to consolidate orders with multiple agents.
 
 We first assume a spherical cow / 2D grid world layout for the warehouse, we will have N robots that can move items from load zones to stations, 
 and then a system for tracking incoming Orders and fulfilling them with those Robots. 
 
 This breaks up into two parts, the algorithm side (MAPF) and the logistics/database side (inventory management system / automated warehouse).
 
-*The [wiki](https://github.com/Elucidation/mapf-multiagent-robot-planning/wiki) contains the most recent information on this project.*
+
 
 https://user-images.githubusercontent.com/434925/234989748-8a36ec2a-aaec-4342-b32e-4234e35d7ee1.mp4
 
