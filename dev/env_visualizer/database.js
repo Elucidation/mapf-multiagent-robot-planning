@@ -26,6 +26,8 @@ class DatabaseManager {
       lastUpdateFinished: null,
       stationOrders: null,
       lastUpdateStation: null,
+      counts: null,
+      lastUpdateCounts: null,
       cacheDurationMs: 2000,
     };
   }
@@ -209,10 +211,21 @@ class DatabaseManager {
   }
 
   async get_order_counts() {
+    const currentTime = Date.now();
+    if (
+      this.cache.counts !== null &&
+      this.cache.lastUpdateCounts !== null &&
+      currentTime - this.cache.lastUpdateCounts < this.cacheDurationMs
+    ) {
+      return this.cache.counts;
+    }
     return new Promise((resolve, reject) => {
       this.db.all(`SELECT status, COUNT(*) as count FROM "Order" GROUP BY status`, (err, rows) => {
         if (err) return reject(err);
-        resolve(rows);
+        this.cache.counts = Object.fromEntries(rows.map(x => [x.status, x.count]));;
+        this.cache.lastUpdateCounts = currentTime;
+        console.info(`get counts took ${Date.now() - currentTime} ms`);
+        resolve(this.cache.counts);
       });
     });
   }

@@ -407,13 +407,11 @@ function updateStationOrderTable(table, station_orders) {
 }
 
 function updateCounts(counts) {
-  // order is COMPLETE / IN_PROGRESS / OPEN
-  const completed = counts[0]["count"];
-  const finished = counts[2]["count"];
+  // counts dict {COMPLETE: ..., IN_PROGRESS: ..., OPEN: ...}
   const new_order_count_elem = document.getElementById("new_order_count")
   const finished_order_count_elem = document.getElementById("finished_order_count");
-  if (new_order_count_elem) { new_order_count_elem.textContent = completed; }
-  if (finished_order_count_elem) { finished_order_count_elem.textContent = finished; }
+  if (new_order_count_elem) { new_order_count_elem.textContent = counts.COMPLETE; }
+  if (finished_order_count_elem) { finished_order_count_elem.textContent = counts.OPEN; }
 }
 
 // ---------------------------------------------------
@@ -489,11 +487,12 @@ if (stationOrderTable == null) {
   throw Error("Missing stationOrderTable element.");
 }
 
+var counts;
 socket.on("ims_all_orders", (/** @type {any} */ all_orders) => {
   const new_orders = all_orders["new"];
   const finished_orders = all_orders["finished"];
   const station_orders = all_orders["station"];
-  const counts = all_orders["counts"];
+  counts = all_orders["counts"];
   // If world exists and has item_names set, add item names to order items
   if (world) {
     new_orders.forEach((order) => {
