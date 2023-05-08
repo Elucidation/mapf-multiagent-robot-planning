@@ -512,11 +512,6 @@ socket.on("ims_all_orders", (/** @type {any} */ all_orders) => {
         (item_id) => world.item_names[item_id]
       );
     });
-    finished_orders.forEach((order) => {
-      order.item_names = order.item_ids.map(
-        (item_id) => world.item_names[item_id]
-      );
-    });
     station_orders.forEach((order) => {
       if (order.completed_item_ids) {
         order.completed_item_names = order.completed_item_ids.map(
