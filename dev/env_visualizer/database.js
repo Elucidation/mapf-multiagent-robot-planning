@@ -134,7 +134,7 @@ class DatabaseManager {
     GROUP BY
         "Order".order_id
     ORDER BY
-        "Order".created
+        "Order".order_id
     LIMIT ?;`;
 
     return new Promise((resolve, reject) => {
@@ -159,6 +159,7 @@ class DatabaseManager {
   }
 
   async get_finished_orders(limit_rows) {
+    // Only return order info for visualization: id, status, timestamps
     const currentTime = Date.now();
     // If cache is valid and not older than cacheDuration, return the cached data
     if (
@@ -183,7 +184,7 @@ class DatabaseManager {
     GROUP BY
         "Order".order_id
     ORDER BY
-        "Order".finished
+        "Order".order_id
     DESC LIMIT ?;`;
 
     return new Promise((resolve, reject) => {
