@@ -39,22 +39,6 @@ spec:
               mountPath: /home/app
             - name: vol-db
               mountPath: /data
-        # Flask web UI
-        - name: web-flask
-          workingDir: /home/app/mapf/dev
-          args:
-            - python
-            - -m
-            - inventory_management_system.order_tracking_web_server
-          image: aw_base
-          imagePullPolicy: Never
-          ports:
-            - containerPort: 5000
-          volumeMounts:
-            - name: vol1
-              mountPath: /home/app
-            - name: vol-db
-              mountPath: /data
       restartPolicy: Always
       volumes:
         - name: vol1 # Assumes /home/app/mapf has git dir
@@ -80,16 +64,3 @@ spec:
       targetPort: 30001
       nodePort: 30001
   type: NodePort
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: web-flask-service
-spec:
-  selector:
-    app: mapf
-  ports:
-    - protocol: TCP
-      port: 5000
-      targetPort: 5000
-  type: ClusterIP
