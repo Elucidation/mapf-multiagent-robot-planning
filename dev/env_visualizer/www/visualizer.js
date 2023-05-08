@@ -369,8 +369,9 @@ function updateStationOrderTable(table, station_orders) {
     idCell.textContent = entry.station_id;
     row.appendChild(idCell);
 
-    // If no Order ID
+    // If no Order ID just keep empty station ID
     if (!entry.order_id) {
+      tableBody.appendChild(row);
       return;
     }
 
