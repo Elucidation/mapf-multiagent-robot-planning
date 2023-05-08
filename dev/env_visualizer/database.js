@@ -104,7 +104,9 @@ class DatabaseManager {
           // Update cache and return
           this.cache.stationOrders = rows;
           this.cache.lastUpdateStation = currentTime;
-          console.info(`get station orders took ${Date.now() - currentTime} ms`);
+          console.info(
+            `get station orders took ${Date.now() - currentTime} ms`
+          );
           resolve(rows);
         }
       });
@@ -161,7 +163,6 @@ class DatabaseManager {
   }
 
   async get_finished_orders(limit_rows) {
-    // Only return order info for visualization: id, status, timestamps
     const currentTime = Date.now();
     // If cache is valid and not older than cacheDuration, return the cached data
     if (
@@ -173,18 +174,9 @@ class DatabaseManager {
     }
 
     const query = `
-    SELECT
-    "Order".*,
-    GROUP_CONCAT(OrderItem.item_id) AS item_ids,
-	  GROUP_CONCAT(OrderItem.quantity) AS item_quantities
-    FROM
-        "Order"
-    JOIN
-        OrderItem ON "Order".order_id = OrderItem.order_id
+    SELECT *  FROM "Order"
     WHERE
         "Order".status = 'COMPLETE'
-    GROUP BY
-        "Order".order_id
     ORDER BY
         "Order".order_id
     DESC LIMIT ?;`;
@@ -194,16 +186,12 @@ class DatabaseManager {
         if (err) {
           reject(err);
         } else {
-          // split up item_ids/quantities into lists
-          rows.forEach((row) => {
-            row.item_ids = row.item_ids.split(",").map(Number);
-            row.item_quantities = row.item_quantities.split(",").map(Number);
-          });
-
           // Update cache and return
           this.cache.finishedOrders = rows;
           this.cache.lastUpdateFinished = currentTime;
-          console.info(`get finished orders took ${Date.now() - currentTime} ms`);
+          console.info(
+            `get finished orders took ${Date.now() - currentTime} ms`
+          );
           resolve(rows);
         }
       });
@@ -220,13 +208,18 @@ class DatabaseManager {
       return this.cache.counts;
     }
     return new Promise((resolve, reject) => {
-      this.db.all(`SELECT status, COUNT(*) as count FROM "Order" GROUP BY status`, (err, rows) => {
-        if (err) return reject(err);
-        this.cache.counts = Object.fromEntries(rows.map(x => [x.status, x.count]));;
-        this.cache.lastUpdateCounts = currentTime;
-        console.info(`get counts took ${Date.now() - currentTime} ms`);
-        resolve(this.cache.counts);
-      });
+      this.db.all(
+        `SELECT status, COUNT(*) as count FROM "Order" GROUP BY status`,
+        (err, rows) => {
+          if (err) return reject(err);
+          this.cache.counts = Object.fromEntries(
+            rows.map((x) => [x.status, x.count])
+          );
+          this.cache.lastUpdateCounts = currentTime;
+          console.info(`get counts took ${Date.now() - currentTime} ms`);
+          resolve(this.cache.counts);
+        }
+      );
     });
   }
 }
