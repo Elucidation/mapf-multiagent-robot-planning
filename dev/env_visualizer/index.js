@@ -166,28 +166,12 @@ const redis = require("redis");
       subscriber.subscribe("WORLD_T", (world_t_str) => {
         world.t = parseInt(world_t_str);
         update_robots();
+        update_ims_table();
       });
     });
 
   await subscriber.connect();
 })();
-
-const UPDATE_IMS_RATE_MS = 4000;
-setInterval(() => {
-  Promise.all(
-    [dbm.get_new_orders(10),
-    dbm.get_stations_and_order(),
-    dbm.get_finished_orders(10)]
-  ).then(result => {
-    const all_orders = {
-      'new': result[0],
-      'station': result[1],
-      'finished': result[2]
-    }
-
-    io.emit("ims_all_orders", all_orders);
-  })
-}, UPDATE_IMS_RATE_MS);
 
 function update_robots() {
   robot_dbm.get_robots().then((robots_db_data) => {
@@ -212,4 +196,20 @@ function update_robots() {
     let msg = { t: world.t, robots: robots, dt_s: world.dt_s };
     io.emit("update", msg);
   });
+}
+
+function update_ims_table() {
+  Promise.all(
+    [dbm.get_new_orders(10),
+    dbm.get_stations_and_order(),
+    dbm.get_finished_orders(10)]
+  ).then(result => {
+    const all_orders = {
+      'new': result[0],
+      'station': result[1],
+      'finished': result[2]
+    }
+
+    io.emit("ims_all_orders", all_orders);
+  })
 }

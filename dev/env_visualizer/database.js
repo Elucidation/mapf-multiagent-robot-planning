@@ -26,7 +26,7 @@ class DatabaseManager {
       lastUpdateFinished: null,
       stationOrders: null,
       lastUpdateStation: null,
-      cacheDurationMs: 1000,
+      cacheDurationMs: 2000,
     };
   }
 
