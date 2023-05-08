@@ -172,7 +172,7 @@ const redis = require("redis");
   await subscriber.connect();
 })();
 
-const UPDATE_IMS_RATE_MS = 5000;
+const UPDATE_IMS_RATE_MS = 2000;
 setInterval(() => {
   // TODO : Put in one message?
   dbm.get_new_orders(10).then(new_orders => {
