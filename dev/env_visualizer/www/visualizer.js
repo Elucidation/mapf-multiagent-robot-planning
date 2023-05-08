@@ -334,6 +334,12 @@ function updateFinishedOrderTable(table, orders) {
     // status
     const statusCell = document.createElement("td");
     statusCell.textContent = order.status;
+    if (order.status == "COMPLETE") {
+      statusCell.setAttribute("class", "complete");
+    }
+    else {
+      statusCell.setAttribute("class", "failed");
+    }
     row.appendChild(statusCell);
 
     // created
