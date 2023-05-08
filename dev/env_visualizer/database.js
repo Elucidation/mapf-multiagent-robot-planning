@@ -28,7 +28,7 @@ class DatabaseManager {
       lastUpdateStation: null,
       counts: null,
       lastUpdateCounts: null,
-      cacheDurationMs: 2000,
+      cacheDurationMs: process.env.DB_CACHE_DURATION_MS || 2000,
     };
   }
 
