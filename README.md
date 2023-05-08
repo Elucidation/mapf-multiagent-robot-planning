@@ -2,6 +2,8 @@
 
 What all goes into logistics? I explore this by building a simulated automated warehouse and the systems needed to consolidate orders with multiple agents.
 
+*A demonstration automated warehouse system may or may not be deployed live at http://warehouse.tetralark.com/*
+
 We first assume a spherical cow / 2D grid world layout for the warehouse, we will have N robots that can move items from load zones to stations, 
 and then a system for tracking incoming Orders and fulfilling them with those Robots. 
 
