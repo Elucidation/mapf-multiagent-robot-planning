@@ -102,6 +102,7 @@ class DatabaseManager {
           // Update cache and return
           this.cache.stationOrders = rows;
           this.cache.lastUpdateStation = currentTime;
+          console.info(`get station orders took ${Date.now() - currentTime} ms`);
           resolve(rows);
         }
       });
@@ -150,6 +151,7 @@ class DatabaseManager {
           // Update cache and return
           this.cache.newOrders = rows;
           this.cache.lastUpdateNew = currentTime;
+          console.info(`get new orders took ${Date.now() - currentTime} ms`);
           resolve(rows);
         }
       });
@@ -198,6 +200,7 @@ class DatabaseManager {
           // Update cache and return
           this.cache.finishedOrders = rows;
           this.cache.lastUpdateFinished = currentTime;
+          console.info(`get finished orders took ${Date.now() - currentTime} ms`);
           resolve(rows);
         }
       });
