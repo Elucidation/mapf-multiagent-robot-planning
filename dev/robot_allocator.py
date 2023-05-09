@@ -23,7 +23,7 @@ from inventory_management_system.Item import ItemId
 from inventory_management_system.TaskStatus import TaskStatus
 from inventory_management_system.Station import Task
 from inventory_management_system.database_order_manager import DatabaseOrderManager, MAIN_DB
-from logger import create_warehouse_logger
+from warehouse_logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml_xy
 import redis
 # pylint: disable=redefined-outer-name

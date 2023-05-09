@@ -2,7 +2,7 @@
 import os
 import sys
 import time
-from logger import create_warehouse_logger
+from warehouse_logger import create_warehouse_logger
 from .database_order_manager import DatabaseOrderManager, MAIN_DB
 
 

@@ -8,7 +8,7 @@ import logging
 import os
 import time
 import numpy as np
-from logger import create_warehouse_logger
+from warehouse_logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml
 from robot import Robot, RobotId
 from world_db import WorldDatabaseManager, WORLD_DB_PATH
