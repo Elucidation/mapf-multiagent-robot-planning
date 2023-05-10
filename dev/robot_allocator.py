@@ -171,6 +171,7 @@ class RobotAllocator:
         task_keys = self.redis_db.smembers('tasks:inprogress')
         if (task_keys):
             self.redis_db.lpush('tasks:new', *task_keys)
+        self.redis_db.delete('tasks:inprogress')
 
         # Track robot allocations as allocations[robot_id] = Job
         self.allocations: dict[RobotId, Optional[Job]] = {
