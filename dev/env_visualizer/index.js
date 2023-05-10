@@ -146,29 +146,31 @@ robot_dbm.get_dt_sec().then((data) => {
 
 // Set up Redis
 const redis = require("redis");
+var r_client;
 (async () => {
   const host = process.env.REDIS_HOST || "localhost";
   const port = parseInt(process.env.REDIS_PORT || "6379");
+  console.log(`Connecting to Redis server ${host}:${port}`);
   const subscriber = redis.createClient({
     socket: {
       host: host,
       port: port,
     },
   });
-  console.log(`Trying to subscribe to redis server ${host}:${port}`);
-  subscriber
-    .on("error", function () {
-      console.error("Could not connect to Redis");
-    })
-    .on("ready", function () {
-      console.log(`Subscribed to Redis server ${host}:${port}`);
-      subscriber.subscribe("WORLD_T", (world_t_str) => {
-        world.t = parseInt(world_t_str);
-        update_robots();
-        // TODO : Port this over to using redis
-        // update_ims_table();
-      });
-    });
+
+  subscriber.on("error", function (error) {
+    console.error(`Redis Subscribe Error: ${error}`);
+  });
+  subscriber.on("ready", function () {
+    console.log(`Redis server READY ${host}:${port}`);
+  });
+  // Set up callback on WORLD_T publish
+  subscriber.subscribe("WORLD_T", (world_t_str) => {
+    world.t = parseInt(world_t_str);
+    update_robots();
+    // TODO : Port this over to using redis
+    // update_ims_table();
+  });
 
   await subscriber.connect();
 })();
