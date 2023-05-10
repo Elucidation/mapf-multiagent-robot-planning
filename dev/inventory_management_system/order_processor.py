@@ -66,6 +66,7 @@ class OrderProcessor:
             # Consider not setting stations at all when empty
             data = {'order': ''}
             self.r.hset(station_key, mapping=data)
+            # TODO : Put this all in one hash instead of each station getting their own
             # Station starts free/available
             self.r.rpush('stations:free', station_key)
 
