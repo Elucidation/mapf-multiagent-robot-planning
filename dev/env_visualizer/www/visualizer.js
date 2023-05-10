@@ -271,6 +271,7 @@ function createItemCellTable(itemNames, itemQuantities, attrClass = "") {
   const tr = document.createElement("tr");
 
   itemNames.forEach((item, idx) => {
+    if (itemQuantities[idx] == 0) return; // Don't add cell for 0 quantitiy items
     const itemCell = document.createElement("td");
     if (attrClass) {
       itemCell.setAttribute("class", attrClass);
@@ -312,7 +313,7 @@ function updateNewOrderTable(table, orders) {
     row.appendChild(itemCell);
 
     const statusCell = document.createElement("td");
-    statusCell.textContent = order.status;
+    statusCell.textContent = "OPEN"; // Hard-coded for now since redis new orders can only be open.
     row.appendChild(statusCell);
 
     tableBody.appendChild(row);
@@ -333,12 +334,9 @@ function updateFinishedOrderTable(table, orders) {
 
     // status
     const statusCell = document.createElement("td");
-    statusCell.textContent = order.status;
-    if (order.status == "COMPLETE") {
-      statusCell.setAttribute("class", "complete");
-    } else {
-      statusCell.setAttribute("class", "failed");
-    }
+    // Hard-coded for now since redis finished orders can only exist if complete.
+    statusCell.textContent = "COMPLETE";
+    statusCell.setAttribute("class", "complete");
     row.appendChild(statusCell);
 
     // created
@@ -353,8 +351,7 @@ function updateFinishedOrderTable(table, orders) {
 
     // processing time
     const processTimeCell = document.createElement("td");
-    const processTimeMs =
-      Date.parse(order.finished) - Date.parse(order.created);
+    const processTimeMs = order.finished - order.created;
     processTimeCell.textContent = `${(processTimeMs / 1000).toFixed(0)}s`;
     row.appendChild(processTimeCell);
 
@@ -385,24 +382,24 @@ function updateStationOrderTable(table, station_orders) {
     orderIdCell.textContent = entry.order_id;
     row.appendChild(orderIdCell);
 
-    // Items Completed
+    // Items In Station
     const itemsCompletedCell = document.createElement("td");
-    if (entry.completed_item_names) {
+    if (entry.station_item_names) {
       itemsCompletedCell.appendChild(
         createItemCellTable(
-          entry.completed_item_names,
-          entry.completed_item_quantities,
+          entry.station_item_names,
+          entry.station_item_quantities,
           "complete"
         )
       );
     }
     row.appendChild(itemsCompletedCell);
 
-    // Items Needed
+    // Items In Order
     const itemsNeededCell = document.createElement("td");
-    if (entry.open_item_names) {
+    if (entry.order_item_names) {
       itemsNeededCell.appendChild(
-        createItemCellTable(entry.open_item_names, entry.open_item_quantities)
+        createItemCellTable(entry.order_item_names, entry.order_item_quantities)
       );
     }
     row.appendChild(itemsNeededCell);
@@ -411,17 +408,16 @@ function updateStationOrderTable(table, station_orders) {
   });
 }
 
-function updateCounts(counts) {
-  // counts dict {COMPLETE: ..., IN_PROGRESS: ..., OPEN: ...}
+function updateCounts(new_orders, finished_orders) {
   const new_order_count_elem = document.getElementById("new_order_count");
   const finished_order_count_elem = document.getElementById(
     "finished_order_count"
   );
   if (new_order_count_elem) {
-    new_order_count_elem.textContent = counts.OPEN || "-";
+    new_order_count_elem.textContent = new_orders || "-";
   }
   if (finished_order_count_elem) {
-    finished_order_count_elem.textContent = counts.COMPLETE || "-";
+    finished_order_count_elem.textContent = finished_orders || "-";
   }
 }
 
@@ -499,26 +495,48 @@ if (stationOrderTable == null) {
 }
 
 var counts;
-socket.on("ims_all_orders", (/** @type {any} */ all_orders) => {
-  const new_orders = all_orders["new"];
-  const finished_orders = all_orders["finished"];
-  const station_orders = all_orders["station"];
-  counts = all_orders["counts"];
+var latest_ims_msg;
+socket.on("ims_all_orders", (/** @type {any} */ data) => {
+  latest_ims_msg = data;
+  const new_orders = data.new_orders;
+  const finished_orders = data.finished_orders;
+  // Create stations
+  const stations_dict = {};
+  data.free_station_keys.forEach((key) => {
+    let station_id = key.split(":")[1];
+    return (stations_dict[key] = { station_id: station_id });
+  });
+  data.busy_stations.forEach((station) => {
+    stations_dict[station.station_id] = station;
+  });
+  const stations = Object.values(stations_dict);
+  console.log(stations);
+
+  updateCounts(data.new_order_count, data.finished_order_count);
+  // new Date(parseFloat(data.new_orders[0].created * 1000))
   // If world exists and has item_names set, add item names to order items
   if (world) {
     new_orders.forEach((order) => {
+      order.item_ids = Object.keys(order.items);
+      order.item_quantities = Object.values(order.items);
       order.item_names = order.item_ids.map(
         (item_id) => world.item_names[item_id]
       );
     });
-    station_orders.forEach((order) => {
-      if (order.completed_item_ids) {
-        order.completed_item_names = order.completed_item_ids.map(
+    stations.forEach((station) => {
+      if (station.order) station.order_id = station.order.split(':')[1]
+      // Items in station
+      if (station.items_in_station) {
+        station.station_item_ids = Object.keys(station.items_in_station)
+        station.station_item_quantities = Object.values(station.items_in_station)
+        station.station_item_names = station.station_item_ids.map(
           (item_id) => world.item_names[item_id]
         );
       }
-      if (order.open_item_ids) {
-        order.open_item_names = order.open_item_ids.map(
+      if (station.items_in_order) {
+        station.order_item_ids = Object.keys(station.items_in_order)
+        station.order_item_quantities = Object.values(station.items_in_order)
+        station.order_item_names = station.order_item_ids.map(
           (item_id) => world.item_names[item_id]
         );
       }
@@ -526,8 +544,7 @@ socket.on("ims_all_orders", (/** @type {any} */ all_orders) => {
   }
   updateNewOrderTable(newOrderTable, new_orders);
   updateFinishedOrderTable(finishedOrderTable, finished_orders);
-  updateStationOrderTable(stationOrderTable, station_orders);
-  updateCounts(counts);
+  updateStationOrderTable(stationOrderTable, stations);
 });
 
 // ---------------------------------------------------

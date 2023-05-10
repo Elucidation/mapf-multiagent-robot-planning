@@ -19,6 +19,7 @@ const fs = require("fs");
 
 app.use(express.static(path.join(__dirname, "www")));
 
+// @ts-ignore
 app.get("/", (req, res) => {
   res.sendFile("/index.html");
 });
@@ -28,6 +29,7 @@ io.on("connection", (socket) => {
   console.log(`New connection: ${socket.id} - ${socket.conn.remoteAddress}`);
   socket.emit("set_world", world);
   socket.emit("update", world);
+  update_ims_table();
   socket.conn.on("close", (reason) => {
     console.log(
       `Closed connection: ${socket.id} - ${socket.conn.remoteAddress} - ${reason}`
@@ -169,9 +171,6 @@ var r_client;
   });
   await r_client.connect(); // Wait for connection
 
-  console.log(await r_client.set("foo", "bar")); // 'OK'
-  console.log(await r_client.get("foo")); // 'bar'
-
   // Set up subscriber redis client (2 of 2)
   const subscriber = redis.createClient({
     socket: {
@@ -197,13 +196,14 @@ var r_client;
     world.t = parseInt(world_t_str);
     update_robots();
     // TODO : Port this over to using redis
-    // update_ims_table();
+    update_ims_table();
   });
 
   console.log(
     `Client subscriber connected to redis server ${REDIS_HOST}:${REDIS_PORT}`
   );
 
+  // Update once at beginning
   update_ims_table();
 })();
 
@@ -232,57 +232,109 @@ function update_robots() {
   });
 }
 
+const REDIS_QUERY_RATE_MS = 1000; // max rate to query redis DB at
+var last_redis_query_ms = null;
+var latest_ims_data = null;
 async function update_ims_table() {
+  const t_start = Date.now();
   console.log("Call update_ims_table");
 
-  // Get up to the oldest 10 new orders from the queue [0 - 9] = 10 entries
-  const new_order_keys = await r_client.lRange("orders:new", 0, 9);
+  // Check if cache hit
+  if (
+    last_redis_query_ms &&
+    latest_ims_data &&
+    Date.now() - last_redis_query_ms < REDIS_QUERY_RATE_MS
+  ) {
+    console.log("Returning cached ims data");
+    io.emit("ims_all_orders", latest_ims_data);
+    return;
+  }
 
-  // Get up to the latest 10 finished orders
-  const finished_orders = await r_client.xRevRange(
-    "orders:finished",
-    "+",
-    "-",
-    { COUNT: 10 }
-  );
-  // finished_orders = list [
-  //   {
-  //     id: '1683752293575-0',
-  //     message: [Object: null prototype] {
-  //       order_id: '18',
-  //       created: '1683752269.519895',
-  //       items: '{"1": 1, "0": 2, "4": 1}',
-  //       station: 'station:2'
-  //     }
-  //   }, ... ]
-
-  // Get Stations (and any orders they contain)
-  
-  // Use a pipeline to get calls at once
+  // Use a pipeline to batch up redis calls and reduce networking
   const r_multi = r_client.multi();
+
+  var ims_data = {};
+
+  // Get up to the oldest 10 new orders from the queue [0 - 9] = 10 entries
+  r_multi.lRange("orders:new", 0, 9);
+  // Get up to the latest 10 finished orders
+  r_multi.xRevRange("orders:finished", "+", "-", { COUNT: 10 });
+
+  // Get busy/free station info etc.
   r_multi.sMembers("stations:free");
   r_multi.sMembers("stations:busy");
-  const [free_station_keys, busy_station_keys] = await r_multi.exec();
+  r_multi.lLen("orders:new");
+  r_multi.xLen("orders:finished");
+  r_multi.get("station:count");
+  const [
+    new_order_keys,
+    finished_orders_raw,
+    free_station_keys,
+    busy_station_keys,
+    new_order_count,
+    finished_order_count,
+    station_count,
+  ] = await r_multi.exec();
 
-  console.log("new", new_order_keys);
-  console.log("finished", finished_orders.length);
-  console.log("free stations", free_station_keys);
-  console.log("busy stations", busy_station_keys);
+  var finished_orders = [];
+  if (finished_orders_raw) {
+    // @ts-ignore
+    finished_orders = finished_orders_raw.map((order) => {
+      order.message.items = JSON.parse(order.message.items);
+      order.message.created = parseFloat(order.message.created) * 1000.0; // Make ms also
+      order.message.finished = parseInt(order.id); // Make ms
+      return order.message;
+    });
+  }
 
-  console.log("todo");
-  //   Promise.all(
-  //     [dbm.get_new_orders(10),
-  //     dbm.get_stations_and_order(),
-  //     dbm.get_finished_orders(10),
-  //     dbm.get_order_counts()]
-  //   ).then(result => {
-  //     const all_orders = {
-  //       'new': result[0],
-  //       'station': result[1],
-  //       'finished': result[2],
-  //       'counts': result[3]
-  //     }
+  // ims_data["new_order_keys"] = new_order_keys;
+  ims_data["finished_orders"] = finished_orders;
+  ims_data["free_station_keys"] = free_station_keys; // set to list
+  ims_data["busy_station_keys"] = busy_station_keys;
+  ims_data["station_count"] = station_count;
+  ims_data["new_order_count"] = new_order_count;
+  ims_data["finished_order_count"] = finished_order_count;
 
-  //     io.emit("ims_all_orders", all_orders);
-  //   })
+  // Using the keys, get the order info for new orders
+  if (new_order_keys) {
+    const r_multi = r_client.multi();
+    // @ts-ignore
+    new_order_keys.forEach((order_key) => {
+      r_multi.hGetAll(order_key);
+    });
+    const new_orders = await r_multi.exec();
+    ims_data["new_orders"] = new_orders.map((order) => {
+      // @ts-ignore
+      order.items = JSON.parse(order.items);
+      return order;
+    });
+  }
+  // Get Stations (and any orders they contain)
+  //  the station info for the busy stations
+  if (busy_station_keys) {
+    const r_multi = r_client.multi();
+    // @ts-ignore
+    busy_station_keys.forEach((station_key) => {
+      r_multi.hGetAll(station_key);
+    });
+    const busy_stations = await r_multi.exec();
+
+    // Order busy stations
+    ims_data["busy_stations"] = busy_stations.map((station, idx) => {
+      // @ts-ignore
+      station.station_id = busy_station_keys[idx].split(":")[1];
+      // @ts-ignore
+      station.items_in_station = JSON.parse(station.items_in_station);
+      // @ts-ignore
+      station.items_in_order = JSON.parse(station.items_in_order);
+      return station;
+    });
+  }
+  // Around 13-15ms locally
+  console.log(`ims redis queries took ${Date.now() - t_start} ms`);
+
+  // console.log(ims_data);
+  last_redis_query_ms = t_start;
+  latest_ims_data = ims_data;
+  io.emit("ims_all_orders", ims_data);
 }
