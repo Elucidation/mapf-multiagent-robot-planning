@@ -145,16 +145,37 @@ robot_dbm.get_dt_sec().then((data) => {
 });
 
 // Set up Redis
+const REDIS_HOST = process.env.REDIS_HOST || "localhost";
+const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379");  
 const redis = require("redis");
 var r_client;
 (async () => {
-  const host = process.env.REDIS_HOST || "localhost";
-  const port = parseInt(process.env.REDIS_PORT || "6379");
-  console.log(`Connecting to Redis server ${host}:${port}`);
+  console.log(`Client 1 - Redis server ${REDIS_HOST}:${REDIS_PORT}`);
+  r_client = redis.createClient({
+    socket: {
+      host: REDIS_HOST,
+      port: REDIS_PORT,
+    },
+  });
+  r_client.on("error", function (error) {
+    console.error(`Redis Client 1 Error: ${error}`);
+  });
+  r_client.on("ready", function () {
+    console.log(`Redis Client 1 READY ${REDIS_HOST}:${REDIS_PORT}`);
+  });
+  await r_client.connect();
+
+  console.log(`Client 1 Set up - Redis server ${REDIS_HOST}:${REDIS_PORT}`);
+  update_ims_table();
+})();
+
+
+(async () => {
+  console.log(`Client WORLD_T Subscriber - Redis server ${REDIS_HOST}:${REDIS_PORT}`);
   const subscriber = redis.createClient({
     socket: {
-      host: host,
-      port: port,
+      host: REDIS_HOST,
+      port: REDIS_PORT,
     },
   });
 
@@ -162,7 +183,7 @@ var r_client;
     console.error(`Redis Subscribe Error: ${error}`);
   });
   subscriber.on("ready", function () {
-    console.log(`Redis server READY ${host}:${port}`);
+    console.log(`Redis subscriber READY ${REDIS_HOST}:${REDIS_PORT}`);
   });
   // Set up callback on WORLD_T publish
   subscriber.subscribe("WORLD_T", (world_t_str) => {
@@ -200,7 +221,15 @@ function update_robots() {
   });
 }
 
-// function update_ims_table() {
+function update_ims_table() {
+  console.log('Call update_ims_table')
+  r_client.scan("0", "MATCH", "order:*", (error, result) => {
+    if (error) {
+      console.error(`Error: ${error}`);
+    } else {
+      console.log("Orders:", result[1]);
+    }
+  });
 //   Promise.all(
 //     [dbm.get_new_orders(10),
 //     dbm.get_stations_and_order(),
@@ -216,4 +245,4 @@ function update_robots() {
 
 //     io.emit("ims_all_orders", all_orders);
 //   })
-// }
+}

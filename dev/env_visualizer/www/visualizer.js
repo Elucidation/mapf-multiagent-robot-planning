@@ -336,8 +336,7 @@ function updateFinishedOrderTable(table, orders) {
     statusCell.textContent = order.status;
     if (order.status == "COMPLETE") {
       statusCell.setAttribute("class", "complete");
-    }
-    else {
+    } else {
       statusCell.setAttribute("class", "failed");
     }
     row.appendChild(statusCell);
@@ -475,7 +474,7 @@ socket.on("update", (/** @type {any} */ msg) => {
   //   return;
   // }
   // msg is list of x/y positions [{x:..., y:...}, ...] for each robot
-  console.debug("Updating world state", msg);
+  // console.debug("Updating world state", msg);
   prev_robots = curr_robots;
   curr_robots = msg.robots;
 

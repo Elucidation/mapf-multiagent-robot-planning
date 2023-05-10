@@ -61,3 +61,32 @@ DB -> get open orders oldest N -> assign open order to empty station -> DB inser
 DB -> get available tasks for robots oldest N -> assign tasks to available robots -> update DB
 
 on task complete -> check DB if station has no tasks (ie. complete) -> complete order on DB
+
+## Redis Flow
+
+Generally Order Processor does the following in a loop, each loop is a step:
+* Check for requested orders, ingest into new orders for a time
+* Check for processed tasks and complete them, for a time
+* Check if any stations are complete
+* Check for new orders an assign them while stations/orders are available
+
+More specifically:
+
+New order requests come in to the queue 'orders:requested'
+
+Order Processor does in a loop:
+* ingest: try lpop from 'orders:requested', creates an order and appends to queue 'orders:new'
+* finish tasks: tries to lpop 'tasks:processed', adding those items to station, and append task log to 'tasks:finished'
+* complete stations: for any tasks finished in previous step, check if that station has all tasks finished
+  if yes, clear station and add it to back onto the set 'stations:free', 
+    complete the order for that station, appending finished order log to 'orders:finished'
+* assign: checks if there exists members in the queue 'orders:new' and the set 'stations:free',
+  if yes, lpops a new order from queue 'orders:new' and pops a station from 'stations:free',
+    then it assigns the order to that station,
+    also creating and appending many tasks to 'tasks:new' for each item in the order
+  else: continues
+
+
+keys: 'stations:free', 'station:count',
+      'orders:requested', 'orders:new', 'orders:finished',
+      'tasks:new', 'tasks:inprogress', 'tasks:processed', 'tasks:finished'
