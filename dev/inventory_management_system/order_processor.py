@@ -12,7 +12,6 @@ Sub to messages from redis
   Also try to assign a new order to station in redis and DB?
 """
 import time
-import datetime
 import json
 import os
 import sys
@@ -21,10 +20,17 @@ import redis
 from warehouse_logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml
 from .Item import ItemCounter, ItemId
-from .Order import Order, OrderId
+from .Order import OrderId
 from .Station import StationId
 
 logger = create_warehouse_logger('order_processor')
+
+# How often order processor tries to update
+STEP_RATE_MS = int(os.getenv("STEP_RATE_MS", default="1000"))
+# Max time to spend ingesting order requests to new orders, in a step
+MAX_INGEST_TIME_MS = int(os.getenv("MAX_INGEST_TIME_MS", default="100"))
+# Max time to spend finishing processed tasks, in a step
+MAX_TASK_PROC_TIME_MS = int(os.getenv("MAX_TASK_PROC_TIME_MS", default="100"))
 
 
 class OrderProcessor:
@@ -104,7 +110,6 @@ class OrderProcessor:
         # logger.info('--- Step Start')
         self.step_start = time.time()
         # Check for requested orders, ingest into new orders for a time
-        MAX_INGEST_TIME_MS = 100
         order_keys = []
         while (time.time() - self.step_start) < MAX_INGEST_TIME_MS:
             order_key = self.try_ingest_order_request()
@@ -117,7 +122,6 @@ class OrderProcessor:
 
         # Check for processed tasks and complete them, for a time
         time_start = time.time()
-        MAX_TASK_PROC_TIME_MS = 100
         task_group_keys = set()
         while (time.time() - time_start) < MAX_TASK_PROC_TIME_MS:
             task_key = self.r.rpop('tasks:processed')
@@ -136,7 +140,6 @@ class OrderProcessor:
             continue
 
     def sleep(self):
-        STEP_RATE_MS = 1000
         if self.step_start:
             delay_ms = STEP_RATE_MS - (time.time() - self.step_start)
             if delay_ms < 0:
@@ -166,8 +169,9 @@ class OrderProcessor:
         if not self.r.exists('stations:free'):
             return None  # No free stations
 
-        order_key = self.r.lpop('orders:new')  # Removes from new orders queue, 
-        self.r.sadd('orders:inprogress', order_key) # Add to set orders:inprogress
+        order_key = self.r.lpop('orders:new')  # Removes from new orders queue,
+        # Add to set orders:inprogress
+        self.r.sadd('orders:inprogress', order_key)
         # Remove station from free queue, add to busy station set
         station_key = self.r.lpop('stations:free')
         self.r.sadd('stations:busy', station_key)
@@ -186,7 +190,7 @@ class OrderProcessor:
 
         # Create tasks for that station (1 per item times quantity)
         # There is a task group key: 'task:station:<id>:order:<id>' -> set(item_id, item_id...)
-        #   Which has a set of all the individual task keys 'task:station:<id>:order:<id>:<item_id>:<idx>'
+        #   Which has a set of all the task keys 'task:station:<id>:order:<id>:<item_id>:<idx>'
         # Each of these task keys are pushed onto the tasks:new queue
         task_group_key = f'task:{station_key}:{order_key}'
         # Unique id for that task 'task:station:id:order:id:item_id:idx' for all items in order
@@ -251,7 +255,7 @@ class OrderProcessor:
             self.r.hget(station_key, 'items_in_station'))
         # Note: Critical that item_id stays int at all times or we get two keys
         # Having '#' and # with json loads/dumps breaks
-        assert (isinstance(item_id, int))
+        assert isinstance(item_id, int)
         items_in_station[item_id] += 1
         self.r.hset(station_key, 'items_in_station',
                     json.dumps(items_in_station))
@@ -290,12 +294,15 @@ class OrderProcessor:
         # All items added, clear station and finish order
         self.r.hdel(station_key, 'items_in_station', 'items_in_order')
         self.r.hset(station_key, 'order', '')
-        self.r.srem('stations:busy', station_key) # Remove station from busy set
-        self.r.rpush('stations:free', station_key) # Append station to free queue
+        # Remove station from busy set
+        self.r.srem('stations:busy', station_key)
+        # Append station to free queue
+        self.r.rpush('stations:free', station_key)
         # Clear order from hash set and push into orders:finished stream
         finished_order = self.r.hgetall(order_key)
         finished_order['station'] = station_key
-        self.r.srem('orders:inprogress', order_key) # Remove from set orders:inprogress
+        # Remove from set orders:inprogress
+        self.r.srem('orders:inprogress', order_key)
         self.r.xadd('orders:finished', finished_order)
         self.r.delete(order_key)
 
