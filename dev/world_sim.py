@@ -266,6 +266,7 @@ if __name__ == '__main__':
     REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
     redis_con = redis.Redis(
         host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    logger.info(f'Connecting to redis server {REDIS_HOST}:{REDIS_PORT}')
     # Note this will fail if redis server not accessible
     while True:
         try:
