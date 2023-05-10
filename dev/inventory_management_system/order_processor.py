@@ -40,8 +40,8 @@ class OrderProcessor:
 
     def reset_redis(self):
         logger.warning('Resetting redis stations/orders/tasks')
-        self.r.delete('stations:free', 'station:count',
-                      'orders:requested', 'orders:new', 'orders:finished',
+        self.r.delete('stations:free', 'stations:busy', 'station:count',
+                      'orders:requested', 'orders:new', 'orders:inprogress', 'orders:finished',
                       'tasks:new', 'tasks:inprogress', 'tasks:processed', 'tasks:finished')
 
         for key in self.r.scan_iter("station:*"):
@@ -166,9 +166,11 @@ class OrderProcessor:
         if not self.r.exists('stations:free'):
             return None  # No free stations
 
-        order_key = self.r.lpop('orders:new')  # Removes from new orders queue
-        # Makes station not free queue
+        order_key = self.r.lpop('orders:new')  # Removes from new orders queue, 
+        self.r.sadd('orders:inprogress', order_key) # Add to set orders:inprogress
+        # Remove station from free queue, add to busy station set
         station_key = self.r.lpop('stations:free')
+        self.r.sadd('stations:busy', station_key)
 
         # Load order items
         order_items = self.parse_items_json(self.r.hget(order_key, 'items'))
@@ -288,10 +290,12 @@ class OrderProcessor:
         # All items added, clear station and finish order
         self.r.hdel(station_key, 'items_in_station', 'items_in_order')
         self.r.hset(station_key, 'order', '')
-        self.r.rpush('stations:free', station_key)
+        self.r.srem('stations:busy', station_key) # Remove station from busy set
+        self.r.rpush('stations:free', station_key) # Append station to free queue
         # Clear order from hash set and push into orders:finished stream
         finished_order = self.r.hgetall(order_key)
         finished_order['station'] = station_key
+        self.r.srem('orders:inprogress', order_key) # Remove from set orders:inprogress
         self.r.xadd('orders:finished', finished_order)
         self.r.delete(order_key)
 
