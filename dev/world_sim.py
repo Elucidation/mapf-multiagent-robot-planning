@@ -280,7 +280,7 @@ if __name__ == '__main__':
         time.sleep(2)
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
-        'warehouses/warehouse3.yaml')
+        os.getenv('WAREHOUSE_YAML', 'warehouses/warehouse3.yaml'))
 
     # Create robots at start positions (row,col) -> (x,y)
     robots = [Robot(RobotId(i), (col, row))

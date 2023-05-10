@@ -166,7 +166,8 @@ const redis = require("redis");
       subscriber.subscribe("WORLD_T", (world_t_str) => {
         world.t = parseInt(world_t_str);
         update_robots();
-        update_ims_table();
+        // TODO : Port this over to using redis
+        // update_ims_table();
       });
     });
 

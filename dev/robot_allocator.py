@@ -10,19 +10,21 @@ Robot Allocator:
     - Pick/Drop items for robots from item zones to station zones
     - Update stations by filling items as they happen
 """
+import json
 from typing import Optional, Tuple, NewType
 import logging
 import os
 import time
 import sqlite3
+from inventory_management_system.Order import OrderId
+from inventory_management_system.Station import StationId
+from inventory_management_system.Item import ItemId
+from inventory_management_system.TaskStatus import TaskStatus
+from inventory_management_system.Station import Task
 import multiagent_planner.pathfinding as pf
 from multiagent_planner.pathfinding import Position, Path
 from robot import Robot, RobotId, RobotStatus
 from world_db import WorldDatabaseManager, WORLD_DB_PATH
-from inventory_management_system.Item import ItemId
-from inventory_management_system.TaskStatus import TaskStatus
-from inventory_management_system.Station import Task
-from inventory_management_system.database_order_manager import DatabaseOrderManager, MAIN_DB
 from warehouse_logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml_xy
 import redis
@@ -34,18 +36,22 @@ JobId = NewType('JobId', int)
 class Job:
     "Build a job from a task, containing actual positions/paths for robot"
 
-    def __init__(self, job_id: JobId, robot_home_zone: Position, item_load_zone: Position,
-                 station_zone: Position, task: Task, robot: Robot) -> None:
+    def __init__(self, job_id: JobId, job_data: dict) -> None:
         # Job-related metadata
         self.job_id = job_id
-        self.task = task
-        self.robot_id = robot.robot_id
+        self.task_key: str = job_data['task']['task_key']
+        self.station_id: StationId = job_data['task']['station_id']
+        self.order_id: OrderId = job_data['task']['order_id']
+        self.item_id: ItemId = job_data['task']['item_id']
+        self.idx: int = job_data['task']['idx']
+
+        self.robot_id: RobotId = job_data['robot']['robot'].robot_id
 
         # Stops on route
-        self.robot_start_pos = robot.pos
-        self.item_zone = item_load_zone
-        self.station_zone = station_zone
-        self.robot_home = robot_home_zone
+        self.robot_start_pos: Position = job_data['robot']['robot'].pos
+        self.item_zone: Position = job_data['robot']['item_zone']
+        self.station_zone: Position = job_data['robot']['station_zone']
+        self.robot_home: Position = job_data['robot']['robot_home']
 
         # Paths
         self.path_robot_to_item: Path
@@ -95,8 +101,7 @@ class Job:
             state_str = "OPEN"
 
         state = [int(s) for s in state]
-        return (f'Job [Robot {self.robot_id},Task {self.task.task_id},Order {self.task.order_id}]'
-                f' Move {self.task.item_id} to {self.task.station_id}: Progress {state_str}, '
+        return (f'Job [Robot {self.robot_id}, Task {self.task_key}: Progress {state_str}, '
                 f'P {len(self.path_robot_to_item)} {len(self.path_item_to_station)} '
                 f'{len(self.path_station_to_home)}')
 
@@ -105,23 +110,22 @@ class RobotAllocator:
     """Robot Allocator, manages robots, assigning them jobs from tasks, 
     updating stations and tasks states as needed"""
 
-    def __init__(self, logger=logging) -> None:
+    def __init__(self, logger=logging, redis_con: redis.Redis = None) -> None:
         self.logger = logger
         # Wait for databases to exist
         while True:
             if not os.path.isfile(WORLD_DB_PATH):
                 logger.warning(
                     f'Unable to see DB "{WORLD_DB_PATH}" yet, waiting.')
-            elif not os.path.isfile(MAIN_DB):
-                logger.warning(f'Unable to see DB "{MAIN_DB}" yet, waiting.')
             else:
                 break
             time.sleep(2)
         # Connect to databases
         self.wdb = WorldDatabaseManager(
             WORLD_DB_PATH)  # Contains World/Robot info
-        self.ims_db = DatabaseOrderManager(
-            MAIN_DB)  # Contains Task information
+
+        # Tracks Order / Task, notifies item adds etc.
+        self.redis_db = redis_con  # Optional
 
         # Load grid positions all in x,y coordinates
         (self.world_grid, self.robot_home_zones,
@@ -163,40 +167,62 @@ class RobotAllocator:
         # Get delta time step used by world sim
         self.dt_sec = self.wdb.get_dt_sec()
 
-        # Reset Task in progress states
-        tasks = self.ims_db.get_tasks(query_status=TaskStatus.IN_PROGRESS)
-        for task in tasks:
-            self.ims_db.update_task_status(task.task_id, TaskStatus.OPEN)
-        self.ims_db.commit()
+        # Move all in progress tasks back to head of new
+        task_keys = self.redis_db.smembers('tasks:inprogress')
+        if (task_keys):
+            self.redis_db.lpush('tasks:new', *task_keys)
 
         # Track robot allocations as allocations[robot_id] = Job
         self.allocations: dict[RobotId, Optional[Job]] = {
             robot.robot_id: None for robot in self.robots}
 
-    def make_job(self, task: Task, robot: Robot) -> Optional[Job]:
+    def make_job(self, task_key: str, robot: Robot) -> Optional[Job]:
         """Try to generate and return job if pathing is possible, None otherwise"""
         if robot.state != RobotStatus.AVAILABLE:
+            # Return task to new queue
+            task_key = self.redis_db.lpush('tasks:new', task_key)
             raise ValueError(
                 f'{robot} not available for a new job: ({repr(robot.state)} == '
                 f'{repr(RobotStatus.AVAILABLE)}) = {robot.state == RobotStatus.AVAILABLE}')
-        if task.status != TaskStatus.OPEN:
-            raise ValueError(f'{task} not open for a new job')
+
+        # TODO : pull this out
+        # Task key contains it all 'task:station:<id>:order:<id>:<item_id>:<idx>'
+        _, _, station_id, _, order_id, item_id, idx = task_key.split(':')
+        station_id = StationId(int(station_id))
+        order_id = OrderId(int(order_id))
+        item_id = ItemId(int(item_id))
+        idx = int(idx)
+
         # Get positions along the route
         robot_home = self.robot_home_zones[robot.robot_id]
-        item_zone = self.item_load_zones[task.item_id]
+        item_zone = self.item_load_zones[item_id]
         # Note: Hacky, off-by-one because sqlite3 db starts indexing at 1, not zero
-        station_zone = self.station_zones[task.station_id - 1]
+        station_zone = self.station_zones[station_id - 1]
 
         # Create job and increment counter
+        job_data = {
+            'task': {
+                'task_key': task_key,
+                'station_id': station_id,
+                'order_id': order_id,
+                'item_id': item_id,
+                'idx': idx,
+            },
+            'robot': {
+                'robot': robot,
+                'robot_home': robot_home,
+                'item_zone': item_zone,
+                'station_zone': station_zone,
+            }
+        }
         job_id = self.job_id_counter
         self.job_id_counter = JobId(self.job_id_counter + 1)
-        job = Job(job_id, robot_home, item_zone, station_zone, task, robot)
+        job = Job(job_id, job_data)
         self.jobs[job_id] = job  # Track job
         assert robot.robot_id == job.robot_id
         self.allocations[robot.robot_id] = job  # Track robot allocation
-        # Set task state
-        self.ims_db.update_task_status(task.task_id, TaskStatus.IN_PROGRESS)
-        task.status = TaskStatus.IN_PROGRESS  # Update local task instance as well
+        # Set task in progress
+        self.redis_db.sadd('tasks:inprogress', task_key)
         # Set robot state
         robot.state = RobotStatus.IN_PROGRESS
         return job
@@ -292,9 +318,6 @@ class RobotAllocator:
         robot = self.get_robot(robot_id)
         robot.state = RobotStatus.ERROR
 
-    def get_available_tasks(self, limit_rows: int = 5) -> list[Task]:
-        return self.ims_db.get_tasks(TaskStatus.OPEN, limit_rows)
-
     def assign_task_to_robot(self) -> Optional[Job]:
         # Check if any available robots and available tasks
         # If yes, create a job for that robot, update states and return the job here
@@ -303,8 +326,9 @@ class RobotAllocator:
             if not available_robots:
                 return None
 
-            available_tasks = self.get_available_tasks()
-            if not available_tasks:
+            # Pop task and push into inprogress
+            task_key = self.redis_db.lpop('tasks:new')
+            if not task_key:
                 return None
         except sqlite3.Error as err:
             logger.error(
@@ -313,12 +337,12 @@ class RobotAllocator:
 
         # Available robots and tasks, create a job for the first pair
         robot = available_robots[0]
-        task = available_tasks[0]
-        job = self.make_job(task, robot)
+        job = self.make_job(task_key, robot)
         if job:
             self.logger.info(f'ASSIGNED TASK TO ROBOT: {robot} : {job}')
         else:
-            self.logger.debug('Could not create job this turn')
+            self.logger.debug(
+                'Could not create job this turn, returning task to new')
         return job
 
     def update(self):
@@ -333,7 +357,6 @@ class RobotAllocator:
 
         # Now check for any available robots and tasks
         self.assign_task_to_robot()
-        self.ims_db.commit()  # Commit transactions to IMS DB
 
         # Batch update robots now
         self.wdb.update_robots(self.robots)
@@ -402,7 +425,7 @@ class RobotAllocator:
 
         # Add item to held items for robot
         success, item_in_hand = self.robot_pick_item(
-            job.robot_id, job.task.item_id)
+            job.robot_id, job.item_id)
         if not success:
             self.logger.error(
                 f'Robot {job.robot_id} could not pick item for '
@@ -445,7 +468,7 @@ class RobotAllocator:
         robot.set_path(job.path_item_to_station)
         job.going_to_station = True
         self.logger.info(
-            f'Sending robot {job.robot_id} to station for task {job.task}')
+            f'Sending robot {job.robot_id} to station for task {job.task_key}')
         return True
 
     def job_drop_item_at_station(self, job: Job) -> bool:
@@ -469,20 +492,19 @@ class RobotAllocator:
             self.set_robot_error(job.robot_id)
             job.error = True
             return False
-        elif item_id != job.task.item_id:
+        elif item_id != job.item_id:
             self.logger.error(
                 f"Robot {job.robot_id} was holding the wrong "
-                f"item: {item_id}, needed {job.task.item_id}")
+                f"item: {item_id}, needed {job.item_id}")
             job.error = True
             return False
 
-        # Add item to station
-        self.ims_db.add_item_to_station_fast(
-            job.task.station_id, job.task.quantity, job.task.task_id)
+        # Notify task complete (Order Proc adds item to station)
+        redis_con.srem('tasks:inprogress', job.task_key)
+        redis_con.lpush('tasks:processed', job.task_key)
         # This only modifies the task instance in the job
-        job.task.quantity -= 1
-        job.task.status = TaskStatus.COMPLETE
-        self.logger.info(f'Task {job.task} complete, '
+        job.status = TaskStatus.COMPLETE
+        self.logger.info(f'Task {job.task_key} complete, '
                          f'Robot {job.robot_id} successfully dropped item')
 
         job.item_dropped = True
@@ -505,7 +527,7 @@ class RobotAllocator:
         # Release lock on station
         self.station_locks[job.station_zone] = None
         self.logger.info(
-            f'Sending Robot {job.robot_id} back home for {job.task}')
+            f'Sending Robot {job.robot_id} back home for {job.task_key}')
         return True
 
     def job_arrive_home(self, job: Job) -> bool:
@@ -520,7 +542,7 @@ class RobotAllocator:
                 f'Robot {job.robot_id} not yet to robot home {robot.pos} -> {job.robot_home}')
             return False
         self.logger.info(
-            f'Robot {job.robot_id} returned home, job complete for task {job.task}')
+            f'Robot {job.robot_id} returned home, job complete for task {job.task_key}')
         job.robot_returned = True
         job.complete = True
 
@@ -531,7 +553,7 @@ class RobotAllocator:
         self.allocations[job.robot_id] = None
         return True
 
-    def job_restart(self, job):
+    def job_restart(self, job: Job):
         self.logger.error(
             f'{job} in error for, resetting job and Robot {job.robot_id} etc.')
 
@@ -585,9 +607,6 @@ class RobotAllocator:
 if __name__ == '__main__':
     logger = create_warehouse_logger('robot_allocator')
 
-    # Init Robot Allocator (may wait for databases to exist)
-    robot_mgr = RobotAllocator(logger=logger)
-
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
     REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
@@ -597,6 +616,9 @@ if __name__ == '__main__':
     redis_sub.subscribe('WORLD_T')
     logger.info('Redis Subscribed to WORLD_T updates')
 
+    # Init Robot Allocator (may wait for databases to exist)
+    robot_mgr = RobotAllocator(logger=logger, redis_con=redis_con)
+
     # Main loop processing jobs from tasks
     logger.info('Robot Allocator started')
     for world_t_message in redis_sub.listen():
@@ -604,8 +626,8 @@ if __name__ == '__main__':
         logger.info(
             f'Step start T={world_sim_t} ---------------------------------------'
             '--------------------------------------------------------')
-        # Hold locks for both DBs
-        with robot_mgr.ims_db.con, robot_mgr.wdb.con:
+        # Hold locks for world DB
+        with robot_mgr.wdb.con:
             robot_mgr.update()
 
         if any(robot_mgr.allocations.values()):

@@ -3,9 +3,9 @@ A fake task manager that continuously checks a database for new tasks.
 When a new task is found, the code will complete the task and then wait for the next task.
 
 The following variables are used:
-* `DELAY_NO_TASK`: An integer, the number of seconds to wait if no tasks are found.
-* `DELAY_TASK_COMPLETE`: A tuple, the min and max number of seconds to wait to complete a task.
-* `DELAY_STEP`: A tuple, the min and max number of seconds to wait between tasks.
+* `delay_no_task`: An integer, the number of seconds to wait if no tasks are found.
+* `delay_task_complete`: A tuple, the min and max number of seconds to wait to complete a task.
+* `delay_step`: A tuple, the min and max number of seconds to wait between tasks.
 
 The code performs the following steps:
 1. Get a task from the database.
@@ -14,64 +14,79 @@ The code performs the following steps:
 4. Commit the changes to the database.
 5. Wait for the next task.
 """
-import logging
+import argparse
+import os
 import time
 import random
-from .database_order_manager import DatabaseOrderManager, MAIN_DB
-from .TaskStatus import TaskStatus
+
+import redis
+from warehouse_logger import create_warehouse_logger
+
+parser = argparse.ArgumentParser(
+    prog='FakeTaskProcessor',
+    description='Process tasks with random delays from the tasks:new queue')
+
+parser.add_argument('-d', '--delay-step',
+                    default=[0.2, 0.8],  nargs='+', type=float,
+                    help='the min and max number of seconds to wait between tasks.')
+parser.add_argument('-t', '--delay-task-complete', default=[0.2, 0.6], nargs='+', type=float,
+                    help='the min and max number of seconds to wait to complete a task.')
+parser.add_argument('-n', '--delay-no-task', default=5, type=float,
+                    help='the number of seconds to wait if no tasks are found.')
+args = parser.parse_args()
 
 
-def create_logger():
-    logging.basicConfig(filename='fake_task_proccessor.log', encoding='utf-8', filemode='w',
-                        level=logging.DEBUG,
-                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    logger_ft = logging.getLogger('fake_task_proccessor')
-    logger_ft.setLevel(logging.DEBUG)
-    stream_logger = logging.StreamHandler()
-    stream_logger.setLevel(logging.INFO)
-    logger_ft.addHandler(stream_logger)
-    return logger_ft
+logger = create_warehouse_logger('fake_task_processor')
 
 
-# Checks for any tasks, completes the latest one
-DELAY_STEP = [0.2, 0.8]
-DELAY_TASK_COMPLETE = [0.2, 0.6]
-DELAY_NO_TASK = 5
-
-logger = create_logger()
-
-dboi = DatabaseOrderManager(MAIN_DB)
+# Set up redis
+REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
+redis_con = redis.Redis(
+    host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+logger.info(f'Connecting to Redis {REDIS_HOST}:{REDIS_PORT}')
 
 
-def main():
-    # Continuously check the database for new tasks.
-    while True:
-        # Get task (item X to station Y)
-        tasks = dboi.get_tasks(query_status=TaskStatus.OPEN, limit_rows=1)
-        if len(tasks) == 0:
-            logger.info('No Tasks at the moment, sleeping 5 seconds')
-            time.sleep(DELAY_NO_TASK)
-            continue
+# Continuously check the database for new tasks.
+logger.info('Checking for tasks...')
+while True:
+    # Get task (item X to station Y)
+    # tasks = dboi.get_tasks(query_status=TaskStatus.OPEN, limit_rows=1)
 
-        task = tasks[0]
-        logger.info(f'Received Task {task}')
+    task_key = redis_con.lpop('tasks:new')  # Gets task key
+    if not task_key:
+        # logger.info('No Tasks at the moment, sleeping 5 seconds')
+        time.sleep(args.delay_no_task)
+        continue
 
-        # Take 1-5 sec to complete task
-        delay = DELAY_TASK_COMPLETE[0] + random.random() * \
-            (DELAY_TASK_COMPLETE[1]-DELAY_TASK_COMPLETE[0])
-        logger.info(f" waiting {delay:.2f} seconds")
-        time.sleep(delay)
+    logger.info(f'Received Task {task_key}')
+    # Add task key to set of tasks in progress
+    redis_con.sadd('tasks:inprogress', task_key)
 
-        # Submit task complete
-        dboi.add_item_to_station(task.station_id, task.item_id)
-        dboi.commit()
-        logger.info(f'Finished {task}')
+    # Take 1-5 sec to complete task
+    # Get task group key, item_id and idx
+    # There is a task group key: 'task:station:<id>:order:<id>' -> set(item_id, item_id...)
+    #   Which has a set of all the individual task keys 'task:station:<id>:order:<id>:<item_id>:<idx>'
+    task_group_key, item_id, idx = task_key.rsplit(':', 2)
+    _, _, station_id, _, order_id = task_group_key.split(':')
+    logger.info(
+        f'Task Group {task_group_key}, moving item {item_id}'
+        f'(#{idx}) to station {station_id} for order {order_id}...')
 
-        # Delay till next task
-        delay = DELAY_STEP[0] + random.random() * (DELAY_STEP[1]-DELAY_STEP[0])
-        logger.info(f" waiting {delay:.2f} seconds")
-        time.sleep(delay)
+    delay = args.delay_task_complete[0] + random.random() * \
+        (args.delay_task_complete[1]-args.delay_task_complete[0])
+    logger.info(f" waiting {delay:.2f} seconds for task to complete.")
+    time.sleep(delay)
 
+    # Move task from in progress to processed (order processor will confirm it is finished)
+    redis_con.srem('tasks:inprogress', task_key)
+    redis_con.lpush('tasks:processed', task_key)
+    logger.info(f'Processed {task_key}')
+    # The order processor will pull the processed task from the queue,
+    # add the item to the station, and finish the task
 
-if __name__ == '__main__':
-    main()
+    # Delay till next task
+    delay = args.delay_step[0] + random.random() * \
+        (args.delay_step[1]-args.delay_step[0])
+    logger.info(f" waiting {delay:.2f} seconds")
+    time.sleep(delay)

@@ -1,52 +1,64 @@
 """Fake order creator adds fake orders to the DB"""
+import argparse
+import json
+import os
 import random
 import time
-import logging
-import sys
+import redis
+
+from warehouse_logger import create_warehouse_logger
 from .Item import ItemCounter, ItemId
-from .database_order_manager import DatabaseOrderManager, MAIN_DB
 
 # Set up logging
-logger = logging.getLogger("fake_order_sender")
-logger.setLevel(logging.DEBUG)
-log_handler = logging.StreamHandler()
-log_handler.setLevel(logging.DEBUG)
-logger.addHandler(log_handler)
+logger = create_warehouse_logger('fake_order_sender')
 
-dbm = DatabaseOrderManager(MAIN_DB)
+parser = argparse.ArgumentParser(
+    prog='FakeOrderSender',
+    description='Adds new random order requests onto the redis orders:requested queue')
 
-MAX_ITEM_ID = 5
+parser.add_argument('-n', '--num-orders', default=1, type=int)
+parser.add_argument('-d', '--delay', default=1.0, type=float)
+parser.add_argument('--max-items', default=4, type=int)
+parser.add_argument('--max-item-id', default=5, type=int)
+args = parser.parse_args()
 
 
-def send_random_order():
-    """Creates new random order and adds it to the database"""
+# Set up redis
+REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
+redis_con = redis.Redis(
+    host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+logger.info(f'Connecting to Redis {REDIS_HOST}:{REDIS_PORT}')
+
+while True:
+    try:
+        if redis_con.ping():
+            break
+        else:
+            logger.warning(
+                f'Ping failed for redis server {REDIS_HOST}:{REDIS_PORT}, waiting')
+    except redis.ConnectionError:
+        logger.error(
+            f'Redis unable to connect {REDIS_HOST}:{REDIS_PORT}, waiting')
+    time.sleep(2)
+
+
+def send_new_order_request():
+    """Creates new random order and publishes to redis ims.new_order channel"""
     item_list = ItemCounter(
-        [ItemId(random.randint(0, MAX_ITEM_ID)) for _ in range(random.randint(1, MAX_ITEMS))])
-    order = dbm.add_order(item_list, created_by=1)
-    logger.info(f'{i} - Send new order {order}')
+        [ItemId(random.randint(0, args.max_item_id)) for _ in range(random.randint(1, args.max_items))])
+    order_request_queue = 'orders:requested'
+    msg = json.dumps({'items': item_list})
+    redis_con.rpush(order_request_queue, msg)
+    logger.info(
+        f'{i} - Added new order request to {order_request_queue} : {msg}')
 
 
-if __name__ == '__main__':
-    db_orders = DatabaseOrderManager(MAIN_DB)
-    MAX_ITEMS = 4
+logger.info("Starting publishing fake orders")
+random.seed(1234)  # Use a fixed seed to make this repeatable
+for i in range(args.num_orders):
+    send_new_order_request()
 
-    NUM_ORDERS = 1
-    DELAY = 1.0
-
-    # Pass num orders as param, delay as well
-    if len(sys.argv) == 2:
-        NUM_ORDERS = int(sys.argv[1])
-    elif len(sys.argv) == 3:
-        NUM_ORDERS = int(sys.argv[1])
-        DELAY = float(sys.argv[2])
-        if DELAY == 0:
-            logger.warning('Sending multiple orders at once will write-lock DB, '
-                           'causing errors for the WS/RA systems')
-
-    random.seed(123)  # Use a fixed seed to make this repeatable
-    for i in range(NUM_ORDERS):
-        send_random_order()
-
-        logger.info(f" waiting {DELAY:.2f} seconds")
-        time.sleep(DELAY)
-    print("Done")
+    logger.info(f" waiting {args.delay:.2f} seconds")
+    time.sleep(args.delay)
+logger.info("Done")
