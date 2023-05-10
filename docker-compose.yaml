@@ -9,10 +9,11 @@ services:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
     environment:
+      - WORLD_DB_PATH=world.db
       - REDIS_HOST=redis-db
     depends_on:
       - redis-db # To publish world_t messages
-    command: python -m world_sim
+    command: python -m world_sim reset
   # Robot Allocator
   robot-allocator:
     image: aw_base
@@ -22,10 +23,11 @@ services:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
     environment:
+      - WORLD_DB_PATH=world.db
       - REDIS_HOST=redis-db
     depends_on:
-      - order-processor # To set up IMS DB for getting tasks
-      - redis-db # To subscribe to world_t messages
+      - order-processor # To set up tasks etc.
+      - redis-db # subscribe to world_t, pull/process tasks
     command: python -m robot_allocator
   # Order Processor
   order-processor:
@@ -35,18 +37,11 @@ services:
     networks:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
-    command: python -m inventory_management_system.order_processor
-  # Flask Web Server
-  web-flask:
-    image: aw_base
-    volumes:
-      - vol1:/home/app
-    networks:
-      - aw-net
-    working_dir: /home/app/mapf-multiagent-robot-planning/dev
-    ports:
-      - 5000:5000
-    command: python -m inventory_management_system.order_tracking_web_server
+    environment:
+      - REDIS_HOST=redis-db
+    depends_on:
+      - redis-db # Manage Orders/Stations/Tasks
+    command: python -m inventory_management_system.order_processor reset
   # Node Web Server
   web-node:
     image: node:alpine
@@ -58,8 +53,8 @@ services:
     ports:
       - 3000:3000
     environment:
+      - WORLD_DB_PATH=world.db
       - REDIS_HOST=redis-db
-      - IMS_URL=http://localhost:5000
     depends_on:
       - redis-db # To subscribe to world_t messages
     command: /bin/sh -c "npm --prefix ./env_visualizer install && node env_visualizer/"
