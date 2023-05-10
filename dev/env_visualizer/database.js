@@ -288,9 +288,9 @@ class RobotDatabaseManager {
   }
 }
 
-exports.dbm = new DatabaseManager(
-  process.env.ORDERS_DB_PATH || "/data/orders.db"
-);
+// exports.dbm = new DatabaseManager(
+//   process.env.ORDERS_DB_PATH || "/data/orders.db"
+// );
 exports.robot_dbm = new RobotDatabaseManager(
   process.env.WORLD_DB_PATH || "/data/world.db"
 );
