@@ -146,45 +146,52 @@ robot_dbm.get_dt_sec().then((data) => {
 
 // Set up Redis
 const REDIS_HOST = process.env.REDIS_HOST || "localhost";
-const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379");  
+const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379");
 const redis = require("redis");
+/** @type{redis.RedisClientType} */
 var r_client;
+
 (async () => {
-  console.log(`Client 1 - Redis server ${REDIS_HOST}:${REDIS_PORT}`);
+  console.log(`Trying to connect to redis server ${REDIS_HOST}:${REDIS_PORT}`);
+  // Set up redis client (1 of 2)
   r_client = redis.createClient({
     socket: {
       host: REDIS_HOST,
       port: REDIS_PORT,
+      reconnectStrategy() {
+        console.debug("Waiting for redis server...");
+        return 5000; // 5 seconds
+      },
     },
   });
-  r_client.on("error", function (error) {
-    console.error(`Redis Client 1 Error: ${error}`);
+  r_client.on("error", (err) => {
+    if (err.code != "ECONNREFUSED") console.warn("Redis error:", err.code);
   });
-  r_client.on("ready", function () {
-    console.log(`Redis Client 1 READY ${REDIS_HOST}:${REDIS_PORT}`);
-  });
-  await r_client.connect();
+  await r_client.connect(); // Wait for connection
 
-  console.log(`Client 1 Set up - Redis server ${REDIS_HOST}:${REDIS_PORT}`);
-  update_ims_table();
-})();
+  console.log(await r_client.set("foo", "bar")); // 'OK'
+  console.log(await r_client.get("foo")); // 'bar'
 
-
-(async () => {
-  console.log(`Client WORLD_T Subscriber - Redis server ${REDIS_HOST}:${REDIS_PORT}`);
+  // Set up subscriber redis client (2 of 2)
   const subscriber = redis.createClient({
     socket: {
       host: REDIS_HOST,
       port: REDIS_PORT,
+      reconnectStrategy() {
+        console.debug("Waiting for redis server...");
+        return 5000; // 5 seconds
+      },
     },
   });
-
-  subscriber.on("error", function (error) {
-    console.error(`Redis Subscribe Error: ${error}`);
+  subscriber.on("error", (err) => {
+    console.warn("Redis subscriber error:", err.code);
   });
+
   subscriber.on("ready", function () {
     console.log(`Redis subscriber READY ${REDIS_HOST}:${REDIS_PORT}`);
   });
+  await subscriber.connect();
+
   // Set up callback on WORLD_T publish
   subscriber.subscribe("WORLD_T", (world_t_str) => {
     world.t = parseInt(world_t_str);
@@ -193,7 +200,11 @@ var r_client;
     // update_ims_table();
   });
 
-  await subscriber.connect();
+  console.log(
+    `Client subscriber connected to redis server ${REDIS_HOST}:${REDIS_PORT}`
+  );
+
+  update_ims_table();
 })();
 
 function update_robots() {
@@ -221,28 +232,57 @@ function update_robots() {
   });
 }
 
-function update_ims_table() {
-  console.log('Call update_ims_table')
-  r_client.scan("0", "MATCH", "order:*", (error, result) => {
-    if (error) {
-      console.error(`Error: ${error}`);
-    } else {
-      console.log("Orders:", result[1]);
-    }
-  });
-//   Promise.all(
-//     [dbm.get_new_orders(10),
-//     dbm.get_stations_and_order(),
-//     dbm.get_finished_orders(10),
-//     dbm.get_order_counts()]
-//   ).then(result => {
-//     const all_orders = {
-//       'new': result[0],
-//       'station': result[1],
-//       'finished': result[2],
-//       'counts': result[3]
-//     }
+async function update_ims_table() {
+  console.log("Call update_ims_table");
 
-//     io.emit("ims_all_orders", all_orders);
-//   })
+  // Get up to the oldest 10 new orders from the queue [0 - 9] = 10 entries
+  const new_order_keys = await r_client.lRange("orders:new", 0, 9);
+
+  // Get up to the latest 10 finished orders
+  const finished_orders = await r_client.xRevRange(
+    "orders:finished",
+    "+",
+    "-",
+    { COUNT: 10 }
+  );
+  // finished_orders = list [
+  //   {
+  //     id: '1683752293575-0',
+  //     message: [Object: null prototype] {
+  //       order_id: '18',
+  //       created: '1683752269.519895',
+  //       items: '{"1": 1, "0": 2, "4": 1}',
+  //       station: 'station:2'
+  //     }
+  //   }, ... ]
+
+  // Get Stations (and any orders they contain)
+  
+  // Use a pipeline to get calls at once
+  const r_multi = r_client.multi();
+  r_multi.sMembers("stations:free");
+  r_multi.sMembers("stations:busy");
+  const [free_station_keys, busy_station_keys] = await r_multi.exec();
+
+  console.log("new", new_order_keys);
+  console.log("finished", finished_orders.length);
+  console.log("free stations", free_station_keys);
+  console.log("busy stations", busy_station_keys);
+
+  console.log("todo");
+  //   Promise.all(
+  //     [dbm.get_new_orders(10),
+  //     dbm.get_stations_and_order(),
+  //     dbm.get_finished_orders(10),
+  //     dbm.get_order_counts()]
+  //   ).then(result => {
+  //     const all_orders = {
+  //       'new': result[0],
+  //       'station': result[1],
+  //       'finished': result[2],
+  //       'counts': result[3]
+  //     }
+
+  //     io.emit("ims_all_orders", all_orders);
+  //   })
 }
