@@ -41,7 +41,7 @@ server.listen(port, () => {
   console.info(`SocketIO server listening on *:${port}`);
 });
 
-// Open databases
+// Open world db
 const { robot_dbm } = require("./database");
 robot_dbm.open_db();
 
