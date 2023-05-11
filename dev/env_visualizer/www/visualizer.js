@@ -502,15 +502,16 @@ socket.on("ims_all_orders", (/** @type {any} */ data) => {
   const finished_orders = data.finished_orders;
   // Create stations
   const stations_dict = {};
-  data.free_station_keys.forEach((key) => {
-    let station_id = key.split(":")[1];
-    return (stations_dict[key] = { station_id: station_id });
-  });
+  if (data.free_station_keys) {
+    data.free_station_keys.forEach((key) => {
+      let station_id = key.split(":")[1];
+      return (stations_dict[key] = { station_id: station_id });
+    });
+  }
   data.busy_stations.forEach((station) => {
     stations_dict[station.station_id] = station;
   });
   const stations = Object.values(stations_dict);
-  console.log(stations);
 
   updateCounts(data.new_order_count, data.finished_order_count);
   // new Date(parseFloat(data.new_orders[0].created * 1000))

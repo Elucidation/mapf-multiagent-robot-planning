@@ -261,7 +261,7 @@ async function update_ims_table() {
   r_multi.xRevRange("orders:finished", "+", "-", { COUNT: 10 });
 
   // Get busy/free station info etc.
-  r_multi.sMembers("stations:free");
+  r_multi.lRange("stations:free", 0, -1);
   r_multi.sMembers("stations:busy");
   r_multi.lLen("orders:new");
   r_multi.xLen("orders:finished");
@@ -324,9 +324,15 @@ async function update_ims_table() {
       // @ts-ignore
       station.station_id = busy_station_keys[idx].split(":")[1];
       // @ts-ignore
-      station.items_in_station = JSON.parse(station.items_in_station);
+      if (station.items_in_station) {
+        // @ts-ignore
+        station.items_in_station = JSON.parse(station.items_in_station);
+      }
       // @ts-ignore
-      station.items_in_order = JSON.parse(station.items_in_order);
+      if (station.items_in_order) {
+        // @ts-ignore
+        station.items_in_order = JSON.parse(station.items_in_order);
+      }
       return station;
     });
   }
