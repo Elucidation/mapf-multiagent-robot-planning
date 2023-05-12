@@ -141,6 +141,8 @@ class RobotAllocator:
         for idx, robot in enumerate(self.robots):
             robot.held_item_id = None
             robot.state = RobotStatus.AVAILABLE
+            robot.task_key = None
+            robot.state_description = 'Waiting for task'
             if robot.pos != self.robot_home_zones[idx]:
                 # Not at home, try to go home, assume current pos in any zone as not an obstacle
                 dynamic_obstacles = self.get_current_dynamic_obstacles(
@@ -149,6 +151,7 @@ class RobotAllocator:
                     robot.pos, self.robot_home_zones[idx], dynamic_obstacles)
                 self.logger.warning(
                     f'Starting outside of home, attempting to send home: {path_to_home}')
+                robot.state_description = 'Allocator restart, trying to going home'
                 if path_to_home:
                     robot.set_path(path_to_home)
         self.wdb.update_robots(self.robots)
@@ -547,6 +550,7 @@ class RobotAllocator:
         # Make robot available
         robot = self.get_robot(job.robot_id)
         robot.state = RobotStatus.AVAILABLE
+        robot.task_key = None
         robot.state_description = 'Waiting for task'
         # Remove job from allocations
         self.allocations[job.robot_id] = None
