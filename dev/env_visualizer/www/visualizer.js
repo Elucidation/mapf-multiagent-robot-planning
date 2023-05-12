@@ -335,8 +335,12 @@ function updateFinishedOrderTable(table, orders) {
     // status
     const statusCell = document.createElement("td");
     // Hard-coded for now since redis finished orders can only exist if complete.
-    statusCell.textContent = "COMPLETE";
-    statusCell.setAttribute("class", "complete");
+    statusCell.textContent = order.status;
+    if (order.status == 'COMPLETE') {
+      statusCell.setAttribute("class", "complete");
+    } else if (order.status == 'ERROR') {
+      statusCell.setAttribute("class", "failed");
+    }
     row.appendChild(statusCell);
 
     // created

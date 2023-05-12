@@ -159,6 +159,8 @@ class OrderProcessor:
 
     @staticmethod
     def parse_items_json(items_json: str) -> ItemCounter:
+        if not items_json:
+            return ItemCounter({})
         return ItemCounter({ItemId(int(item_id)): int(quantity)
                             for item_id, quantity in json.loads(items_json).items()})
 
@@ -259,11 +261,12 @@ class OrderProcessor:
             logger.warning('Task for station with no order/items, error')
             # Remove the task key from the task group
             self.r.srem(task_group_key, task_key)
-            self.r.xadd('tasks:finished', {'task_key': task_key, 'status': 'error'})
+            self.r.xadd('tasks:finished', {
+                        'task_key': task_key, 'status': 'error'})
             # Note : If error, move task back into tasks:new head otherwise
             logger.info(f'Finished task {task_key} item {item_id} with error')
             return
-            
+
         items_in_station = self.parse_items_json(station_items)
         # Note: Critical that item_id stays int at all times or we get two keys
         # Having '#' and # with json loads/dumps breaks
