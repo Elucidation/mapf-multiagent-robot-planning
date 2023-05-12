@@ -21,5 +21,6 @@ def create_warehouse_logger(name, folder='logs/curr/'):
     logger.setLevel(logging.DEBUG)
     stream_logger = logging.StreamHandler()
     stream_logger.setLevel(logging.INFO)
+    stream_logger.setFormatter(formatter)
     logger.addHandler(stream_logger)
     return logger
