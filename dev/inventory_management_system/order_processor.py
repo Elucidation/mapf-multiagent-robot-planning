@@ -254,8 +254,17 @@ class OrderProcessor:
         (task_group_key, station_key, _, item_id, _) = self.parse_task_key(task_key)
 
         # Update item count for key:value items_in_station
-        items_in_station = self.parse_items_json(
-            self.r.hget(station_key, 'items_in_station'))
+        station_items = self.r.hget(station_key, 'items_in_station')
+        if not station_items:
+            logger.warning('Task for station with no order/items, error')
+            # Remove the task key from the task group
+            self.r.srem(task_group_key, task_key)
+            self.r.xadd('tasks:finished', {'task_key': task_key, 'status': 'error'})
+            # Note : If error, move task back into tasks:new head otherwise
+            logger.info(f'Finished task {task_key} item {item_id} with error')
+            return
+            
+        items_in_station = self.parse_items_json(station_items)
         # Note: Critical that item_id stays int at all times or we get two keys
         # Having '#' and # with json loads/dumps breaks
         assert isinstance(item_id, int)
