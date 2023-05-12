@@ -513,6 +513,11 @@ socket.on("ims_all_orders", (/** @type {any} */ data) => {
     stations_dict[station.station_id] = station;
   });
   const stations = Object.values(stations_dict);
+  // Order stations by ID
+  stations.sort(
+    (station_a, station_b) =>
+      parseInt(station_a.station_id) - parseInt(station_b.station_id)
+  );
 
   updateCounts(data.new_order_count, data.finished_order_count);
   // new Date(parseFloat(data.new_orders[0].created * 1000))
@@ -577,14 +582,14 @@ function update_robot_table(robots) {
     // Robot ID
     addCell(robot.robot_id);
     // Held Item
-    let held_item_name = '';
+    let held_item_name = "";
     if (robot.held_item_id)
       held_item_name = world.item_names[robot.held_item_id];
     addCell(held_item_name);
     // Task
-    let task_description = '';
+    let task_description = "";
     if (robot.task_key) {
-      const taskComponents = robot.task_key.split(":");  // task:station:4:order:104:0:2	
+      const taskComponents = robot.task_key.split(":"); // task:station:4:order:104:0:2
       const [_a, _b, stationId, _c, orderId, itemId] = taskComponents;
       let item_name = world.item_names[itemId];
       task_description = `Move item ${item_name} to station ${stationId} for order ${orderId}`;
@@ -592,7 +597,6 @@ function update_robot_table(robots) {
     addCell(task_description);
     // Status / State Description
     addCell(robot.state_description);
-
 
     // Add the row to the table
     tbody.appendChild(row);
