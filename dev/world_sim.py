@@ -1,6 +1,7 @@
 """Simulate world grid and robots, updating DB that web server sees."""
 from enum import Enum
 import functools
+import json
 import sys
 from typing import List, Tuple, Dict, Optional, Any  # Python 3.8
 from datetime import datetime
@@ -89,21 +90,28 @@ class World(object):
     def update_dt_from_db(self):
         self.dt_sec = self.wdb.get_dt_sec()
 
-    def get_all_state_data(self):
+    def state_dict_full(self):
         return {
-            'timestamp': str(datetime.now()),
             't': self.t,
+            'timestamp': str(datetime.now()),
             'grid': self.grid.tolist(),
             'item_load_positions': [{'x': c, 'y': row} for row, c in self.item_load_zones],
             'station_positions': [{'x': c, 'y': row} for row, c in self.station_zones],
-            'robots': [r.json_data() for r in self.robots]
+            'robots': json.dumps([robot.json_data() for robot in self.robots])
+        }
+
+    def state_dict(self):
+        """Returns a dict with the t, and robot jsons"""
+        return {
+            't': self.t,
+            'robots': json.dumps([robot.json_data() for robot in self.robots])
         }
 
     def get_position_update_data(self):
         return {
             'timestamp': str(datetime.now()),
             't': self.t,
-            'robots': [r.json_data() for r in self.robots]
+            'robots': [robot.json_data() for robot in self.robots]
         }
 
     def add_robot(self, robot: Robot):
@@ -212,6 +220,8 @@ class World(object):
         if update_duration_ms > self.dt_sec*1000:
             self.logger.error(
                 f'update took {update_duration_ms:.2f} > {self.dt_sec*1000} ms')
+        # Log state of world (t and robot info) to DB
+        self.wdb.log_world_state(self.state_dict())
         # Return if any robot has moved or not
         return state_changed
 

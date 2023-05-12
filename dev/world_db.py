@@ -44,7 +44,7 @@ class WorldDatabaseManager:
         logger.warning('Resetting redis Robots/State')
         for key in self.r.scan_iter("robot:*"):
             self.r.delete(key)
-        self.r.delete('states', 'robots:all', 'robots:busy', 'robots:free')
+        self.r.delete('world:state', 'states', 'robots:all', 'robots:busy', 'robots:free')
 
 
     @timeit
@@ -119,3 +119,7 @@ class WorldDatabaseManager:
             pipeline.hgetall(robot_key)
         robots_json_data = pipeline.execute()
         return [Robot.from_json(json_data) for json_data in robots_json_data]
+
+    def log_world_state(self, data: dict):
+        """Add latest world state data to the stream."""
+        self.r.xadd('world:state', data)
