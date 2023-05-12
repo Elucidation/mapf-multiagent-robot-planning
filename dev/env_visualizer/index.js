@@ -20,6 +20,7 @@ const fs = require("fs");
 app.use(express.static(path.join(__dirname, "www")));
 
 // @ts-ignore
+// @ts-ignore
 app.get("/", (req, res) => {
   res.sendFile("/index.html");
 });
@@ -223,12 +224,17 @@ async function update_robots() {
 
   robots_data.forEach((robot, i) => {
     if (!robot) return;
+    // @ts-ignore
     let pos = JSON.parse(robot.position);
     world.robots[i].pos.x = pos[0];
     world.robots[i].pos.y = pos[1];
+    // @ts-ignore
     robot.id = robot.robot_id;
+    // @ts-ignore
     robot.pos = { x: pos[0], y: pos[1] };
+    // @ts-ignore
     robot.held_item_id = JSON.parse(robot.held_item_id);
+    // @ts-ignore
     robot.path = JSON.parse(robot.path);
   });
 
