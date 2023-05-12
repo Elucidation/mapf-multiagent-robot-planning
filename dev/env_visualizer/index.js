@@ -282,6 +282,7 @@ async function update_ims_table() {
     finished_orders = finished_orders_raw.map((order) => {
       order.message.items = JSON.parse(order.message.items);
       order.message.created = parseFloat(order.message.created) * 1000.0; // Make ms also
+      order.message.assigned = parseFloat(order.message.assigned) * 1000.0; // Make ms also
       order.message.finished = parseInt(order.id); // Make ms
       return order.message;
     });

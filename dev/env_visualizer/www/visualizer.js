@@ -344,15 +344,28 @@ function updateFinishedOrderTable(table, orders) {
     createdCell.textContent = new Date(order.created).toLocaleString();
     row.appendChild(createdCell);
 
+    // assigned
+    const assignedCell = document.createElement("td");
+    if (order.assigned)
+      assignedCell.textContent = new Date(order.assigned).toLocaleTimeString();
+    row.appendChild(assignedCell);
+
     // finished
     const finishedCell = document.createElement("td");
-    finishedCell.textContent = new Date(order.finished).toLocaleString();
+    finishedCell.textContent = new Date(order.finished).toLocaleTimeString();
     row.appendChild(finishedCell);
 
     // processing time
     const processTimeCell = document.createElement("td");
-    const processTimeMs = order.finished - order.created;
-    processTimeCell.textContent = `${(processTimeMs / 1000).toFixed(0)}s`;
+    if (order.assigned) {
+      const waitTimeMs = order.assigned - order.created;
+      const processTimeMs = order.finished - order.assigned;
+      const totalTimeMs = waitTimeMs + processTimeMs;
+      processTimeCell.textContent = `${(waitTimeMs / 1000).toFixed(0)}s + ${(processTimeMs / 1000).toFixed(0)}s = ${(totalTimeMs / 1000).toFixed(0)}s`;
+    } else {
+      const processTimeMs = order.finished - order.created;
+      processTimeCell.textContent = `${(processTimeMs / 1000).toFixed(0)}s`;
+    }
     row.appendChild(processTimeCell);
 
     tableBody.appendChild(row);

@@ -170,6 +170,7 @@ class OrderProcessor:
         if not self.r.exists('stations:free'):
             return None  # No free stations
 
+        assign_time = time.time()
         order_key = self.r.lpop('orders:new')  # Removes from new orders queue,
         # Add to set orders:inprogress
         self.r.sadd('orders:inprogress', order_key)
@@ -187,6 +188,7 @@ class OrderProcessor:
 
         # Assign order to station
         self.r.hset(station_key, mapping=order_data)
+        self.r.hset(order_key, 'assigned', assign_time)
         logger.info(f'Assigning {order_key} to {station_key}')
 
         # Create tasks for that station (1 per item times quantity)
