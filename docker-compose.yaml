@@ -9,10 +9,9 @@ services:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
     environment:
-      - WORLD_DB_PATH=world.db
       - REDIS_HOST=redis-db
     depends_on:
-      - redis-db # To publish world_t messages
+      - redis-db # To publish world_t messages, robot positions, states etc.
     command: python -m world_sim reset
   # Robot Allocator
   robot-allocator:
@@ -23,11 +22,10 @@ services:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
     environment:
-      - WORLD_DB_PATH=world.db
       - REDIS_HOST=redis-db
     depends_on:
       - order-processor # To set up tasks etc.
-      - redis-db # subscribe to world_t, pull/process tasks
+      - redis-db # subscribe to world_t, pull/process tasks, robots etc.
     command: python -m robot_allocator
   # Order Processor
   order-processor:
@@ -53,7 +51,6 @@ services:
     ports:
       - 3000:3000
     environment:
-      - WORLD_DB_PATH=world.db
       - REDIS_HOST=redis-db
     depends_on:
       - redis-db # To subscribe to world_t messages

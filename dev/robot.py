@@ -1,6 +1,7 @@
 """Robot class"""
 from __future__ import annotations
 from enum import Enum
+import json
 from typing import Tuple, NewType, Optional  # Python 3.8
 from collections import deque
 
@@ -35,7 +36,7 @@ class Robot(object):
     def __init__(self, robot_id: RobotId, pos: Position,
                  held_item_id: Optional[ItemId] = None,
                  state: RobotStatus = RobotStatus.AVAILABLE,
-                 path: list = []):
+                 path: list = [], task_key = '', state_description = 'Initialized'):
         self.robot_id = robot_id
         self.pos = pos  # (X col, Y row)
         self.pos_history: deque = deque(maxlen=10)
@@ -45,6 +46,8 @@ class Robot(object):
         self.future_path: deque = deque(path)  # deque[(x,y), (x,y), ...]
         self.held_item_id = held_item_id
         self.last_pos = None
+        self.task_key = task_key
+        self.state_description = state_description
         self.reset_position_history()
 
     def reset_position_history(self):
@@ -107,10 +110,33 @@ class Robot(object):
         return f'Robot_{self.robot_id}[{self.state}] : {self.pos}'
 
     def json_data(self):
-        row, col = self.pos  # x,y = col,row
-        return {'id': self.robot_id, 'pos': {'x': col, 'y': row}, 'path': self.future_path}
+        return {'robot_id': self.robot_id,
+                'position': json.dumps(self.pos),
+                'held_item_id': json.dumps(self.held_item_id),
+                'state': self.state.value,
+                'task_key': self.task_key,
+                'state_description': self.state_description,
+                'path': json.dumps(list(self.future_path)),
+                }
+
+    @staticmethod
+    def from_json(json_data: str):
+        future_path = deque([tuple(pos) for pos in json.loads(json_data['path'])])
+        held_item_id = json.loads(json_data['held_item_id'])
+        if held_item_id:
+            held_item_id = ItemId(int(held_item_id))
+        return Robot(RobotId(int(json_data['robot_id'])),
+                     tuple(json.loads(json_data['position'])),
+                     held_item_id,
+                     RobotStatus.load(json_data['state']),
+                     future_path,
+                     json_data['task_key'],
+                     json_data['state_description'])
 
 
 if __name__ == '__main__':
     robot = Robot(RobotId(0), pos=(0, 1), path=[(1, 1), (2, 1)])
     print(robot.json_data())
+    robot2 = Robot.from_json(robot.json_data())
+    print(robot)
+    print(robot2)

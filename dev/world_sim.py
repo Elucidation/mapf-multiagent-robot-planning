@@ -11,7 +11,7 @@ import numpy as np
 from warehouse_logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml
 from robot import Robot, RobotId
-from world_db import WorldDatabaseManager, WORLD_DB_PATH
+from world_db import WorldDatabaseManager
 import redis  # type: ignore
 # pylint: disable=redefined-outer-name
 
@@ -51,8 +51,8 @@ class World(object):
     """A grid which robots can be placed and moved in."""
 
     def __init__(self, grid: np.ndarray, robots: List[Robot], time_step_sec: float,
-                 item_load_zones: List[Position] = [], station_zones: List[Position] = [],
-                 logger=logging):
+                 redis_con: redis.Redis, item_load_zones: List[Position] = [],
+                 station_zones: List[Position] = [], logger=logging):
         self.logger = logger
         self.logger.debug('World init start')
         self.grid = grid
@@ -74,7 +74,7 @@ class World(object):
         self.dt_sec = time_step_sec  # expected time step in seconds with self.sleep()
         self.ended = False
 
-        self.wdb = WorldDatabaseManager(WORLD_DB_PATH)
+        self.wdb = WorldDatabaseManager(redis_con)
 
         self.logger.debug('World initialized')
 
@@ -82,7 +82,6 @@ class World(object):
         self.wdb.reset()
         self.wdb.add_robots(self.robots)
         self.wdb.set_dt_sec(self.dt_sec)
-        self.wdb.commit()
 
     def update_timestamp_from_db(self):
         self.t = self.wdb.get_timestamp()
@@ -205,9 +204,6 @@ class World(object):
 
         self.wdb.update_timestamp(self.t)
 
-        # Commit robot and timestamp changes
-        self.wdb.commit()
-
         update_duration_ms = (time.perf_counter() - t_start)*1000
 
         self.logger.debug(
@@ -256,11 +252,6 @@ class World(object):
 if __name__ == '__main__':
     logger = create_warehouse_logger('world_sim')
 
-    if not os.path.isfile(WORLD_DB_PATH) and 'reset' not in sys.argv:
-        raise FileNotFoundError(
-            f'Expected to see DB "{WORLD_DB_PATH}" '
-            'but did not find (Note: Can set env WORLD_DB_PATH).')
-
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
     REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
@@ -288,7 +279,7 @@ if __name__ == '__main__':
               for i, (row, col) in enumerate(robot_home_zones)]
 
     TIME_STEP_SEC = 1
-    world = World(grid, robots, TIME_STEP_SEC, item_load_zones,
+    world = World(grid, robots, TIME_STEP_SEC, redis_con, item_load_zones,
                   station_zones, logger=logger)
     if 'reset' in sys.argv:
         print('Resetting database')
@@ -303,8 +294,7 @@ if __name__ == '__main__':
 
     logger.info('Main loop start...')
     while True:
-        with world.wdb.con:
-            world.step()
+        world.step()
 
         ROBOT_STR = '|'.join(
             [f'{robot.pos[0]},{robot.pos[1]}' for robot in world.robots])

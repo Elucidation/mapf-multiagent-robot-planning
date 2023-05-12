@@ -41,10 +41,6 @@ server.listen(port, () => {
   console.info(`SocketIO server listening on *:${port}`);
 });
 
-// Open world db
-const { robot_dbm } = require("./database");
-robot_dbm.open_db();
-
 // World
 
 // TODO: use same function as visulizer.js
@@ -141,11 +137,6 @@ class World {
 
 var world = World.from_yaml("./warehouses/warehouse3.yaml");
 
-// Let visualizer know expected update rate
-robot_dbm.get_dt_sec().then((data) => {
-  world.dt_s = data.value;
-});
-
 // Set up Redis
 const REDIS_HOST = process.env.REDIS_HOST || "localhost";
 const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379");
@@ -170,6 +161,12 @@ var r_client;
     if (err.code != "ECONNREFUSED") console.warn("Redis error:", err.code);
   });
   await r_client.connect(); // Wait for connection
+
+  let dt_s = await r_client.hGet("states", "dt_sec");
+  if (dt_s) {
+    world.dt_s = parseFloat(dt_s);
+    console.info(`Loaded world dt_s = ${world.dt_s} from redis`);
+  }
 
   // Set up subscriber redis client (2 of 2)
   const subscriber = redis.createClient({
@@ -207,29 +204,36 @@ var r_client;
   update_ims_table();
 })();
 
-function update_robots() {
-  robot_dbm.get_robots().then((robots_db_data) => {
-    // Update robot positions
-    let robots = [];
-    for (let i = 0; i < robots_db_data.length; i++) {
-      const robot = robots_db_data[i];
-      let pos = JSON.parse(robot.position);
-      let path = JSON.parse(robot.path);
+var robot_keys;
+async function update_robots() {
+  if (!robot_keys) robot_keys = await r_client.lRange("robots:all", 0, -1);
 
-      world.robots[i].pos.x = pos[0];
-      world.robots[i].pos.y = pos[1];
-      robots.push({
-        id: robot.robot_id,
-        pos: { x: pos[0], y: pos[1] },
-        state: robot.state,
-        held_item_id: robot.held_item_id,
-        path: path, // future path [(x,y), (x,y), ...], empty [] otherwise
-      });
-    }
+  let r_multi = r_client.multi();
+  robot_keys.forEach((robot_key) => r_multi.hGetAll(robot_key));
+  let robots_data = await r_multi.exec();
+  // {
+  //   state: 'IN_PROGRESS',
+  //   held_item_id: 'null',
+  //   position: '[10, 7]',
+  //   task_key: 'task:station:3:order:36:3:1',
+  //   robot_id: '6',
+  //   path: '[[9, 7], [8, 7], [7, 7], [7, 6], [7, 5], [7, 4], [7, 3], [7, 2], [7, 1]]',
+  //   state_description: 'Finished task, returning home'
+  // }
 
-    let msg = { t: world.t, robots: robots, dt_s: world.dt_s };
-    io.emit("update", msg);
+  robots_data.forEach((robot, i) => {
+    if (!robot) return;
+    let pos = JSON.parse(robot.position);
+    world.robots[i].pos.x = pos[0];
+    world.robots[i].pos.y = pos[1];
+    robot.id = robot.robot_id;
+    robot.pos = { x: pos[0], y: pos[1] };
+    robot.held_item_id = JSON.parse(robot.held_item_id);
+    robot.path = JSON.parse(robot.path);
   });
+
+  let msg = { t: world.t, robots: robots_data, dt_s: world.dt_s };
+  io.emit("update", msg);
 }
 
 const REDIS_QUERY_RATE_MS = 1000; // max rate to query redis DB at

@@ -10,7 +10,6 @@ Robot Allocator:
     - Pick/Drop items for robots from item zones to station zones
     - Update stations by filling items as they happen
 """
-import json
 from typing import Optional, Tuple, NewType
 import logging
 import os
@@ -20,11 +19,10 @@ from inventory_management_system.Order import OrderId
 from inventory_management_system.Station import StationId
 from inventory_management_system.Item import ItemId
 from inventory_management_system.TaskStatus import TaskStatus
-from inventory_management_system.Station import Task
 import multiagent_planner.pathfinding as pf
 from multiagent_planner.pathfinding import Position, Path
 from robot import Robot, RobotId, RobotStatus
-from world_db import WorldDatabaseManager, WORLD_DB_PATH
+from world_db import WorldDatabaseManager
 from warehouse_logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml_xy
 import redis
@@ -112,17 +110,9 @@ class RobotAllocator:
 
     def __init__(self, logger=logging, redis_con: redis.Redis = None) -> None:
         self.logger = logger
-        # Wait for databases to exist
-        while True:
-            if not os.path.isfile(WORLD_DB_PATH):
-                logger.warning(
-                    f'Unable to see DB "{WORLD_DB_PATH}" yet, waiting.')
-            else:
-                break
-            time.sleep(2)
-        # Connect to databases
-        self.wdb = WorldDatabaseManager(
-            WORLD_DB_PATH)  # Contains World/Robot info
+
+        # Connect to redis database
+        self.wdb = WorldDatabaseManager(redis_con)  # Contains World/Robot info
 
         # Tracks Order / Task, notifies item adds etc.
         self.redis_db = redis_con  # Optional
@@ -162,7 +152,6 @@ class RobotAllocator:
                 if path_to_home:
                     robot.set_path(path_to_home)
         self.wdb.update_robots(self.robots)
-        self.wdb.con.commit()
 
         # Get delta time step used by world sim
         self.dt_sec = self.wdb.get_dt_sec()
@@ -226,6 +215,8 @@ class RobotAllocator:
         self.redis_db.sadd('tasks:inprogress', task_key)
         # Set robot state
         robot.state = RobotStatus.IN_PROGRESS
+        robot.state_description = 'Assigned new task'
+        robot.task_key = job.task_key
         return job
 
     def get_current_dynamic_obstacles(self, robot_id: RobotId,
@@ -361,7 +352,6 @@ class RobotAllocator:
 
         # Batch update robots now
         self.wdb.update_robots(self.robots)
-        self.wdb.commit()
         update_duration_ms = (time.perf_counter() - t_start)*1000
         logger.debug(
             f'update end, took {update_duration_ms:.3f} ms')
@@ -405,10 +395,12 @@ class RobotAllocator:
                 f'Going home? {job.robot_home} - {current_pos} = {path_to_home}')
             if path_to_home:
                 robot.set_path(path_to_home)
+                robot.state_description = 'Pathing home, waiting till item zone available'
             return False  # Did not start job as no path existed yet
 
         self.logger.info(f'Starting job {job} for Robot {job.robot_id}')
         robot.set_path(job.path_robot_to_item)
+        robot.state_description = 'Pathing to item zone'
         job.started = True
         return True
 
@@ -436,6 +428,7 @@ class RobotAllocator:
         job.item_picked = True
 
         self.logger.info(f'Robot {job.robot_id} item picked {item_in_hand}')
+        robot.state_description = f'Picked item {item_in_hand}'
         return True
 
     def job_go_to_station(self, job: Job) -> bool:
@@ -460,6 +453,7 @@ class RobotAllocator:
                 current_pos, job.robot_home, dynamic_obstacles)
             if path_to_home:
                 robot.set_path(path_to_home)
+                robot.state_description = 'Pathing home, waiting till station available'
             return False  # Did not start job as no path existed yet
 
         # unlock item zone since we're moving
@@ -467,6 +461,7 @@ class RobotAllocator:
 
         # Send robot to station
         robot.set_path(job.path_item_to_station)
+        robot.state_description = 'Pathing to station'
         job.going_to_station = True
         self.logger.info(
             f'Sending robot {job.robot_id} to station for task {job.task_key}')
@@ -509,6 +504,7 @@ class RobotAllocator:
                          f'Robot {job.robot_id} successfully dropped item')
 
         job.item_dropped = True
+        robot.state_description = f'Finished task: Added item {job.item_id} to station'
         return True
 
     def job_return_home(self, job: Job) -> bool:
@@ -524,6 +520,7 @@ class RobotAllocator:
             return False  # Did not start job as no path existed yet
         # Send robot home
         robot.set_path(job.path_station_to_home)
+        robot.state_description = 'Finished task, returning home'
         job.returning_home = True
         # Release lock on station
         self.station_locks[job.station_zone] = None
@@ -550,6 +547,7 @@ class RobotAllocator:
         # Make robot available
         robot = self.get_robot(job.robot_id)
         robot.state = RobotStatus.AVAILABLE
+        robot.state_description = 'Waiting for task'
         # Remove job from allocations
         self.allocations[job.robot_id] = None
         return True
@@ -627,9 +625,7 @@ if __name__ == '__main__':
         logger.info(
             f'Step start T={world_sim_t} ---------------------------------------'
             '--------------------------------------------------------')
-        # Hold locks for world DB
-        with robot_mgr.wdb.con:
-            robot_mgr.update()
+        robot_mgr.update()
 
         if any(robot_mgr.allocations.values()):
             logger.debug('- Current job allocations')

@@ -48,5 +48,5 @@ minikube mount <windows-path>:/data/app
 Running world sim locally with a specific DB path
 
 ```
-$Env:WORLD_DB_PATH = "world.db" ; python -m world_sim
+python -m world_sim
 ```
