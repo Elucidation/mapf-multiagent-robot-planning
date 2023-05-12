@@ -329,13 +329,3 @@ if __name__ == '__main__':
             order_processor.sleep()
         except redis.exceptions.TimeoutError as e:
             continue
-
-    # # Loop indefinitely, does the following:
-    # # - Check if any stations available and fill with an open order if it exists
-    # DELAY_S = 1
-    # while True:
-    #     with db_orders.con:
-    #         if db_orders.fill_available_station():
-    #             logger.info('Assigned an order to a station.')
-    #         db_orders.commit()
-    #     time.sleep(DELAY_S)
