@@ -114,8 +114,8 @@ class Robot(object):
                 'position': json.dumps(self.pos),
                 'held_item_id': json.dumps(self.held_item_id),
                 'state': self.state.value,
-                'task_key': self.task_key,
-                'state_description': self.state_description,
+                'task_key': self.task_key or '',
+                'state_description': self.state_description or '',
                 'path': json.dumps(list(self.future_path)),
                 }
 
@@ -125,13 +125,16 @@ class Robot(object):
         held_item_id = json.loads(json_data['held_item_id'])
         if held_item_id:
             held_item_id = ItemId(int(held_item_id))
+        state_description = ''
+        if json_data['state_description']:
+            state_description = json_data['state_description']
         return Robot(RobotId(int(json_data['robot_id'])),
                      tuple(json.loads(json_data['position'])),
                      held_item_id,
                      RobotStatus.load(json_data['state']),
                      future_path,
                      json_data['task_key'],
-                     json_data['state_description'])
+                     state_description)
 
 
 if __name__ == '__main__':
