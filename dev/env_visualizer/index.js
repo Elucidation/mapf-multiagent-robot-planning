@@ -238,7 +238,6 @@ var last_redis_query_ms = null;
 var latest_ims_data = null;
 async function update_ims_table() {
   const t_start = Date.now();
-  console.log("Call update_ims_table");
 
   // Check if cache hit
   if (
