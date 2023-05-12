@@ -169,9 +169,9 @@ table.robots td, th {
   vertical-align: top;
   border-style: solid;
   border-width: thin;
-  border-right: solid 1px lightgray; 
-  border-left: solid 1px lightgray;
-  /* background-color: lightgray; */
+  border-right: solid 1px gray; 
+  border-left: solid 1px gray;
+  background-color: lightgray;
   padding: 0.25rem;
   text-align: center;
 }
