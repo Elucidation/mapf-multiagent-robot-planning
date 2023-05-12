@@ -479,6 +479,7 @@ socket.on("update", (/** @type {any} */ msg) => {
   if (msg.t != null) {
     update_time(msg.t);
   }
+  update_robot_table(msg.robots);
 });
 
 const newOrderTable = document.getElementById("neworders");
@@ -525,18 +526,20 @@ socket.on("ims_all_orders", (/** @type {any} */ data) => {
       );
     });
     stations.forEach((station) => {
-      if (station.order) station.order_id = station.order.split(':')[1]
+      if (station.order) station.order_id = station.order.split(":")[1];
       // Items in station
       if (station.items_in_station) {
-        station.station_item_ids = Object.keys(station.items_in_station)
-        station.station_item_quantities = Object.values(station.items_in_station)
+        station.station_item_ids = Object.keys(station.items_in_station);
+        station.station_item_quantities = Object.values(
+          station.items_in_station
+        );
         station.station_item_names = station.station_item_ids.map(
           (item_id) => world.item_names[item_id]
         );
       }
       if (station.items_in_order) {
-        station.order_item_ids = Object.keys(station.items_in_order)
-        station.order_item_quantities = Object.values(station.items_in_order)
+        station.order_item_ids = Object.keys(station.items_in_order);
+        station.order_item_quantities = Object.values(station.items_in_order);
         station.order_item_names = station.order_item_ids.map(
           (item_id) => world.item_names[item_id]
         );
@@ -547,6 +550,54 @@ socket.on("ims_all_orders", (/** @type {any} */ data) => {
   updateFinishedOrderTable(finishedOrderTable, finished_orders);
   updateStationOrderTable(stationOrderTable, stations);
 });
+
+function update_robot_table(robots) {
+  // Robot ID
+  // Held Item
+  // Task
+  // Status
+  // Get a reference to the table body
+  const tbody = document.querySelector("#robot_table tbody");
+  if (!tbody) return;
+
+  // Clear out any existing rows
+  tbody.innerHTML = "";
+
+  // Add a new row for each robot
+  robots.forEach((robot) => {
+    const row = document.createElement("tr");
+
+    // Function to create a cell and add it to the row
+    const addCell = (text) => {
+      const cell = document.createElement("td");
+      cell.textContent = text;
+      row.appendChild(cell);
+    };
+
+    // Robot ID
+    addCell(robot.robot_id);
+    // Held Item
+    let held_item_name = '';
+    if (robot.held_item_id)
+      held_item_name = world.item_names[robot.held_item_id];
+    addCell(held_item_name);
+    // Task
+    let task_description = '';
+    if (robot.task_key) {
+      const taskComponents = robot.task_key.split(":");  // task:station:4:order:104:0:2	
+      const [_a, _b, stationId, _c, orderId, itemId] = taskComponents;
+      let item_name = world.item_names[itemId];
+      task_description = `Move item ${item_name} to station ${stationId} for order ${orderId}`;
+    }
+    addCell(task_description);
+    // Status / State Description
+    addCell(robot.state_description);
+
+
+    // Add the row to the table
+    tbody.appendChild(row);
+  });
+}
 
 // ---------------------------------------------------
 // Graphics Related
