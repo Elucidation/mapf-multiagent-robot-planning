@@ -212,15 +212,6 @@ async function update_robots() {
   let r_multi = r_client.multi();
   robot_keys.forEach((robot_key) => r_multi.hGetAll(robot_key));
   let robots_data = await r_multi.exec();
-  // {
-  //   state: 'IN_PROGRESS',
-  //   held_item_id: 'null',
-  //   position: '[10, 7]',
-  //   task_key: 'task:station:3:order:36:3:1',
-  //   robot_id: '6',
-  //   path: '[[9, 7], [8, 7], [7, 7], [7, 6], [7, 5], [7, 4], [7, 3], [7, 2], [7, 1]]',
-  //   state_description: 'Finished task, returning home'
-  // }
 
   robots_data.forEach((robot, i) => {
     if (!robot) return;
