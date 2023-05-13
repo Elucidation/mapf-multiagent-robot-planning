@@ -324,7 +324,7 @@ class OrderProcessor:
 
 if __name__ == '__main__':
     _, _, _, station_zones = load_warehouse_yaml(
-        os.getenv('WAREHOUSE_YAML', 'warehouses/warehouse3.yaml'))
+        os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml'))
 
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")

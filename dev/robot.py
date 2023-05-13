@@ -38,7 +38,7 @@ class Robot(object):
                  state: RobotStatus = RobotStatus.AVAILABLE,
                  path: list = [], task_key = '', state_description = 'Initialized'):
         self.robot_id = robot_id
-        self.pos = pos  # (X col, Y row)
+        self.pos = (int(pos[0]), int(pos[1]))  # (X col, Y row)
         self.pos_history: deque = deque(maxlen=10)
         self.held_item_id = held_item_id
         self.state = state

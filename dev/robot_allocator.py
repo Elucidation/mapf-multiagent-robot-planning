@@ -120,7 +120,7 @@ class RobotAllocator:
         # Load grid positions all in x,y coordinates
         (self.world_grid, self.robot_home_zones,
          self.item_load_zones, self.station_zones) = load_warehouse_yaml_xy(
-            'warehouses/warehouse3.yaml')
+            os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml'))
 
         # locks for zones
         self.item_locks: dict[Position, Optional[JobId]] = {
@@ -161,7 +161,7 @@ class RobotAllocator:
 
         # Move all in progress tasks back to head of new
         task_keys = self.redis_db.smembers('tasks:inprogress')
-        if (task_keys):
+        if task_keys:
             self.redis_db.lpush('tasks:new', *task_keys)
         self.redis_db.delete('tasks:inprogress')
 

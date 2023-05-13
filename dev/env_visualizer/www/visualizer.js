@@ -7,7 +7,7 @@ function Point(/** @type {number} */ x, /** @type {number} */ y) {
 // const grid_dims = new Point(8, 8);
 var grid = null;
 var world = null;
-const TILE_SIZE = 80;
+const TILE_SIZE = 60;
 
 // ---------------------------------------------------
 // SVG Visualizations

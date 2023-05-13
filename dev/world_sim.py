@@ -239,6 +239,7 @@ class World(object):
 
     def get_grid_ascii(self):
         # Create grid string with walls or spaces
+        np.set_printoptions(linewidth=200, suppress=True)
         grid_str = np.full_like(self.grid, dtype=str, fill_value='')
         for row in range(self.height):
             for col in range(self.width):
@@ -248,11 +249,13 @@ class World(object):
 
         # Place robots in grid_str
         for robot in self.robots:
-            row, col = robot.pos
+            col, row = robot.pos
             grid_str[row, col] = (grid_str[row, col] + 'R').strip()
 
+        grid_str_flip = np.flipud(grid_str)
+        grid_msg = '\n'.join([''.join(row) for row in grid_str_flip])
         # Print grid flipped vertically so up down match
-        msg = f"---\n{np.flipud(grid_str)}\n---"
+        msg = f"---\n{grid_msg}\n---"
         return msg
 
     def __repr__(self):
@@ -282,7 +285,7 @@ if __name__ == '__main__':
         time.sleep(2)
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
-        os.getenv('WAREHOUSE_YAML', 'warehouses/warehouse3.yaml'))
+        os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml'))
 
     # Create robots at start positions (row,col) -> (x,y)
     robots = [Robot(RobotId(i), (col, row))

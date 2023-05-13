@@ -75,6 +75,29 @@ class World {
     /** @type {number} The time step delta in seconds */
     this.dt_s = NaN;
 
+    // If data.robot_home_zones doesn't exist, then it's in the grid, so generate it from grid
+    if (!data.robot_home_zones) {
+      data.robot_home_zones = [];
+      data.item_load_zones = [];
+      data.station_zones = [];
+
+      for (let r = 0; r < data.grid.length; r++) {
+        for (let c = 0; c < data.grid[r].length; c++) {
+          if (data.grid[r][c] <= 1)
+            continue;
+          // Walls are 1, Robots are 2, Item load Zones are 3, Stations are 4
+          if (data.grid[r][c] == 2) {
+            data.robot_home_zones.push([r, c])
+          } else if (data.grid[r][c] == 3) {
+            data.item_load_zones.push([r, c])
+          } else if (data.grid[r][c] == 4) {
+            data.station_zones.push([r, c])
+          }
+          data.grid[r][c] = 0; // Clear the grid position now
+        }
+      }
+    }
+      
     /** @type {Point[]} Robot Home positions in this world */
     this.robot_home_zones = data.robot_home_zones.map(
       (rc) => new Point(rc[1], rc[0])
@@ -136,7 +159,7 @@ class World {
   }
 }
 
-var world = World.from_yaml("./warehouses/warehouse3.yaml");
+var world = World.from_yaml(process.env.WAREHOUSE_YAML || "./warehouses/main_warehouse.yaml");
 
 // Set up Redis
 const REDIS_HOST = process.env.REDIS_HOST || "localhost";
