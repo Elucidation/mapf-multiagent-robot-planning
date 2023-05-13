@@ -123,3 +123,4 @@ class WorldDatabaseManager:
     def log_world_state(self, data: dict):
         """Add latest world state data to the stream."""
         self.r.xadd('world:state', data)
+        self.r.xtrim('world:state', maxlen=100, approximate=True)
