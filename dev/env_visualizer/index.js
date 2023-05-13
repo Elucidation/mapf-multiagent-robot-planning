@@ -287,7 +287,7 @@ async function update_ims_table() {
   r_multi.lRange("stations:free", 0, -1);
   r_multi.sMembers("stations:busy");
   r_multi.lLen("orders:new");
-  r_multi.xLen("orders:finished");
+  r_multi.get("order:count");
   r_multi.get("station:count");
   const [
     new_order_keys,
@@ -295,7 +295,7 @@ async function update_ims_table() {
     free_station_keys,
     busy_station_keys,
     new_order_count,
-    finished_order_count,
+    total_order_count,
     station_count,
   ] = await r_multi.exec();
 
@@ -322,7 +322,8 @@ async function update_ims_table() {
   ims_data["busy_station_keys"] = busy_station_keys;
   ims_data["station_count"] = station_count;
   ims_data["new_order_count"] = new_order_count;
-  ims_data["finished_order_count"] = finished_order_count;
+  // @ts-ignore
+  ims_data["finished_order_count"] = parseInt(total_order_count) - parseInt(new_order_count);
 
   // Using the keys, get the order info for new orders
   if (new_order_keys) {

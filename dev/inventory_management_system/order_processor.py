@@ -46,7 +46,7 @@ class OrderProcessor:
 
     def reset_redis(self):
         logger.warning('Resetting redis stations/orders/tasks')
-        self.r.delete('stations:free', 'stations:busy', 'station:count',
+        self.r.delete('stations:free', 'stations:busy', 'station:count', 'order:count',
                       'orders:requested', 'orders:new', 'orders:inprogress', 'orders:finished',
                       'tasks:new', 'tasks:inprogress', 'tasks:processed', 'tasks:finished')
 
@@ -102,6 +102,7 @@ class OrderProcessor:
         self.r.hset(order_key, mapping=data)
         # Add order key to queue of new orders
         self.r.rpush('orders:new', order_key)
+        self.r.incr('order:count')  # Track orders counted by this redis instance so far
 
         logger.info(f'Inserted order into redis: {order_key} {data}')
         # Step will try to assign it to a station
