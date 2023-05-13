@@ -9,24 +9,11 @@
 <body>
     <div>
         <h1>Warehouse State</h1>
+        <p><a href="https://github.com/Elucidation/mapf-multiagent-robot-planning">Link to Github</a> - Time <span id="time"></span></p>
+        <!-- Warehouse Grid -->
         <div id="grid-container"></div>
-        <div>
-            <table class="robots" id="robot_table">
-                <thead>
-                  <tr>
-                    <th>Robot ID</th>
-                    <th>Held Item</th>
-                    <th>Task</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <!-- Rows will be dynamically added here -->
-                </tbody>
-              </table>              
-        </div>
-        <p><a href="https://github.com/Elucidation/mapf-multiagent-robot-planning">Link to Github</a> - Time <span
-                id="time"></span></p>
+
+        <!-- IMS Table -->
         <div>
             <table class="outer">
                 <thead>
@@ -82,6 +69,24 @@
             </table>
         </div>
     </div>
+
+    <!-- Robot Table -->
+    <div>
+        <table class="robots" id="robot_table">
+            <thead>
+              <tr>
+                <th>Robot ID</th>
+                <th>Held Item</th>
+                <th>Task</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Rows will be dynamically added here -->
+            </tbody>
+          </table>              
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="./visualizer.js"></script>
 </body>
