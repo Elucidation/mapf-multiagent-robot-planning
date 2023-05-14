@@ -4,16 +4,15 @@ import logging.handlers
 import os
 import sys
 
-LOG_TO_FILE = False
 
-def create_warehouse_logger(name, folder='logs/curr/'):
+def create_warehouse_logger(name, folder='logs/curr/', log_to_file=False):
     if not os.path.exists(folder):
         os.makedirs(folder)
 
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
-    if (LOG_TO_FILE):
+
+    if (log_to_file):
         # Root logger with time rotating file handler
         root_logger = logging.getLogger()
         file_path = f'{folder}{name}.log'
