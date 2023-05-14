@@ -10,6 +10,7 @@ Robot Allocator:
     - Pick/Drop items for robots from item zones to station zones
     - Update stations by filling items as they happen
 """
+import json
 import random
 from typing import Optional, Tuple, NewType
 import logging
@@ -345,11 +346,14 @@ class RobotAllocator:
                 'Could not create job this turn, returning task to new')
         return job
 
-    def update(self):
+    def update(self, robots=None):
         t_start = time.perf_counter()
         logger.debug('update start')
         # Update to latest robots from WDB
-        self.robots = self.wdb.get_robots()
+        if robots:
+            self.robots = robots
+        else:
+            self.robots = self.wdb.get_robots()
 
         # Check and update any jobs
         job_keys = list(self.jobs)
@@ -382,7 +386,7 @@ class RobotAllocator:
         path = pf.st_astar(
             self.world_grid, pos_a, pos_b, dynamic_obstacles,
             end_fast=True, max_time=self.max_steps)
-        logger.debug(
+        logger.info(
             f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms')
         return path
 
@@ -629,21 +633,22 @@ if __name__ == '__main__':
     REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
     redis_con = redis.Redis(
         host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-    redis_sub = redis_con.pubsub()
-    redis_sub.subscribe('WORLD_T')
-    logger.info('Redis Subscribed to WORLD_T updates')
 
     # Init Robot Allocator (may wait for databases to exist)
     robot_mgr = RobotAllocator(logger=logger, redis_con=redis_con)
 
     # Main loop processing jobs from tasks
     logger.info('Robot Allocator started')
-    for world_t_message in redis_sub.listen():
-        world_sim_t = int(world_t_message['data'])
+    while True:
+        response = redis_con.xread({'world:state': '$'},block=0, count=1)
+        timestamp, data = response[0][1][0]
+        world_sim_t = int(data['t'])
+        robots = [Robot.from_json(json_data) for json_data in json.loads(data['robots']) ]
+    
         logger.info(
-            f'Step start T={world_sim_t} ---------------------------------------'
+            f'Step start T={world_sim_t} timestamp={timestamp} ---------------------------------'
             '--------------------------------------------------------')
-        robot_mgr.update()
+        robot_mgr.update(robots)
 
         if any(robot_mgr.allocations.values()):
             logger.debug('- Current job allocations')
