@@ -260,6 +260,7 @@ const REDIS_QUERY_RATE_MS = 1000; // max rate to query redis DB at
 var last_redis_query_ms = null;
 var latest_ims_data = null;
 async function update_ims_table() {
+  if (io.engine.clientsCount == 0) return; // No point updating table if no clients.
   const t_start = Date.now();
 
   // Check if cache hit
