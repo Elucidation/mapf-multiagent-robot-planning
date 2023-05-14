@@ -667,11 +667,5 @@ if __name__ == '__main__':
             '--------------------------------------------------------')
         robot_mgr.update(robots)
 
-        if any(robot_mgr.allocations.values()):
-            logger.debug('- Current job allocations')
-            for allocated_robot_id, allocated_job in robot_mgr.allocations.items():
-                logger.debug(
-                    f'RobotId {allocated_robot_id} : {allocated_job}')
-
         # Delay till next task
         logger.debug('Step end')
