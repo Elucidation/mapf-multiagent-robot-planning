@@ -33,6 +33,8 @@ JobId = NewType('JobId', int)
 
 # Max number of steps to search with A*, should be ~worst case distance in grid
 MAX_PATH_STEPS = int(os.getenv("MAX_PATH_STEPS", default="100"))
+MAX_TIME_CHECK_JOB_SEC = float(os.getenv("MAX_TIME_CHECK_JOB_SEC", default="0.100"))
+MAX_TIME_ASSIGN_JOB_SEC = float(os.getenv("MAX_TIME_ASSIGN_JOB_SEC", default="0.100"))
 
 class Job:
     "Build a job from a task, containing actual positions/paths for robot"
@@ -356,12 +358,12 @@ class RobotAllocator:
         for job_key in shuffled_job_keys:
             job = self.jobs[job_key]
             self.check_and_update_job(job)
-            if (time.perf_counter() - t_start) > 0.100:
+            if (time.perf_counter() - t_start) > MAX_TIME_CHECK_JOB_SEC:
                 break
 
         # Now check for any available robots and tasks for up to 100ms
         t_assign = time.perf_counter()
-        while (time.perf_counter() - t_assign) < 0.100:
+        while (time.perf_counter() - t_assign) < MAX_TIME_ASSIGN_JOB_SEC:
             if not self.assign_task_to_robot():
                 break
 
