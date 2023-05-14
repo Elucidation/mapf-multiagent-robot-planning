@@ -27,7 +27,9 @@ app.get("/", (req, res) => {
 
 io.on("connection", (socket) => {
   // Create arbitrary grid and initial robots.
-  console.log(`New connection: ${socket.id} - ${socket.conn.remoteAddress}`);
+  console.log(
+    `New connection: ${socket.id} - ${socket.conn.remoteAddress}, total ${io.engine.clientsCount} clients`
+  );
   socket.emit("set_world", world);
   socket.emit("update", world);
   update_ims_table();
@@ -83,21 +85,20 @@ class World {
 
       for (let r = 0; r < data.grid.length; r++) {
         for (let c = 0; c < data.grid[r].length; c++) {
-          if (data.grid[r][c] <= 1)
-            continue;
+          if (data.grid[r][c] <= 1) continue;
           // Walls are 1, Robots are 2, Item load Zones are 3, Stations are 4
           if (data.grid[r][c] == 2) {
-            data.robot_home_zones.push([r, c])
+            data.robot_home_zones.push([r, c]);
           } else if (data.grid[r][c] == 3) {
-            data.item_load_zones.push([r, c])
+            data.item_load_zones.push([r, c]);
           } else if (data.grid[r][c] == 4) {
-            data.station_zones.push([r, c])
+            data.station_zones.push([r, c]);
           }
           data.grid[r][c] = 0; // Clear the grid position now
         }
       }
     }
-      
+
     /** @type {Point[]} Robot Home positions in this world */
     this.robot_home_zones = data.robot_home_zones.map(
       (rc) => new Point(rc[1], rc[0])
@@ -159,18 +160,21 @@ class World {
   }
 }
 
-var world = World.from_yaml(process.env.WAREHOUSE_YAML || "./warehouses/main_warehouse.yaml");
+var world = World.from_yaml(
+  process.env.WAREHOUSE_YAML || "./warehouses/main_warehouse.yaml"
+);
 
 // Set up Redis
 const REDIS_HOST = process.env.REDIS_HOST || "localhost";
 const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379");
 const redis = require("redis");
+
 /** @type{redis.RedisClientType} */
 var r_client;
 
 (async () => {
   console.log(`Trying to connect to redis server ${REDIS_HOST}:${REDIS_PORT}`);
-  // Set up redis client (1 of 2)
+  // Set up redis client
   r_client = redis.createClient({
     socket: {
       host: REDIS_HOST,
@@ -192,50 +196,32 @@ var r_client;
     console.info(`Loaded world dt_s = ${world.dt_s} from redis`);
   }
 
-  // Set up subscriber redis client (2 of 2)
-  const subscriber = redis.createClient({
-    socket: {
-      host: REDIS_HOST,
-      port: REDIS_PORT,
-      reconnectStrategy() {
-        console.debug("Waiting for redis server...");
-        return 5000; // 5 seconds
-      },
-    },
-  });
-  subscriber.on("error", (err) => {
-    console.warn("Redis subscriber error:", err.code);
-  });
-
-  subscriber.on("ready", function () {
-    console.log(`Redis subscriber READY ${REDIS_HOST}:${REDIS_PORT}`);
-  });
-  await subscriber.connect();
-
-  // Set up callback on WORLD_T publish
-  subscriber.subscribe("WORLD_T", (world_t_str) => {
-    world.t = parseInt(world_t_str);
-    update_robots();
-    // TODO : Port this over to using redis
-    update_ims_table();
-  });
-
   console.log(
-    `Client subscriber connected to redis server ${REDIS_HOST}:${REDIS_PORT}`
+    `Redis listening to world:state stream on ${REDIS_HOST}:${REDIS_PORT}`
   );
 
-  // Update once at beginning
-  update_ims_table();
+  while (true) {
+    let stream = await r_client.xRead(
+      redis.commandOptions({ isolated: true }),
+      [
+        {
+          key: "world:state",
+          id: "$",
+        },
+      ],
+      { BLOCK: 0, COUNT: 1 }
+    );
+    if (!stream) continue;
+    let msg = stream[0].messages[0]; // Get first and only message
+    // let msg_timestamp = msg.id;
+    world.t = parseInt(msg.message.t);
+    let robots_data = JSON.parse(msg.message.robots);
+    update_robots(robots_data);
+    update_ims_table();
+  }
 })();
 
-var robot_keys;
-async function update_robots() {
-  if (!robot_keys) robot_keys = await r_client.lRange("robots:all", 0, -1);
-
-  let r_multi = r_client.multi();
-  robot_keys.forEach((robot_key) => r_multi.hGetAll(robot_key));
-  let robots_data = await r_multi.exec();
-
+async function update_robots(robots_data) {
   robots_data.forEach((robot, i) => {
     if (!robot) return;
     // @ts-ignore
@@ -323,8 +309,9 @@ async function update_ims_table() {
   ims_data["busy_station_keys"] = busy_station_keys;
   ims_data["station_count"] = station_count;
   ims_data["new_order_count"] = new_order_count;
-  // @ts-ignore
-  ims_data["finished_order_count"] = parseInt(total_order_count) - parseInt(new_order_count);
+  ims_data["finished_order_count"] =
+    // @ts-ignore
+    parseInt(total_order_count) - parseInt(new_order_count);
 
   // Using the keys, get the order info for new orders
   if (new_order_keys) {
@@ -335,6 +322,8 @@ async function update_ims_table() {
     });
     const new_orders = await r_multi.exec();
     ims_data["new_orders"] = new_orders.map((order) => {
+      // @ts-ignore
+      if (!order || !order.items) return order;
       // @ts-ignore
       order.items = JSON.parse(order.items);
       return order;
