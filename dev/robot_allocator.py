@@ -33,9 +33,12 @@ import redis
 JobId = NewType('JobId', int)
 
 # Max number of steps to search with A*, should be ~worst case distance in grid
-MAX_PATH_STEPS = int(os.getenv("MAX_PATH_STEPS", default="100"))
-MAX_TIME_CHECK_JOB_SEC = float(os.getenv("MAX_TIME_CHECK_JOB_SEC", default="0.100"))
-MAX_TIME_ASSIGN_JOB_SEC = float(os.getenv("MAX_TIME_ASSIGN_JOB_SEC", default="0.100"))
+MAX_PATH_STEPS = int(os.getenv("MAX_PATH_STEPS", default="200"))
+MAX_TIME_CHECK_JOB_SEC = float(
+    os.getenv("MAX_TIME_CHECK_JOB_SEC", default="0.100"))
+MAX_TIME_ASSIGN_JOB_SEC = float(
+    os.getenv("MAX_TIME_ASSIGN_JOB_SEC", default="0.100"))
+
 
 class Job:
     "Build a job from a task, containing actual positions/paths for robot"
@@ -365,23 +368,30 @@ class RobotAllocator:
         job_keys = list(self.jobs)
         shuffled_job_keys = random.sample(job_keys, len(job_keys))
         # Only process jobs for up to 100ms
+        jobs_processed = 0
         for job_key in shuffled_job_keys:
             job = self.jobs[job_key]
             self.check_and_update_job(job)
+            jobs_processed += 1
             if (time.perf_counter() - t_start) > MAX_TIME_CHECK_JOB_SEC:
                 break
 
         # Now check for any available robots and tasks for up to 100ms
         t_assign = time.perf_counter()
+        robots_assigned = 0
+        available_robots_count = len(self.get_available_robots())
         while (time.perf_counter() - t_assign) < MAX_TIME_ASSIGN_JOB_SEC:
             if not self.assign_task_to_robot():
                 break
+            robots_assigned += 1
 
         # Batch update robots now
         self.wdb.update_robots(self.robots)
         update_duration_ms = (time.perf_counter() - t_start)*1000
         logger.info(
-            f'update end, took {update_duration_ms:.3f} ms')
+            f'update end, took {update_duration_ms:.3f} ms, '
+            f'processed {jobs_processed}/{len(shuffled_job_keys)} jobs, '
+            f'assigned {robots_assigned}/{available_robots_count} available robots')
 
     def sleep(self):
         time.sleep(self.dt_sec)
@@ -646,11 +656,12 @@ if __name__ == '__main__':
     # Main loop processing jobs from tasks
     logger.info('Robot Allocator started')
     while True:
-        response = redis_con.xread({'world:state': '$'},block=0, count=1)
+        response = redis_con.xread({'world:state': '$'}, block=0, count=1)
         timestamp, data = response[0][1][0]
         world_sim_t = int(data['t'])
-        robots = [Robot.from_json(json_data) for json_data in json.loads(data['robots']) ]
-    
+        robots = [Robot.from_json(json_data)
+                  for json_data in json.loads(data['robots'])]
+
         logger.info(
             f'Step start T={world_sim_t} timestamp={timestamp} ---------------------------------'
             '--------------------------------------------------------')
