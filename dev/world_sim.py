@@ -318,5 +318,4 @@ if __name__ == '__main__':
         if not world.get_current_state():
             logger.error(
                 f'World State invalid, collision(s): {world.collision}')
-        redis_con.publish('WORLD_T', world.t)
         world.sleep()
