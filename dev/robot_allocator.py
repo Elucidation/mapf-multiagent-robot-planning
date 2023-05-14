@@ -10,6 +10,7 @@ Robot Allocator:
     - Pick/Drop items for robots from item zones to station zones
     - Update stations by filling items as they happen
 """
+import random
 from typing import Optional, Tuple, NewType
 import logging
 import os
@@ -30,6 +31,8 @@ import redis
 
 JobId = NewType('JobId', int)
 
+# Max number of steps to search with A*, should be ~worst case distance in grid
+MAX_PATH_STEPS = int(os.getenv("MAX_PATH_STEPS", default="100"))
 
 class Job:
     "Build a job from a task, containing actual positions/paths for robot"
@@ -128,7 +131,7 @@ class RobotAllocator:
         self.station_locks: dict[Position, Optional[JobId]] = {
             pos: None for pos in self.station_zones}
 
-        self.max_steps = 40  # hard-coded search tile limit for pathing
+        self.max_steps = MAX_PATH_STEPS  # hard-coded search tile limit for pathing
 
         # Keep track of all jobs, even completed
         self.job_id_counter: JobId = JobId(0)
@@ -347,16 +350,25 @@ class RobotAllocator:
         self.robots = self.wdb.get_robots()
 
         # Check and update any jobs
-        for job in self.jobs.values():
+        job_keys = list(self.jobs)
+        shuffled_job_keys = random.sample(job_keys, len(job_keys))
+        # Only process jobs for up to 100ms
+        for job_key in shuffled_job_keys:
+            job = self.jobs[job_key]
             self.check_and_update_job(job)
+            if (time.perf_counter() - t_start) > 0.100:
+                break
 
-        # Now check for any available robots and tasks
-        self.assign_task_to_robot()
+        # Now check for any available robots and tasks for up to 100ms
+        t_assign = time.perf_counter()
+        while (time.perf_counter() - t_assign) < 0.100:
+            if not self.assign_task_to_robot():
+                break
 
         # Batch update robots now
         self.wdb.update_robots(self.robots)
         update_duration_ms = (time.perf_counter() - t_start)*1000
-        logger.debug(
+        logger.info(
             f'update end, took {update_duration_ms:.3f} ms')
 
     def sleep(self):
