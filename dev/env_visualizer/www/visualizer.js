@@ -633,7 +633,7 @@ var interval = setInterval(() => {
   // Update robot postions, held items, paths
   let t = 0;
   if (latest_msg.dt_s) {
-    t = (Date.now() - t_start) / (latest_msg.dt_s * 1000);
+    t = (Date.now() - t_start) / (parseFloat(latest_msg.dt_s) * 1000.0);
     if (t > 1) {
       return; // No more changes, no need to update
     }
