@@ -241,6 +241,7 @@ class RobotAllocator:
         dynamic_obstacles: set[tuple[int, int, int]
                                ] = set()  # set{(row,col,t), ...}
 
+        this_robot = self.get_robot(robot_id)
         # TODO : Consider creating static obstacles instead of time-bound ones
         # Block off all other robot docks as dynamic obstacles
         for idx, dock in enumerate(self.robot_home_zones):
@@ -264,6 +265,11 @@ class RobotAllocator:
                 dynamic_obstacles.add((pos[0], pos[1], t))
 
         for robot in self.robots:
+            if robot.robot_id == robot_id:
+                continue  # Ignore self
+            if robot.pos == this_robot.pos:
+                logger.error('Robot collision, pathing out of it')
+                continue  # Ignore edge case robot collision to allow for recovering out
             # Add all positions along future path
             for t, pos in enumerate(robot.future_path):
                 dynamic_obstacles.add((pos[0], pos[1], t))
