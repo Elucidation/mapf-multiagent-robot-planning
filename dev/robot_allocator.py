@@ -136,11 +136,13 @@ class RobotAllocator:
         t_start = time.perf_counter()
         logger.info('Building true heuristic')
         self.true_heuristic_dict = build_true_heuristic(self.world_grid)
+
         def true_heuristic(pos_a: Position, pos_b: Position) -> float:
             return self.true_heuristic_dict[pos_b][pos_a]
         self.true_heuristic_function = true_heuristic
         # self.true_heuristic_function = euclidean_heuristic
-        self.logger.warning(f'Heuristic used: {self.true_heuristic_function.__name__}')
+        self.logger.warning(
+            f'Heuristic used: {self.true_heuristic_function.__name__}')
         self.logger.info(
             f'Built true heuristic grid in {(time.perf_counter() - t_start)*1000:.2f} ms')
 
@@ -167,10 +169,10 @@ class RobotAllocator:
             robot.state_description = 'Waiting for task'
             if robot.pos != self.robot_home_zones[idx]:
                 # Not at home, try to go home, assume current pos in any zone as not an obstacle
-                dynamic_obstacles = self.get_current_dynamic_obstacles(
+                dynamic_obstacles, static_obstacles = self.get_current_obstacles(
                     robot.robot_id, robot.pos, robot.pos)
                 path_to_home = self.generate_path(
-                    robot.pos, self.robot_home_zones[idx], dynamic_obstacles)
+                    robot.pos, self.robot_home_zones[idx], dynamic_obstacles, static_obstacles)
                 self.logger.warning(
                     f'Starting outside of home, attempting to send home: {path_to_home}')
                 robot.state_description = 'Allocator restart, trying to going home'
@@ -244,41 +246,40 @@ class RobotAllocator:
         robot.task_key = job.task_key
         return job
 
-    def get_current_dynamic_obstacles(self, robot_id: RobotId,
-                                      item_zone_pos: Optional[Position] = None,
-                                      station_zone_pos: Optional[Position] = None,
-                                      ) -> set[tuple[int, int, int]]:
+    def get_current_obstacles(self, robot_id: RobotId,
+                              item_zone_pos: Optional[Position] = None,
+                              station_zone_pos: Optional[Position] = None,
+                              ) -> tuple[set[tuple[int, int, int]], set[tuple[int, int]]]:
         """Return existing robot future paths as dynamic obstacles
 
-        Returns:
+        Returns a tuple of:
             set[tuple[int, int, int]]: set of (row, col, t) dynamic obstacles with current t=-1
+            set[tuple[int, int]]: set of (row, col) static obstacles
+
         """
         # For dynamic obstacles, assume current moment is t=-1, next moment is t=0
         dynamic_obstacles: set[tuple[int, int, int]
                                ] = set()  # set{(row,col,t), ...}
+        static_obstacles: set[tuple[int, int]] = set()  # set{(row,col), ...}
 
         this_robot = self.get_robot(robot_id)
-        # TODO : Consider creating static obstacles instead of time-bound ones
-        # Block off all other robot docks as dynamic obstacles
+        # Block off all other robot docks as static obstacles
         for idx, dock in enumerate(self.robot_home_zones):
             if idx == robot_id:
                 continue
-            for t in range(self.max_steps):
-                dynamic_obstacles.add((dock[0], dock[1], t))
+            static_obstacles.add((dock[0], dock[1]))
 
-        # Block off all item zones (except any given one)
+        # Block off all item zones (except any given one) as static
         for pos in self.item_load_zones:
             if pos == item_zone_pos:
                 continue
-            for t in range(self.max_steps):
-                dynamic_obstacles.add((pos[0], pos[1], t))
+            static_obstacles.add((pos[0], pos[1]))
 
-        # Block off all station zones (except any given one)
+        # Block off all station zones (except any given one) as static
         for pos in self.station_zones:
             if pos == station_zone_pos:
                 continue
-            for t in range(self.max_steps):
-                dynamic_obstacles.add((pos[0], pos[1], t))
+            static_obstacles.add((pos[0], pos[1]))
 
         for robot in self.robots:
             if robot.robot_id == robot_id:
@@ -300,12 +301,10 @@ class RobotAllocator:
                 last_pos = robot.future_path[path_t-1]
                 for t in range(path_t, path_t+5):
                     dynamic_obstacles.add((last_pos[0], last_pos[1], t))
-
             else:
-                # Robot stationary, add current robot position up to limit
-                for t in range(self.max_steps):
-                    dynamic_obstacles.add((robot.pos[0], robot.pos[1], t))
-        return dynamic_obstacles
+                # Robot stationary, add current robot position as static obstacle
+                static_obstacles.add((robot.pos[0], robot.pos[1]))
+        return (dynamic_obstacles, static_obstacles)
 
     def get_robot(self, robot_id: RobotId) -> Robot:
         # TODO : Replace this with dict[robot_id] -> robot
@@ -409,11 +408,12 @@ class RobotAllocator:
     def sleep(self):
         time.sleep(self.dt_sec)
 
-    def generate_path(self, pos_a: Position, pos_b: Position, dynamic_obstacles) -> Path:
+    def generate_path(self, pos_a: Position, pos_b: Position,
+                      dynamic_obstacles, static_obstacles) -> Path:
         """Generate a path from a to b avoiding existing robots"""
         t_start = time.perf_counter()
         path = pf.st_astar(
-            self.world_grid, pos_a, pos_b, dynamic_obstacles,
+            self.world_grid, pos_a, pos_b, dynamic_obstacles, static_obstacles=static_obstacles,
             end_fast=True, max_time=self.max_steps, heuristic=self.true_heuristic_function)
         logger.info(
             f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms')
@@ -429,10 +429,10 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
         # Try to generate new path for robot
-        dynamic_obstacles = self.get_current_dynamic_obstacles(
+        dynamic_obstacles, static_obstacles = self.get_current_obstacles(
             job.robot_id, item_zone_pos=job.item_zone)
         job.path_robot_to_item = self.generate_path(
-            current_pos, job.item_zone, dynamic_obstacles)
+            current_pos, job.item_zone, dynamic_obstacles, static_obstacles)
         if not job.path_robot_to_item:
             self.logger.warning(f'Robot {job.robot_id} no path to item zone')
 
@@ -440,7 +440,7 @@ class RobotAllocator:
                 return False
             # Not at home, so try going home instead for now
             path_to_home = self.generate_path(
-                current_pos, job.robot_home, dynamic_obstacles)
+                current_pos, job.robot_home, dynamic_obstacles, static_obstacles)
             self.logger.warning(
                 f'Going home? {job.robot_home} - {current_pos} = {path_to_home}')
             if path_to_home:
@@ -492,15 +492,15 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
         # Try to generate new path for robot
-        dynamic_obstacles = self.get_current_dynamic_obstacles(
+        dynamic_obstacles, static_obstacles = self.get_current_obstacles(
             job.robot_id, item_zone_pos=job.item_zone, station_zone_pos=job.station_zone)
         job.path_item_to_station = self.generate_path(
-            current_pos, job.station_zone, dynamic_obstacles)
+            current_pos, job.station_zone, dynamic_obstacles, static_obstacles)
         if not job.path_item_to_station:
             logger.warning(f'No path to station for {job}')
             # Try going home instead to leave space at station
             path_to_home = self.generate_path(
-                current_pos, job.robot_home, dynamic_obstacles)
+                current_pos, job.robot_home, dynamic_obstacles, static_obstacles)
             if path_to_home:
                 robot.set_path(path_to_home)
                 robot.state_description = 'Pathing home, waiting till station available'
@@ -561,10 +561,10 @@ class RobotAllocator:
         # Try to generate new path for robot
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
-        dynamic_obstacles = self.get_current_dynamic_obstacles(
+        dynamic_obstacles, static_obstacles = self.get_current_obstacles(
             job.robot_id, station_zone_pos=job.station_zone)
         job.path_station_to_home = self.generate_path(
-            current_pos, job.robot_home, dynamic_obstacles)
+            current_pos, job.robot_home, dynamic_obstacles, static_obstacles)
         if not job.path_station_to_home:
             self.logger.warning(f'Robot {job.robot_id} no path back home')
             return False  # Did not start job as no path existed yet
@@ -624,9 +624,10 @@ class RobotAllocator:
         # Try going home instead to leave space at station
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
-        dynamic_obstacles = self.get_current_dynamic_obstacles(job.robot_id)
+        dynamic_obstacles, static_obstacles = self.get_current_obstacles(
+            job.robot_id)
         path_to_home = self.generate_path(
-            current_pos, job.robot_home, dynamic_obstacles)
+            current_pos, job.robot_home, dynamic_obstacles, static_obstacles)
         if path_to_home:
             robot.set_path(path_to_home)
         # Set robots start pos to where it is currently

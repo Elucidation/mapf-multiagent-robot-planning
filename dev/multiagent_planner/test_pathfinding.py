@@ -62,6 +62,49 @@ class TestPathfinding(unittest.TestCase):
                          (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (3, 4)]
         self.assertEqual(path, expected_path)
 
+    def test_st_astar_with_static_obstacles(self):
+        grid, goals, starts = get_scenario(
+            'multiagent_planner/scenarios/scenario3.yaml')
+        dynamic_obstacles = set()
+        static_obstacles = set([(2, 8)])
+
+        path_no_static = pathfinding.st_astar(
+            grid, starts[0], goals[0], dynamic_obstacles, static_obstacles=set(), end_fast=True)
+        # - [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        # - [1, S, x, x, x, x, 0, 0, 0, 0, 1]
+        # - [1, 0, 0, 0, 0, x, x, x, x, 0, 1]
+        # - [1, 0, 0, 0, 1, 0, 1, 1, x, 0, 1]
+        # - [1, 0, 0, 0, 1, 0, 1, 1, x, 0, 1]
+        # - [1, 0, 0, 0, 1, 0, 1, 1, F, 0, 1]
+        # - [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1]
+        # - [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1]
+        # - [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+        # - [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+        # - [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        expected_path_no_static = [(1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
+                                   (2, 5), (2, 6), (2, 7), (2, 8), (3, 8), (4, 8), (5, 8)]
+        self.assertEqual(path_no_static, expected_path_no_static)
+        
+        path_static = pathfinding.st_astar(
+            grid, starts[0], goals[0], dynamic_obstacles, static_obstacles, end_fast=True)
+        # - [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        # - [1, S, x, x, x, x, 0, x, x, x, 1]
+        # - [1, 0, 0, 0, 0, x, x, x, B, x, 1]
+        # - [1, 0, 0, 0, 1, 0, 1, 1, 0, x, 1]
+        # - [1, 0, 0, 0, 1, 0, 1, 1, x, x, 1]
+        # - [1, 0, 0, 0, 1, 0, 1, 1, F, 0, 1]
+        # - [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1]
+        # - [1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1]
+        # - [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+        # - [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+        # - [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        expected_path_static = [
+            (1, 1), (1, 2), (1, 3), (1, 4),
+            (1, 5), (2, 5), (2, 6), (2, 7), (1, 7),
+            (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8)]
+        self.assertEqual(path_static, expected_path_static)
+        
+
 
 if __name__ == '__main__':
     unittest.main()

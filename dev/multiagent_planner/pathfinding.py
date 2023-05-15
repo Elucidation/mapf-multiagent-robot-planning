@@ -96,7 +96,8 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
     return []
 
 
-def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set, max_time=20,
+def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set,
+             static_obstacles: set = set(), max_time=20,
              maxiters=10000, t_start=0, end_fast=False,
              heuristic: HeuristicFunction = euclidean_heuristic) -> Path:
     """Space-Time A* search.
@@ -110,6 +111,7 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set, ma
         pos_a (Position): _description_
         pos_b (Position): _description_
         dynamic_obstacles (set): set{(row,col,t), ...} of obstacles to avoid. Defaults to set().
+        static_obstacles (set): set{(row,col), ...} of obstacles to avoid. Defaults to set().
         max_time (int, optional): max time to search up to. Defaults to 20.
         maxiters (int, optional): _description_. Defaults to 10000.
         t_start (int, optional): offset start time if this path starts later in dynamic obstacles. 
@@ -125,6 +127,8 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set, ma
 
     if graph[pos_a[0], pos_a[1]] > 0 or graph[pos_b[0], pos_b[1]] > 0:
         raise ValueError('Start/End locations in walls')
+    if pos_a in static_obstacles or pos_b in static_obstacles:
+        return []  # Start/End in static obstacles
 
     def check_valid(stpos: PositionST) -> bool:
         (row, col, t) = stpos
@@ -136,6 +140,8 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set, ma
         if col < 0 or col >= max_col:
             return False
         if graph[row, col] > 0:
+            return False
+        if (row, col) in static_obstacles:
             return False
         if stpos in dynamic_obstacles:
             return False
