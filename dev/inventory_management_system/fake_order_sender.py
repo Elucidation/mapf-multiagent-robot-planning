@@ -48,7 +48,8 @@ while True:
 def send_new_order_request():
     """Creates new random order and publishes to redis ims.new_order channel"""
     item_list = ItemCounter(
-        [ItemId(random.randint(0, args.max_item_id)) for _ in range(random.randint(1, args.max_items))])
+        [ItemId(random.randint(0, args.max_item_id)) for _ in range(
+            random.randint(1, args.max_items))])
     order_request_queue = 'orders:requested'
     msg = json.dumps({'items': item_list})
     redis_con.rpush(order_request_queue, msg)

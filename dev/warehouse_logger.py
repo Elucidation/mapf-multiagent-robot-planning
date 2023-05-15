@@ -12,7 +12,7 @@ def create_warehouse_logger(name, folder='logs/curr/', log_to_file=False):
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    if (log_to_file):
+    if log_to_file:
         # Root logger with time rotating file handler
         root_logger = logging.getLogger()
         file_path = f'{folder}{name}.log'

@@ -286,7 +286,9 @@ if __name__ == '__main__':
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
         os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml'))
-    logger.info(f'World Shape: {grid.shape}, {len(robot_home_zones)} robots, {len(item_load_zones)} item zones, {len(station_zones)} stations')
+    logger.info(
+        f'World Shape: {grid.shape}, {len(robot_home_zones)} robots,'
+        f' {len(item_load_zones)} item zones, {len(station_zones)} stations')
 
     # Create robots at start positions (row,col) -> (x,y)
     robots = [Robot(RobotId(i), (col, row))

@@ -1,3 +1,5 @@
+"""[DEV] Counts log messages of generate_path and times from them
+Then it builds a histogram comparison between two heuristic functions (euclidean vs true). """
 import numpy as np
 import matplotlib.pyplot as plt  # type: ignore
 
@@ -8,7 +10,7 @@ def load_robot_allocator_log_file(filename) -> list[dict]:
     with open(filename, 'r', encoding='utf8') as file:
         for line in file:
             parts = line.split(' - ')
-            if not ('generate_path' in parts[3]):
+            if not 'generate_path' in parts[3]:
                 continue
 
             # example message contains 'generate_path took 0.387 ms'
@@ -21,12 +23,10 @@ print('Loading data')
 data_euclid = load_robot_allocator_log_file(
     'curr/TEST1_robot_allocator_EUCLIDEAN.log')
 data_true = load_robot_allocator_log_file(
-    'curr\TEST2_robot_allocator_TRUE.log')
-# print(data)
+    'curr/TEST2_robot_allocator_TRUE.log')
 
 
 plt.figure(figsize=(6, 4))
-# plt.subplot(121)
 plt.hist(data_euclid, bins=40, alpha=0.5, label='Euclidean Heuristic')
 plt.hist(data_true, bins=40, alpha=0.5, label='True Heuristic')
 plt.xlabel('Processing Time (ms)')

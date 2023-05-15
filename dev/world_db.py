@@ -32,7 +32,7 @@ class WorldDatabaseManager:
 
     @timeit
     def __init__(self, redis_con: redis.Redis):
-        self.r = redis_con
+        self.redis = redis_con
         logger.debug('Initialized WorldDatabaseManager instance')
 
     @timeit
@@ -42,15 +42,15 @@ class WorldDatabaseManager:
     @timeit
     def delete_tables(self):
         logger.warning('Resetting redis Robots/State')
-        for key in self.r.scan_iter("robot:*"):
-            self.r.delete(key)
-        self.r.delete('world:state', 'states', 'robots:all', 'robots:busy', 'robots:free')
-
+        for key in self.redis.scan_iter("robot:*"):
+            self.redis.delete(key)
+        self.redis.delete('world:state', 'states', 'robots:all',
+                          'robots:busy', 'robots:free')
 
     @timeit
     def add_robots(self, robots: List[Robot]):
         print('----')
-        pipeline = self.r.pipeline()
+        pipeline = self.redis.pipeline()
         for robot in robots:
             robot_key = f'robot:{robot.robot_id}'
             pipeline.hset(robot_key, mapping=robot.json_data())
@@ -61,28 +61,28 @@ class WorldDatabaseManager:
 
     @timeit
     def get_timestamp(self) -> int:
-        return int(self.r.hget('states', 'timestamp'))
+        return int(self.redis.hget('states', 'timestamp'))
 
     @timeit
     def update_timestamp(self, t: int):
-        return self.r.hset('states', 'timestamp', t)
+        return self.redis.hset('states', 'timestamp', t)
 
     @timeit
     def set_dt_sec(self, dt_sec: float):
-        return self.r.hset('states', 'dt_sec', dt_sec)
+        return self.redis.hset('states', 'dt_sec', dt_sec)
 
     @timeit
     def get_dt_sec(self) -> float:
-        return float(self.r.hget('states', 'dt_sec'))
+        return float(self.redis.hget('states', 'dt_sec'))
 
     @timeit
     def set_robot_path(self, robot_id: int, path: list):
         robot_key = f'robot:{robot_id}'
-        return self.r.hset(robot_key, 'path', json.dumps(path))
+        return self.redis.hset(robot_key, 'path', json.dumps(path))
 
     @timeit
     def update_robots(self, robots: List[Robot]):
-        pipeline = self.r.pipeline()
+        pipeline = self.redis.pipeline()
         for robot in robots:
             robot_key = f'robot:{robot.robot_id}'
             pipeline.hset(robot_key, mapping=robot.json_data())
@@ -107,13 +107,13 @@ class WorldDatabaseManager:
     @timeit
     def get_robot(self, robot_id: RobotId) -> Robot:
         robot_key = f'robot:{robot_id}'
-        json_data = self.r.hgetall(robot_key)
+        json_data = self.redis.hgetall(robot_key)
         return Robot.from_json(json_data)
 
     @timeit
     def get_robots(self) -> List[Robot]:
-        robot_keys = self.r.lrange('robots:all', 0, -1)
-        pipeline = self.r.pipeline()
+        robot_keys = self.redis.lrange('robots:all', 0, -1)
+        pipeline = self.redis.pipeline()
         for robot_key in robot_keys:
             pipeline.hgetall(robot_key)
         robots_json_data = pipeline.execute()
@@ -121,5 +121,5 @@ class WorldDatabaseManager:
 
     def log_world_state(self, data: dict):
         """Add latest world state data to the stream."""
-        self.r.xadd('world:state', data)
-        self.r.xtrim('world:state', maxlen=100, approximate=True)
+        self.redis.xadd('world:state', data)
+        self.redis.xtrim('world:state', maxlen=100, approximate=True)

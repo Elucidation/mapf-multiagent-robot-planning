@@ -66,7 +66,7 @@ while True:
     # Take 1-5 sec to complete task
     # Get task group key, item_id and idx
     # There is a task group key: 'task:station:<id>:order:<id>' -> set(item_id, item_id...)
-    #   Which has a set of all the individual task keys 'task:station:<id>:order:<id>:<item_id>:<idx>'
+    #   Which has a set of all individual task keys 'task:station:<id>:order:<id>:<item_id>:<idx>'
     task_group_key, item_id, idx = task_key.rsplit(':', 2)
     _, _, station_id, _, order_id = task_group_key.split(':')
     logger.info(
