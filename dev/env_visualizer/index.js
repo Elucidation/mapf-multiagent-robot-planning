@@ -212,6 +212,7 @@ var r_client;
       { BLOCK: 0, COUNT: 1 }
     );
     if (!stream) continue;
+    if (io.engine.clientsCount == 0) continue; // No point processing if no clients
     let msg = stream[0].messages[0]; // Get first and only message
     // let msg_timestamp = msg.id;
     world.t = parseInt(msg.message.t);
