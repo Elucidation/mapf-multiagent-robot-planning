@@ -336,9 +336,9 @@ function updateFinishedOrderTable(table, orders) {
     const statusCell = document.createElement("td");
     // Hard-coded for now since redis finished orders can only exist if complete.
     statusCell.textContent = order.status;
-    if (order.status == 'COMPLETE') {
+    if (order.status == "COMPLETE") {
       statusCell.setAttribute("class", "complete");
-    } else if (order.status == 'ERROR') {
+    } else if (order.status == "ERROR") {
       statusCell.setAttribute("class", "failed");
     }
     row.appendChild(statusCell);
@@ -365,7 +365,9 @@ function updateFinishedOrderTable(table, orders) {
       const waitTimeMs = order.assigned - order.created;
       const processTimeMs = order.finished - order.assigned;
       const totalTimeMs = waitTimeMs + processTimeMs;
-      processTimeCell.textContent = `${(waitTimeMs / 1000).toFixed(0)}s + ${(processTimeMs / 1000).toFixed(0)}s = ${(totalTimeMs / 1000).toFixed(0)}s`;
+      processTimeCell.textContent = `${(waitTimeMs / 1000).toFixed(0)}s + ${(
+        processTimeMs / 1000
+      ).toFixed(0)}s = ${(totalTimeMs / 1000).toFixed(0)}s`;
     } else {
       const processTimeMs = order.finished - order.created;
       processTimeCell.textContent = `${(processTimeMs / 1000).toFixed(0)}s`;
@@ -481,6 +483,9 @@ var latest_msg;
 
 var t_start;
 var curr_robots;
+// Tracks if the t between the last and latest msg is incremented by 1
+// so animation knows to tween between the two or not.
+var no_missed_msgs = false;
 socket.on("update", (/** @type {any} */ msg) => {
   // if (!document.hasFocus()) {
   //   // Skip Updating visuals when window not in focus
@@ -491,6 +496,11 @@ socket.on("update", (/** @type {any} */ msg) => {
   prev_robots = curr_robots;
   curr_robots = msg.robots;
 
+  if (latest_msg && msg.t && latest_msg.t && msg.t - latest_msg.t == 1) {
+    no_missed_msgs = true;
+  } else {
+    no_missed_msgs = false;
+  }
   latest_msg = msg;
   t_start = Date.now();
   if (msg.t != null) {
@@ -632,7 +642,9 @@ var interval = setInterval(() => {
   }
   // Update robot postions, held items, paths
   let t = 0;
-  if (latest_msg.dt_s) {
+  if (!no_missed_msgs) {
+    t = 1; // Only tween if no missed messages between prev msg and current.
+  } else if (latest_msg.dt_s) {
     t = (Date.now() - t_start) / (parseFloat(latest_msg.dt_s) * 1000.0);
     if (t > 1) {
       return; // No more changes, no need to update
