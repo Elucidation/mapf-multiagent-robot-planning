@@ -50,7 +50,6 @@ class WorldDatabaseManager:
     @timeit
     def add_robots(self, robots: List[Robot]):
         print('----')
-        logger.info(f'robot {robots} json: {robots[0].json_data()}')
         pipeline = self.r.pipeline()
         for robot in robots:
             robot_key = f'robot:{robot.robot_id}'
