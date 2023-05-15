@@ -1,6 +1,7 @@
 """A* and STA* pathfinding algorithms."""
 import heapq
 from collections import defaultdict
+import math
 from typing import Optional
 
 # Type Aliases
@@ -33,8 +34,7 @@ def astar(graph, pos_a: Position, pos_b: Position) -> list[Position]:
 
     def heuristic(pos_a: Position, pos_b: Position) -> float:
         # return abs(pos_a[0] - pos_b[0]) + abs(pos_a[1] - pos_b[1]) # manhattan distance
-        # squared distance
-        return (pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2
+        return math.sqrt((pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2)
 
     def check_valid(pos: Position) -> bool:
         max_row, max_col = graph.shape
