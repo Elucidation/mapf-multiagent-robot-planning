@@ -74,18 +74,20 @@ def build_true_heuristic(grid):
 
 
 heuristic_dict = build_true_heuristic(grid)
+def true_heuristic(pos_a: Position, pos_b: Position) -> float:
+    return float(heuristic_dict[pos_b][pos_a])
 
 start_pt = Position([7, 2])
 goal_pt = Position([7, 9])
 print(heuristic_dict[tuple(goal_pt)])
+print(true_heuristic(start_pt, goal_pt))
 
 @timeit
 def do_astar():
     path = astar(grid, start_pt, goal_pt)
     return path
 
-def true_heuristic(pos_a: Position, pos_b: Position) -> float:
-    return float(heuristic_dict[pos_b][pos_a])
+
 
 @timeit
 def do_true_astar():

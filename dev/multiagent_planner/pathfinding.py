@@ -12,7 +12,16 @@ Path = list[Position]
 PathST = list[PositionST]
 
 
-def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000, heuristic=None) -> list[Position]:
+def manhattan_heuristic(pos_a: Position, pos_b: Position) -> float:
+    return abs(pos_a[0] - pos_b[0]) + abs(pos_a[1] - pos_b[1])
+
+
+def euclidean_heuristic(pos_a: Position, pos_b: Position) -> float:
+    # TODO : inheritance on these functions
+    return math.sqrt((pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2)
+
+
+def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000, heuristic=euclidean_heuristic) -> list[Position]:
     """A* search through graph from p
 
     Args:
@@ -31,13 +40,6 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000, heuristic=No
 
     if graph[pos_a[0], pos_a[1]] > 0 or graph[pos_b[0], pos_b[1]] > 0:
         raise ValueError('Start/End locations in walls')
-
-    def manhattan_heuristic(pos_a: Position, pos_b: Position) -> float:
-        # return abs(pos_a[0] - pos_b[0]) + abs(pos_a[1] - pos_b[1]) # manhattan distance
-        return math.sqrt((pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2)
-
-    if not heuristic:
-        heuristic = manhattan_heuristic
 
     def check_valid(pos: Position) -> bool:
         max_row, max_col = graph.shape
@@ -94,7 +96,7 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000, heuristic=No
 
 
 def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set, max_time=20,
-             maxiters=10000, t_start=0, end_fast=False) -> Path:
+             maxiters=10000, t_start=0, end_fast=False, heuristic=euclidean_heuristic) -> Path:
     """Space-Time A* search.
 
     Each tile is position.
@@ -120,12 +122,6 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set, ma
 
     if graph[pos_a[0], pos_a[1]] > 0 or graph[pos_b[0], pos_b[1]] > 0:
         raise ValueError('Start/End locations in walls')
-
-    def heuristic(pos_a: Position, pos_b: Position) -> float:
-        # manhattan distance
-        return abs(pos_a[0] - pos_b[0]) + abs(pos_a[1] - pos_b[1])
-        # return (pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2  # squared distance
-        # todo, use true-distance heuristic via backwards search
 
     def check_valid(stpos: PositionST) -> bool:
         (row, col, t) = stpos
