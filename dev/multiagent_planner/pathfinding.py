@@ -2,7 +2,7 @@
 import heapq
 from collections import defaultdict
 import math
-from typing import Optional
+from typing import Callable, Optional
 
 # Type Aliases
 Position = tuple[int, int]  # (row, col)
@@ -10,6 +10,7 @@ PositionST = tuple[int, int, int]  # (row, col, time)
 Collision = tuple[int, int, int, int]  # (path_idx, row, col, time)
 Path = list[Position]
 PathST = list[PositionST]
+HeuristicFunction = Callable[[Position, Position], float]
 
 
 def manhattan_heuristic(pos_a: Position, pos_b: Position) -> float:
@@ -17,11 +18,11 @@ def manhattan_heuristic(pos_a: Position, pos_b: Position) -> float:
 
 
 def euclidean_heuristic(pos_a: Position, pos_b: Position) -> float:
-    # TODO : inheritance on these functions
     return math.sqrt((pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2)
 
 
-def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000, heuristic=euclidean_heuristic) -> list[Position]:
+def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
+          heuristic: HeuristicFunction = euclidean_heuristic) -> list[Position]:
     """A* search through graph from p
 
     Args:
@@ -96,7 +97,8 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000, heuristic=eu
 
 
 def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set, max_time=20,
-             maxiters=10000, t_start=0, end_fast=False, heuristic=euclidean_heuristic) -> Path:
+             maxiters=10000, t_start=0, end_fast=False,
+             heuristic: HeuristicFunction = euclidean_heuristic) -> Path:
     """Space-Time A* search.
 
     Each tile is position.
