@@ -599,8 +599,9 @@ class RobotAllocator:
         robot.state = RobotStatus.AVAILABLE
         robot.task_key = None
         robot.state_description = 'Waiting for task'
-        # Remove job from allocations
-        self.allocations[job.robot_id] = None
+        # Remove job from allocations and job dict
+        self.allocations.pop(job.robot_id, None)
+        self.jobs.pop(job.job_id, None)
         return True
 
     def job_restart(self, job: Job):
