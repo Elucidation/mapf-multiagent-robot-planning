@@ -60,48 +60,47 @@ def get_distances(grid, start: Position):
                     queue.append((new_x, new_y))
     return distances
 
-
-# print(grid)
-# print(get_distances(grid, start_pt))
-
-
-@timeit
+# @timeit
 def build_true_heuristic(grid):
-    heuristic_dict = {}
+    """
+    Builds a heuristic dict for all open grid cells h[pos] = np grid open cell integer distances
+    Impassable cells are -1 score
+    """
+    true_heuristic_dict_for_grid = {}
     for pos in np.argwhere(grid == 0):
-        heuristic_dict[tuple(pos)] = get_distances(grid, pos)
-    return heuristic_dict
+        true_heuristic_dict_for_grid[tuple(pos)] = get_distances(grid, pos)
+    return true_heuristic_dict_for_grid
+
+if __name__ == '__main__':
+    heuristic_dict = build_true_heuristic(grid)
+    def true_heuristic(pos_a: Position, pos_b: Position) -> float:
+        return float(heuristic_dict[pos_b][pos_a])
+
+    start_pt = Position([7, 2])
+    goal_pt = Position([7, 9])
+    print(heuristic_dict[tuple(goal_pt)])
+    print(true_heuristic(start_pt, goal_pt))
+
+    @timeit
+    def do_astar():
+        path = astar(grid, start_pt, goal_pt)
+        return path
 
 
-heuristic_dict = build_true_heuristic(grid)
-def true_heuristic(pos_a: Position, pos_b: Position) -> float:
-    return float(heuristic_dict[pos_b][pos_a])
 
-start_pt = Position([7, 2])
-goal_pt = Position([7, 9])
-print(heuristic_dict[tuple(goal_pt)])
-print(true_heuristic(start_pt, goal_pt))
+    @timeit
+    def do_true_astar():
+        path = astar(grid, start_pt, goal_pt, heuristic=true_heuristic)
+        return path
 
-@timeit
-def do_astar():
-    path = astar(grid, start_pt, goal_pt)
-    return path
+    path1 = do_astar()
+    path2 = do_true_astar()
+    print(path1)
+    print(path2)
 
-
-
-@timeit
-def do_true_astar():
-    path = astar(grid, start_pt, goal_pt, heuristic=true_heuristic)
-    return path
-
-path1 = do_astar()
-path2 = do_true_astar()
-print(path1)
-print(path2)
-
-# astar searched 50 cells
-# 'do_astar' End. Took 0.803 ms
-# astar searched 20 cells
-# 'do_true_astar' End. Took 0.448 ms
-# [(7, 2), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (2, 7), (3, 7), (3, 8), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)]
-# [(7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)]
+    # astar searched 50 cells
+    # 'do_astar' End. Took 0.803 ms
+    # astar searched 20 cells
+    # 'do_true_astar' End. Took 0.448 ms
+    # [(7, 2), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (2, 7), (3, 7), (3, 8), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)]
+    # [(7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)]

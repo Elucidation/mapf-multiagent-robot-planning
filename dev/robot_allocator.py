@@ -23,6 +23,7 @@ from inventory_management_system.Item import ItemId
 from inventory_management_system.TaskStatus import TaskStatus
 import multiagent_planner.pathfinding as pf
 from multiagent_planner.pathfinding import Position, Path
+from multiagent_planner.pathfinding_heuristic import build_true_heuristic
 from robot import Robot, RobotId, RobotStatus
 from world_db import WorldDatabaseManager
 from warehouse_logger import create_warehouse_logger
@@ -33,7 +34,7 @@ import redis
 JobId = NewType('JobId', int)
 
 # Max number of steps to search with A*, should be ~worst case distance in grid
-MAX_PATH_STEPS = int(os.getenv("MAX_PATH_STEPS", default="200"))
+MAX_PATH_STEPS = int(os.getenv("MAX_PATH_STEPS", default="500"))
 MAX_TIME_CHECK_JOB_SEC = float(
     os.getenv("MAX_TIME_CHECK_JOB_SEC", default="0.100"))
 MAX_TIME_ASSIGN_JOB_SEC = float(
@@ -130,6 +131,18 @@ class RobotAllocator:
         (self.world_grid, self.robot_home_zones,
          self.item_load_zones, self.station_zones) = load_warehouse_yaml_xy(
             os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml'))
+
+        # Build true heuristic grid
+        t_start = time.perf_counter()
+        logger.info('Building true heuristic')
+        self.true_heuristic_dict = build_true_heuristic(self.world_grid)
+        def true_heuristic(pos_a: Position, pos_b: Position) -> float:
+            return self.true_heuristic_dict[pos_b][pos_a]
+        self.true_heuristic_function = true_heuristic
+        # self.true_heuristic_function = euclidean_heuristic
+        self.logger.warning(f'Heuristic used: {self.true_heuristic_function.__name__}')
+        self.logger.info(
+            f'Built true heuristic grid in {(time.perf_counter() - t_start)*1000:.2f} ms')
 
         # locks for zones
         self.item_locks: dict[Position, Optional[JobId]] = {
@@ -401,7 +414,7 @@ class RobotAllocator:
         t_start = time.perf_counter()
         path = pf.st_astar(
             self.world_grid, pos_a, pos_b, dynamic_obstacles,
-            end_fast=True, max_time=self.max_steps)
+            end_fast=True, max_time=self.max_steps, heuristic=self.true_heuristic_function)
         logger.info(
             f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms')
         return path
