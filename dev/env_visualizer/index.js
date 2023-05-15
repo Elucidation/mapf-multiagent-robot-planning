@@ -311,7 +311,7 @@ async function update_ims_table() {
   ims_data["new_order_count"] = new_order_count;
   ims_data["finished_order_count"] =
     // @ts-ignore
-    parseInt(total_order_count) - parseInt(new_order_count);
+    parseInt(total_order_count) - parseInt(new_order_count) - busy_station_keys.length;
 
   // Using the keys, get the order info for new orders
   if (new_order_keys) {
