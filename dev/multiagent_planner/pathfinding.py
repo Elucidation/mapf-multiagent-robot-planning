@@ -12,7 +12,7 @@ Path = list[Position]
 PathST = list[PositionST]
 
 
-def astar(graph, pos_a: Position, pos_b: Position) -> list[Position]:
+def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000, heuristic=None) -> list[Position]:
     """A* search through graph from p
 
     Args:
@@ -32,9 +32,12 @@ def astar(graph, pos_a: Position, pos_b: Position) -> list[Position]:
     if graph[pos_a[0], pos_a[1]] > 0 or graph[pos_b[0], pos_b[1]] > 0:
         raise ValueError('Start/End locations in walls')
 
-    def heuristic(pos_a: Position, pos_b: Position) -> float:
+    def manhattan_heuristic(pos_a: Position, pos_b: Position) -> float:
         # return abs(pos_a[0] - pos_b[0]) + abs(pos_a[1] - pos_b[1]) # manhattan distance
         return math.sqrt((pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2)
+
+    if not heuristic:
+        heuristic = manhattan_heuristic
 
     def check_valid(pos: Position) -> bool:
         max_row, max_col = graph.shape
@@ -56,9 +59,10 @@ def astar(graph, pos_a: Position, pos_b: Position) -> list[Position]:
     priority_queue: list[tuple[float, Optional[Position], Position]] = [
         (heuristic(pos_a, pos_b), None, pos_a)]
 
-    i = 0
-    while (priority_queue or i < 100):
+    cells_visited = 0
+    while (priority_queue or cells_visited < max_steps):
         _, _, curr = heapq.heappop(priority_queue)
+        cells_visited += 1
         if curr == pos_b:
             break
 
@@ -71,7 +75,6 @@ def astar(graph, pos_a: Position, pos_b: Position) -> list[Position]:
                 heapq.heappush(priority_queue, new_node)
                 close_set.add(neighbor)
                 path_track[neighbor] = curr
-        i += 1
 
     def get_path(curr_node):
         path = []
@@ -80,6 +83,8 @@ def astar(graph, pos_a: Position, pos_b: Position) -> list[Position]:
             curr_node = path_track[curr_node]
 
         return list(reversed(path))
+
+    # print(f'astar searched {cells_visited} cells')
 
     # If path was found
     if curr == pos_b:
