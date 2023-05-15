@@ -113,7 +113,8 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set, ma
         max_time (int, optional): max time to search up to. Defaults to 20.
         maxiters (int, optional): _description_. Defaults to 10000.
         t_start (int, optional): offset start time if this path starts later in dynamic obstacles. 
-        end_fast (bool, optional): end as soon as destination reached vs waiting till max_time
+        end_fast (bool, optional): end as soon as destination reached vs waiting till max_time.
+        heuristic (HeuristicFunction, optional): Heuristic used, Defaults to euclidean_heuristic
 
     Raises:
         ValueError: _description_
