@@ -664,9 +664,11 @@ if __name__ == '__main__':
     robot_mgr = RobotAllocator(logger=logger, redis_con=redis_con)
 
     # Main loop processing jobs from tasks
-    logger.info('Robot Allocator started')
+    logger.info('Robot Allocator started, waiting for world:state updates')
     while True:
-        response = redis_con.xread({'world:state': '$'}, block=0, count=1)
+        response = redis_con.xread({'world:state': '$'}, block=1000, count=1)
+        if not response:
+            continue
         timestamp, data = response[0][1][0]
         world_sim_t = int(data['t'])
         robots = [Robot.from_json(json_data)
