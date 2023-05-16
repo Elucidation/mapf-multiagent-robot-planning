@@ -20,8 +20,7 @@ import redis
 from warehouse_logger import create_warehouse_logger
 from warehouses.warehouse_loader import load_warehouse_yaml
 from .Item import ItemCounter, ItemId
-from .Order import OrderId
-from .Station import StationId
+from .TaskKeyParser import parse_task_key_to_keys, parse_task_group_key, parse_task_key_to_group
 
 logger = create_warehouse_logger('order_processor')
 
@@ -129,7 +128,7 @@ class OrderProcessor:
             task_key = self.r.rpop('tasks:processed')
             if not task_key:
                 break
-            task_group_key, _, _ = self.parse_task_key_to_group(task_key)
+            task_group_key, _, _ = parse_task_key_to_group(task_key)
             self.add_item_to_station(task_key)
             task_group_keys.add(task_group_key)
 
@@ -211,87 +210,45 @@ class OrderProcessor:
 
         return task_group_key
 
-    @staticmethod
-    def parse_task_key_to_ids(task_key: str):
-        """Return (station_id, order_id, item_id, idx)"""
-        # Task key contains it all 'task:station:<id>:order:<id>:<item_id>:<idx>'
-        _, _, station_id, _, order_id, item_id, idx = task_key.split(':')
-        return (StationId(int(station_id)), OrderId(int(order_id)), ItemId(int(item_id)), int(idx))
-
-    @staticmethod
-    def parse_task_key(task_key: str):
-        """Return (task_group_key, station_key, order_key, item_id, idx)"""
-        # Task key contains it all 'task:station:<id>:order:<id>:<item_id>:<idx>'
-        (station_id, order_id, item_id,
-         idx) = OrderProcessor.parse_task_key_to_ids(task_key)
-        station_key = f'station:{station_id}'
-        order_key = f'order:{order_id}'
-        task_group_key = f'task:{station_key}:{order_key}'
-        return (task_group_key, station_key, order_key, item_id, idx)
-
-    @staticmethod
-    def parse_task_group_key_to_ids(task_group_key: str):
-        """Return (station_id, order_id)"""
-        # Task key contains it all 'task:station:<id>:order:<id>'
-        _, _, station_id, _, order_id = task_group_key.split(':')
-        return (StationId(int(station_id)), OrderId(int(order_id)))
-
-    @staticmethod
-    def parse_task_group_key(task_group_key: str):
-        """Return (station_key, order_key)"""
-        # Task key contains it all 'task:station:<id>:order:<id>'
-        (station_id, order_id) = OrderProcessor.parse_task_group_key_to_ids(
-            task_group_key)
-        station_key = f'station:{station_id}'
-        order_key = f'order:{order_id}'
-        return (station_key, order_key)
-
-    @staticmethod
-    def parse_task_key_to_group(task_key: str):
-        """Return (task_group_key, item_id, idx)"""
-        # Task key contains it all 'task:station:<id>:order:<id>:<item_id>:<idx>'
-        task_group_key, item_id, idx = task_key.rsplit(':', 2)
-        return (task_group_key, ItemId(int(item_id)), int(idx))
-
     def add_item_to_station(self, task_key: str):
-        (task_group_key, station_key, _, item_id, _) = self.parse_task_key(task_key)
+        task_subkeys = parse_task_key_to_keys(task_key)
 
         # Update item count for key:value items_in_station
-        station_items = self.r.hget(station_key, 'items_in_station')
+        station_items = self.r.hget(task_subkeys.station_key, 'items_in_station')
         if not station_items:
             logger.warning('Task for station with no order/items, error')
             # Remove the task key from the task group
-            self.r.srem(task_group_key, task_key)
+            self.r.srem(task_subkeys.task_group_key, task_key)
             self.r.xadd('tasks:finished', {
                         'task_key': task_key, 'status': 'error'})
             self.r.xtrim('tasks:finished', maxlen=100, approximate=True)
             # Note : If error, move task back into tasks:new head otherwise
-            logger.info(f'Finished task {task_key} item {item_id} with error')
+            logger.info(f'Finished task {task_key} item {task_subkeys.item_id} with error')
             return
 
         items_in_station = self.parse_items_json(station_items)
         # Note: Critical that item_id stays int at all times or we get two keys
         # Having '#' and # with json loads/dumps breaks
-        assert isinstance(item_id, int)
-        items_in_station[item_id] += 1
-        self.r.hset(station_key, 'items_in_station',
+        assert isinstance(task_subkeys.item_id, int)
+        items_in_station[task_subkeys.item_id] += 1
+        self.r.hset(task_subkeys.station_key, 'items_in_station',
                     json.dumps(items_in_station))
         # tmp = self.r.hget(station_key, 'items_in_station')
         # Add item to station
-        logger.info(f'Added item {item_id} to {station_key}')
+        logger.info(f'Added item {task_subkeys.item_id} to {task_subkeys.station_key}')
 
         # Remove the task key from the task group
-        self.r.srem(task_group_key, task_key)
+        self.r.srem(task_subkeys.task_group_key, task_key)
 
         self.r.xadd('tasks:finished', {'task_key': task_key})
         self.r.xtrim('tasks:finished', maxlen=100, approximate=True)
         # Note : If error, move task back into tasks:new head otherwise
-        logger.info(f'Finished task {task_key} item {item_id}')
+        logger.info(f'Finished task {task_key} item {task_subkeys.item_id}')
 
     def try_complete_station(self, task_group_key: str):
         """Input task_group_key = f'task:station:id:order:id' """
         if self.r.scard(task_group_key) == 0:
-            (station_key, _) = self.parse_task_group_key(task_group_key)
+            (station_key, _) = parse_task_group_key(task_group_key)
             self.complete_station(station_key)
 
     def complete_station(self, station_key: str):

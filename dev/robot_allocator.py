@@ -21,6 +21,7 @@ from inventory_management_system.Order import OrderId
 from inventory_management_system.Station import StationId
 from inventory_management_system.Item import ItemId
 from inventory_management_system.TaskStatus import TaskStatus
+from inventory_management_system.TaskKeyParser import parse_task_key_to_ids
 import multiagent_planner.pathfinding as pf
 from multiagent_planner.pathfinding import Position, Path
 from multiagent_planner.pathfinding_heuristic import build_true_heuristic
@@ -174,7 +175,7 @@ class RobotAllocator:
                 path_to_home = self.generate_path(
                     robot.pos, self.robot_home_zones[idx], dynamic_obstacles, static_obstacles)
                 self.logger.warning(
-                    f'Starting outside of home, attempting to send home: {path_to_home}')
+                    'Starting outside of home, attempting to send home')
                 robot.state_description = 'Allocator restart, trying to going home'
                 if path_to_home:
                     robot.set_path(path_to_home)
@@ -202,28 +203,22 @@ class RobotAllocator:
                 f'{robot} not available for a new job: ({repr(robot.state)} == '
                 f'{repr(RobotStatus.AVAILABLE)}) = {robot.state == RobotStatus.AVAILABLE}')
 
-        # TODO : pull this out
-        # Task key contains it all 'task:station:<id>:order:<id>:<item_id>:<idx>'
-        _, _, station_id, _, order_id, item_id, idx = task_key.split(':')
-        station_id = StationId(int(station_id))
-        order_id = OrderId(int(order_id))
-        item_id = ItemId(int(item_id))
-        idx = int(idx)
+        task_ids = parse_task_key_to_ids(task_key)
 
         # Get positions along the route
         robot_home = self.robot_home_zones[robot.robot_id]
-        item_zone = self.item_load_zones[item_id]
+        item_zone = self.item_load_zones[task_ids.item_id]
         # Note: Hacky, off-by-one because sqlite3 db starts indexing at 1, not zero
-        station_zone = self.station_zones[station_id - 1]
+        station_zone = self.station_zones[task_ids.station_id - 1]
 
         # Create job and increment counter
         job_data = {
             'task': {
                 'task_key': task_key,
-                'station_id': station_id,
-                'order_id': order_id,
-                'item_id': item_id,
-                'idx': idx,
+                'station_id': task_ids.station_id,
+                'order_id': task_ids.order_id,
+                'item_id': task_ids.item_id,
+                'idx': task_ids.idx,
             },
             'robot': {
                 'robot': robot,
@@ -442,7 +437,7 @@ class RobotAllocator:
             path_to_home = self.generate_path(
                 current_pos, job.robot_home, dynamic_obstacles, static_obstacles)
             self.logger.warning(
-                f'Going home? {job.robot_home} - {current_pos} = {path_to_home}')
+                f'Trying to go home {current_pos} -> {job.robot_home}')
             if path_to_home:
                 robot.set_path(path_to_home)
                 robot.state_description = 'Pathing home, waiting till item zone available'
@@ -657,7 +652,7 @@ class RobotAllocator:
 
 
 if __name__ == '__main__':
-    logger = create_warehouse_logger('robot_allocator')
+    logger = create_warehouse_logger('robot_allocator', log_to_file=True)
 
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
