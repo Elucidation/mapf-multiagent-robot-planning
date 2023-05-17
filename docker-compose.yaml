@@ -2,7 +2,7 @@ version: "3.8"
 services:
   # World Simulator
   world-sim:
-    image: aw_base
+    image: elucidation/aw_base:latest
     volumes:
       - vol1:/home/app
     networks:
@@ -15,7 +15,7 @@ services:
     command: python -m world_sim reset
   # Robot Allocator
   robot-allocator:
-    image: aw_base
+    image: elucidation/aw_base:latest
     volumes:
       - vol1:/home/app
     networks:
@@ -29,7 +29,7 @@ services:
     command: python -m robot_allocator
   # Order Processor
   order-processor:
-    image: aw_base
+    image: elucidation/aw_base:latest
     volumes:
       - vol1:/home/app
     networks:
