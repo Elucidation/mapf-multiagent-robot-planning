@@ -652,7 +652,7 @@ class RobotAllocator:
 
 
 if __name__ == '__main__':
-    logger = create_warehouse_logger('robot_allocator', log_to_file=True)
+    logger = create_warehouse_logger('robot_allocator')
 
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
