@@ -3,9 +3,10 @@ kind: PersistentVolumeClaim
 metadata:
   name: vol1-claim
 spec:
-  volumeName: vol1
+  # volumeName: vol1
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
+  storageClassName: standard-rwo
