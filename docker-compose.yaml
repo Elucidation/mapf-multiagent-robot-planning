@@ -40,6 +40,19 @@ services:
     depends_on:
       - redis-db # Manage Orders/Stations/Tasks
     command: python -m inventory_management_system.order_processor reset
+  # Fake Order Sender
+  fake-order-sender:
+    image: elucidation/aw_base:latest
+    volumes:
+      - vol1:/home/app
+    networks:
+      - aw-net
+    working_dir: /home/app/mapf-multiagent-robot-planning/dev
+    environment:
+      - REDIS_HOST=redis-db
+    depends_on:
+      - redis-db # Submit order requests
+    command: python -m inventory_management_system.fake_order_sender -k 10 --max-item-id 47 -d 1
   # Node Web Server
   web-node:
     image: node:alpine
