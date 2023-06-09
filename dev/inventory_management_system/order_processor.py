@@ -302,5 +302,8 @@ if __name__ == '__main__':
         try:
             order_processor.step()
             order_processor.sleep()
+        except redis.exceptions.ConnectionError as e:
+            logger.warning('Redis connection error, waiting and trying again.')
+            order_processor.sleep()
         except redis.exceptions.TimeoutError as e:
             continue
