@@ -260,17 +260,7 @@ class World(object):
     def __repr__(self):
         return f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}'
 
-
-if __name__ == '__main__':
-    logger = create_warehouse_logger('world_sim')
-
-    # Set up redis
-    REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
-    REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
-    redis_con = redis.Redis(
-        host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-    logger.info(f'Connecting to redis server {REDIS_HOST}:{REDIS_PORT}')
-    # Note this will fail if redis server not accessible
+def wait_for_redis_connection(redis_con):
     while True:
         try:
             if redis_con.ping():
@@ -282,6 +272,19 @@ if __name__ == '__main__':
             logger.error(
                 f'Redis unable to connect {REDIS_HOST}:{REDIS_PORT}, waiting')
         time.sleep(2)
+
+
+if __name__ == '__main__':
+    logger = create_warehouse_logger('world_sim')
+
+    # Set up redis
+    REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
+    REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
+    redis_con = redis.Redis(
+        host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    logger.info(f'Connecting to redis server {REDIS_HOST}:{REDIS_PORT}')
+    # Note this will fail if redis server not accessible
+    wait_for_redis_connection(redis_con)
 
     grid, robot_home_zones, item_load_zones, station_zones = load_warehouse_yaml(
         os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml'))
