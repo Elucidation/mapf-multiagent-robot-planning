@@ -12,12 +12,7 @@ spec:
     volumeMounts:
     - mountPath: /home/app
       name: vol1-mount
-    - mountPath: /data
-      name: vol-db
   volumes:
   - name: vol1-mount
     persistentVolumeClaim:
       claimName: vol1-claim
-  - name: vol-db
-    persistentVolumeClaim:
-      claimName: vol-db-claim
