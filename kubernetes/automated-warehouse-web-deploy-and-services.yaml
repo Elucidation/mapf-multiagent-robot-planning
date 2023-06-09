@@ -35,19 +35,11 @@ spec:
           volumeMounts:
             - name: vol1
               mountPath: /home/app
-            - name: vol-db
-              mountPath: /data
       restartPolicy: Always
       volumes:
         - name: vol1 # Assumes /home/app/mapf has git dir
           persistentVolumeClaim:
             claimName: vol1-claim
-        - name: redis-vol
-          persistentVolumeClaim:
-            claimName: redis-vol-claim
-        - name: vol-db # Assumes /data has world/order db files
-          persistentVolumeClaim:
-            claimName: vol-db-claim
 ---
 apiVersion: v1
 kind: Service
