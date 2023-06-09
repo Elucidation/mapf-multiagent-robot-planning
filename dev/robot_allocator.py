@@ -650,6 +650,36 @@ class RobotAllocator:
             return self.job_arrive_home(job)
         return False
 
+    def step(self):
+        # Wait for world state update
+        response = self.redis_db.xread(
+            {'world:state': '$'}, block=1000, count=1)
+        if not response:
+            return
+        #  Parse robot data from update message
+        timestamp, data = response[0][1][0]
+        world_sim_t = int(data['t'])
+        robots = [Robot.from_json(json_data)
+                  for json_data in json.loads(data['robots'])]
+
+        logger.info(
+            f'Step start T={world_sim_t} timestamp={timestamp} ---------------------------------'
+            '--------------------------------------------------------')
+        self.update(robots)
+        logger.debug('Step end')
+
+def wait_for_redis_connection(redis_con):
+    while True:
+        try:
+            if redis_con.ping():
+                break
+            else:
+                logger.warning(
+                    f'Ping failed for redis server {REDIS_HOST}:{REDIS_PORT}, waiting')
+        except redis.ConnectionError:
+            logger.error(
+                f'Redis unable to connect {REDIS_HOST}:{REDIS_PORT}, waiting')
+        time.sleep(2)
 
 if __name__ == '__main__':
     logger = create_warehouse_logger('robot_allocator')
@@ -659,25 +689,19 @@ if __name__ == '__main__':
     REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
     redis_con = redis.Redis(
         host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    wait_for_redis_connection(redis_con)
 
-    # Init Robot Allocator (may wait for databases to exist)
+    # Init Robot Allocator
     robot_mgr = RobotAllocator(logger=logger, redis_con=redis_con)
 
     # Main loop processing jobs from tasks
     logger.info('Robot Allocator started, waiting for world:state updates')
     while True:
-        response = redis_con.xread({'world:state': '$'}, block=1000, count=1)
-        if not response:
-            continue
-        timestamp, data = response[0][1][0]
-        world_sim_t = int(data['t'])
-        robots = [Robot.from_json(json_data)
-                  for json_data in json.loads(data['robots'])]
-
-        logger.info(
-            f'Step start T={world_sim_t} timestamp={timestamp} ---------------------------------'
-            '--------------------------------------------------------')
-        robot_mgr.update(robots)
-
-        # Delay till next task
-        logger.debug('Step end')
+        try:
+            robot_mgr.step()
+        except redis.exceptions.ConnectionError as e:
+            logger.warning('Redis connection error, waiting and trying again.')
+            time.sleep(1)
+        except redis.exceptions.TimeoutError as e:
+            logger.warning('Redis time-out error, waiting and trying again.')
+            time.sleep(1)

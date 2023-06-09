@@ -61,16 +61,24 @@ if args.keep_min:
     logger.info(
         f"Starting maintaining a minimum order count of {args.keep_min}")
     while True:
-        orders_new_count = int(redis_con.llen('orders:new') or 0)
-        orders_requested_count = int(redis_con.llen('orders:requested') or 0)
-        count = orders_new_count + orders_requested_count
-        if count < args.keep_min:
-            logger.info(
-                f'Only {count} new/requested orders, adding until {args.keep_min}')
-            for i in range(args.keep_min - count):
-                send_new_order_request()
-        logger.info(f" waiting {args.delay:.2f} seconds")
-        time.sleep(args.delay)
+        try:
+
+            orders_new_count = int(redis_con.llen('orders:new') or 0)
+            orders_requested_count = int(redis_con.llen('orders:requested') or 0)
+            count = orders_new_count + orders_requested_count
+            if count < args.keep_min:
+                logger.info(
+                    f'Only {count} new/requested orders, adding until {args.keep_min}')
+                for i in range(args.keep_min - count):
+                    send_new_order_request()
+            logger.info(f" waiting {args.delay:.2f} seconds")
+            time.sleep(args.delay)
+        except redis.exceptions.ConnectionError as e:
+            logger.warning('Redis connection error, waiting and trying again.')
+            time.sleep(1)
+        except redis.exceptions.TimeoutError as e:
+            logger.warning('Redis time-out error, waiting and trying again.')
+            time.sleep(1)
 
     exit()
 

@@ -282,6 +282,18 @@ class OrderProcessor:
         self.r.xtrim('orders:finished', maxlen=20, approximate=True)
         self.r.delete(order_key)
 
+def wait_for_redis_connection(redis_con):
+    while True:
+        try:
+            if redis_con.ping():
+                break
+            else:
+                logger.warning(
+                    f'Ping failed for redis server {REDIS_HOST}:{REDIS_PORT}, waiting')
+        except redis.ConnectionError:
+            logger.error(
+                f'Redis unable to connect {REDIS_HOST}:{REDIS_PORT}, waiting')
+        time.sleep(2)
 
 if __name__ == '__main__':
     _, _, _, station_zones = load_warehouse_yaml(
@@ -293,6 +305,7 @@ if __name__ == '__main__':
     redis_con = redis.Redis(
         host=REDIS_HOST, port=REDIS_PORT, decode_responses=True, socket_timeout=1)
     logger.info(f'Redis server {REDIS_HOST}:{REDIS_PORT}')
+    wait_for_redis_connection(redis_con)
 
     DO_RESET = 'reset' in sys.argv
     order_processor = OrderProcessor(
@@ -301,6 +314,9 @@ if __name__ == '__main__':
     while True:
         try:
             order_processor.step()
+            order_processor.sleep()
+        except redis.exceptions.ConnectionError as e:
+            logger.warning('Redis connection error, waiting and trying again.')
             order_processor.sleep()
         except redis.exceptions.TimeoutError as e:
             continue
