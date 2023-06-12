@@ -46,21 +46,18 @@ class Job:
     "Build a job from a task, containing actual positions/paths for robot"
 
     def __init__(self, job_id: JobId, job_data: dict) -> None:
-        # Job-related metadata
         self.job_id = job_id
-        self.task_key: str = job_data['task']['task_key']
-        self.station_id: StationId = job_data['task']['station_id']
-        self.order_id: OrderId = job_data['task']['order_id']
-        self.item_id: ItemId = job_data['task']['item_id']
-        self.idx: int = job_data['task']['idx']
-
-        self.robot_id: RobotId = job_data['robot']['robot'].robot_id
-
+        self.task_key: str = job_data['task_key']
+        self.station_id: StationId = job_data['station_id']
+        self.order_id: OrderId = job_data['order_id']
+        self.item_id: ItemId = job_data['item_id']
+        self.idx: int = job_data['idx']
+        self.robot_id: RobotId = job_data['robot_id']
         # Stops on route
-        self.robot_start_pos: Position = job_data['robot']['robot'].pos
-        self.item_zone: Position = job_data['robot']['item_zone']
-        self.station_zone: Position = job_data['robot']['station_zone']
-        self.robot_home: Position = job_data['robot']['robot_home']
+        self.robot_start_pos: Position = job_data['robot_start_pos']
+        self.item_zone: Position = job_data['item_zone']
+        self.station_zone: Position = job_data['station_zone']
+        self.robot_home: Position = job_data['robot_home']
 
         # Paths
         self.path_robot_to_item: Path
@@ -76,6 +73,7 @@ class Job:
         self.path_station_to_home = []
 
         # State tracker, ladder logic
+        # TODO : Replace this with state object
         self.started = False
         self.item_picked = False
         self.going_to_station = False
@@ -213,19 +211,16 @@ class RobotAllocator:
 
         # Create job and increment counter
         job_data = {
-            'task': {
-                'task_key': task_key,
-                'station_id': task_ids.station_id,
-                'order_id': task_ids.order_id,
-                'item_id': task_ids.item_id,
-                'idx': task_ids.idx,
-            },
-            'robot': {
-                'robot': robot,
-                'robot_home': robot_home,
-                'item_zone': item_zone,
-                'station_zone': station_zone,
-            }
+            'task_key': task_key,
+            'station_id': task_ids.station_id,
+            'order_id': task_ids.order_id,
+            'item_id': task_ids.item_id,
+            'idx': task_ids.idx,
+            'robot_id': robot.id,
+            'robot_start_pos': robot.pos,
+            'robot_home': robot_home,
+            'item_zone': item_zone,
+            'station_zone': station_zone,
         }
         job_id = self.job_id_counter
         self.job_id_counter = JobId(self.job_id_counter + 1)
