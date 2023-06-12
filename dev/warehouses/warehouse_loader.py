@@ -43,3 +43,23 @@ def load_warehouse_yaml_xy(filename: str) -> Tuple[
     station_zones = flip_rc_xy(station_zones)
 
     return grid.transpose(), robot_home_zones, item_load_zones, station_zones
+
+
+class WorldInfo:
+    def __init__(self,
+                 world_grid: np.ndarray,
+                 robot_home_zones: List[Position],
+                 item_load_zones: List[Position],
+                 station_zones: List[Position],
+                 ) -> None:
+        self.world_grid = world_grid
+        self.robot_home_zones = robot_home_zones
+        self.item_load_zones = item_load_zones
+        self.station_zones = station_zones
+
+    @staticmethod
+    def from_yaml(filename: str) -> 'WorldInfo':
+        """Load world info from a warehouse yaml"""
+        (world_grid, robot_home_zones,
+         item_load_zones, station_zones) = load_warehouse_yaml_xy(filename)
+        return WorldInfo(world_grid, robot_home_zones, item_load_zones, station_zones)

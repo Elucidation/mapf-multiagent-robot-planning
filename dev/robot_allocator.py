@@ -20,14 +20,14 @@ import sqlite3
 from inventory_management_system.Item import ItemId
 from inventory_management_system.TaskStatus import TaskStatus
 from inventory_management_system.TaskKeyParser import parse_task_key_to_ids
-from job import Job, JobId
+from job import Job, JobId, JobState
 import multiagent_planner.pathfinding as pf
 from multiagent_planner.pathfinding import Position, Path
 from multiagent_planner.pathfinding_heuristic import build_true_heuristic
 from robot import Robot, RobotId, RobotStatus
 from world_db import WorldDatabaseManager
 from warehouse_logger import create_warehouse_logger
-from warehouses.warehouse_loader import load_warehouse_yaml_xy
+from warehouses.warehouse_loader import WorldInfo
 import redis
 # pylint: disable=redefined-outer-name
 
@@ -43,24 +43,28 @@ class RobotAllocator:
     """Robot Allocator, manages robots, assigning them jobs from tasks, 
     updating stations and tasks states as needed"""
 
-    def __init__(self, logger=logging, redis_con: redis.Redis = None) -> None:
+    def __init__(self, logger, redis_con: redis.Redis, wdb: WorldDatabaseManager,
+                 world_info: WorldInfo, 
+                 heuristic_dict_builder: dict = build_true_heuristic) -> None:
         self.logger = logger
 
         # Connect to redis database
-        self.wdb = WorldDatabaseManager(redis_con)  # Contains World/Robot info
+        self.wdb = wdb
 
         # Tracks Order / Task, notifies item adds etc.
-        self.redis_db = redis_con  # Optional
+        self.redis_db = redis_con
 
         # Load grid positions all in x,y coordinates
-        (self.world_grid, self.robot_home_zones,
-         self.item_load_zones, self.station_zones) = load_warehouse_yaml_xy(
-            os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml'))
+        self.world_grid = world_info.world_grid
+        self.robot_home_zones = world_info.robot_home_zones
+        self.item_load_zones = world_info.item_load_zones
+        self.station_zones = world_info.station_zones
 
         # Build true heuristic grid
+        # TODO : Reorg this so the function is passed in
         t_start = time.perf_counter()
         logger.info('Building true heuristic')
-        self.true_heuristic_dict = build_true_heuristic(self.world_grid)
+        self.true_heuristic_dict = heuristic_dict_builder(self.world_grid)
 
         def true_heuristic(pos_a: Position, pos_b: Position) -> float:
             return self.true_heuristic_dict[pos_b][pos_a]
@@ -142,7 +146,7 @@ class RobotAllocator:
             'order_id': task_ids.order_id,
             'item_id': task_ids.item_id,
             'idx': task_ids.idx,
-            'robot_id': robot.id,
+            'robot_id': robot.robot_id,
             'robot_start_pos': robot.pos,
             'robot_home': robot_home,
             'item_zone': item_zone,
@@ -285,7 +289,7 @@ class RobotAllocator:
 
     def update(self, robots=None):
         t_start = time.perf_counter()
-        logger.debug('update start')
+        self.logger.debug('update start')
         # Update to latest robots from WDB
         if robots:
             self.robots = robots
@@ -316,7 +320,7 @@ class RobotAllocator:
         # Batch update robots now
         self.wdb.update_robots(self.robots)
         update_duration_ms = (time.perf_counter() - t_start)*1000
-        logger.info(
+        self.logger.info(
             f'update end, took {update_duration_ms:.3f} ms, '
             f'processed {jobs_processed}/{len(shuffled_job_keys)} jobs, '
             f'assigned {robots_assigned}/{available_robots_count} available robots')
@@ -331,7 +335,7 @@ class RobotAllocator:
         path = pf.st_astar(
             self.world_grid, pos_a, pos_b, dynamic_obstacles, static_obstacles=static_obstacles,
             end_fast=True, max_time=self.max_steps, heuristic=self.true_heuristic_function)
-        logger.info(
+        self.logger.info(
             f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms')
         return path
 
@@ -367,7 +371,7 @@ class RobotAllocator:
         self.logger.info(f'Starting job {job} for Robot {job.robot_id}')
         robot.set_path(job.path_robot_to_item)
         robot.state_description = 'Pathing to item zone'
-        job.started = True
+        job.start()
         return True
 
     def job_try_pick_item(self, job: Job) -> bool:
@@ -391,7 +395,7 @@ class RobotAllocator:
                 f'job {job}, already holding {item_in_hand}')
             job.error = True
             return False
-        job.item_picked = True
+        job.pick_item()
 
         self.logger.info(f'Robot {job.robot_id} item picked {item_in_hand}')
         robot.state_description = f'Picked item {item_in_hand}'
@@ -428,7 +432,7 @@ class RobotAllocator:
         # Send robot to station
         robot.set_path(job.path_item_to_station)
         robot.state_description = 'Pathing to station'
-        job.going_to_station = True
+        job.going_to_station()
         self.logger.info(
             f'Sending robot {job.robot_id} to station for task {job.task_key}')
         return True
@@ -462,14 +466,14 @@ class RobotAllocator:
             return False
 
         # Notify task complete (Order Proc adds item to station)
-        redis_con.srem('tasks:inprogress', job.task_key)
-        redis_con.lpush('tasks:processed', job.task_key)
+        self.redis_db.srem('tasks:inprogress', job.task_key)
+        self.redis_db.lpush('tasks:processed', job.task_key)
         # This only modifies the task instance in the job
         job.status = TaskStatus.COMPLETE
         self.logger.info(f'Task {job.task_key} complete, '
                          f'Robot {job.robot_id} successfully dropped item')
 
-        job.item_dropped = True
+        job.drop_item()
         robot.state_description = f'Finished task: Added item {job.item_id} to station'
         return True
 
@@ -487,7 +491,7 @@ class RobotAllocator:
         # Send robot home
         robot.set_path(job.path_station_to_home)
         robot.state_description = 'Finished task, returning home'
-        job.returning_home = True
+        job.return_home()
         # Release lock on station
         self.station_locks[job.station_zone] = None
         self.logger.info(
@@ -507,18 +511,20 @@ class RobotAllocator:
             return False
         self.logger.info(
             f'Robot {job.robot_id} returned home, job complete for task {job.task_key}')
-        job.robot_returned = True
-        job.complete = True
+        return self.job_complete(job)
 
+    def job_complete(self, job: Job) -> bool:
+        """Remove job from allocations and job dict, clear robot allocation"""
+        # Normally this will be called in line with arriving home.
+        job.complete()
         # Make robot available
         robot = self.get_robot(job.robot_id)
         robot.state = RobotStatus.AVAILABLE
         robot.task_key = None
         robot.state_description = 'Waiting for task'
-        # Remove job from allocations and job dict
+        # Remove job and allocations
         self.allocations.pop(job.robot_id, None)
-        self.jobs.pop(job.job_id, None)
-        return True
+        return self.jobs.pop(job.job_id, None) is not None
 
     def job_restart(self, job: Job):
         self.logger.error(
@@ -550,26 +556,32 @@ class RobotAllocator:
         # job.robot_start_pos = robot.pos
         return False
 
+    # Map states to methods
+    state_methods = {
+        JobState.WAITING_TO_START: 'job_start',
+        JobState.PICKING_ITEM: 'job_try_pick_item',
+        JobState.ITEM_PICKED: 'job_go_to_station',
+        JobState.GOING_TO_STATION: 'job_drop_item_at_station',
+        JobState.ITEM_DROPPED: 'job_return_home',
+        JobState.RETURNING_HOME: 'job_arrive_home',
+        JobState.COMPLETE: None,
+        JobState.ERROR: 'job_restart',
+    }
+    
     def check_and_update_job(self, job: Job) -> bool:
-        # Go through state ladder for a job
-        if job.complete:
-            return False
-        if job.error:
-            return self.job_restart(job)
+        """Process a job based on the current state. """
 
-        if not job.started:
-            return self.job_start(job)
-        elif not job.item_picked:
-            return self.job_try_pick_item(job)
-        elif not job.going_to_station:
-            return self.job_go_to_station(job)
-        elif not job.item_dropped:
-            return self.job_drop_item_at_station(job)
-        elif not job.returning_home:
-            return self.job_return_home(job)
-        elif not job.robot_returned:
-            return self.job_arrive_home(job)
-        return False
+        # Get the method for the current state
+        method_name = self.state_methods.get(job.state)
+        # print(f'check update for {job.state} : {method_name}')
+        if method_name is None:
+            return False
+        method = getattr(self, method_name)
+
+        if method is None:
+            return False
+
+        return method(job)
 
     def step(self):
         # Wait for world state update
@@ -605,6 +617,10 @@ def wait_for_redis_connection(redis_con):
 if __name__ == '__main__':
     logger = create_warehouse_logger('robot_allocator')
 
+    # Load world info from yaml
+    world_info = WorldInfo.from_yaml(
+        os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml'))
+
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
     REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
@@ -613,7 +629,8 @@ if __name__ == '__main__':
     wait_for_redis_connection(redis_con)
 
     # Init Robot Allocator
-    robot_mgr = RobotAllocator(logger=logger, redis_con=redis_con)
+    wdb = WorldDatabaseManager(redis_con)  # Contains World/Robot info
+    robot_mgr = RobotAllocator(logger, redis_con, wdb, world_info)
 
     # Main loop processing jobs from tasks
     logger.info('Robot Allocator started, waiting for world:state updates')
