@@ -1,14 +1,11 @@
 """Unit tests for pathfinding."""
 import unittest
-from robot_allocator import Job, JobId
+from job import Job, JobId
 from inventory_management_system.Order import OrderId
 from inventory_management_system.Station import StationId
 from inventory_management_system.Item import ItemId
-# from inventory_management_system.TaskStatus import TaskStatus
 from multiagent_planner.pathfinding import Position
-# from multiagent_planner.pathfinding import Position, Path
 from robot import RobotId
-# from robot import Robot, RobotId, RobotStatus
 
 # python -m unittest
 
@@ -26,8 +23,8 @@ default_job_data = {
 }
 
 
-class TestRobotAllocator(unittest.TestCase):
-    """Unit tests for robot allocator."""
+class TestJob(unittest.TestCase):
+    """Unit tests for jobs."""
     def test_new_job(self):
         """Validate creating new job"""
         job = Job(JobId(0), default_job_data)
