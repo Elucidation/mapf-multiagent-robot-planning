@@ -17,7 +17,6 @@ import os
 import time
 import redis
 from inventory_management_system.Item import ItemId
-from inventory_management_system.TaskStatus import TaskStatus
 from inventory_management_system.TaskKeyParser import parse_task_key_to_ids
 from job import Job, JobId, JobState
 import multiagent_planner.pathfinding as pf
@@ -504,8 +503,6 @@ class RobotAllocator:
         # Notify task complete (Order Proc adds item to station)
         self.redis_db.srem('tasks:inprogress', job.task_key)
         self.redis_db.lpush('tasks:processed', job.task_key)
-        # This only modifies the task instance in the job
-        job.status = TaskStatus.COMPLETE
         self.logger.info(f'Task {job.task_key} complete, '
                          f'Robot {job.robot_id} successfully dropped item')
 
