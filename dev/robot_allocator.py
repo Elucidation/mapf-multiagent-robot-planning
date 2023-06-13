@@ -46,7 +46,7 @@ class RobotAllocator:
     updating stations and tasks states as needed"""
 
     def __init__(self, logger, redis_con: redis.Redis, wdb: WorldDatabaseManager,
-                 world_info: WorldInfo, 
+                 world_info: WorldInfo,
                  heuristic_dict_builder: dict = build_true_heuristic) -> None:
         self.logger = logger
 
@@ -303,9 +303,10 @@ class RobotAllocator:
 
         def updateTooLong():
             return (time.perf_counter() - t_start) > MAX_UPDATE_TIME_SEC
-        
+
         if updateTooLong():
-            logger.warning(f'update started too late {time.perf_counter() - t_start:.2f}, skipping')
+            logger.warning(
+                f'update started too late {time.perf_counter() - t_start:.2f}, skipping')
             return
 
         # Check and update any jobs
@@ -319,8 +320,7 @@ class RobotAllocator:
             jobs_processed += 1
             if ((time.perf_counter() - t_start) > MAX_TIME_CHECK_JOB_SEC) or updateTooLong():
                 break
-        
-        
+
         # Now check for any available robots and tasks for up to 100ms
         t_assign = time.perf_counter()
         robots_assigned = 0
@@ -582,7 +582,7 @@ class RobotAllocator:
         JobState.COMPLETE: None,
         JobState.ERROR: 'job_restart',
     }
-    
+
     def check_and_update_job(self, job: Job) -> bool:
         """Process a job based on the current state. """
 
@@ -599,6 +599,7 @@ class RobotAllocator:
         return method(job)
 
     def step(self):
+        """Main update step for robot allocator, runs after world update."""
         # Wait for world state update
         response = self.redis_db.xread(
             {'world:state': '$'}, block=1000, count=1)
@@ -614,8 +615,9 @@ class RobotAllocator:
         logger.info(
             f'Step start T={world_sim_t} timestamp={timestamp} ---------------------------------'
             '--------------------------------------------------------')
-        self.update(robots, time_read = time_read)
+        self.update(robots, time_read=time_read)
         logger.debug('Step end')
+
 
 def wait_for_redis_connection(redis_con):
     while True:
@@ -629,6 +631,7 @@ def wait_for_redis_connection(redis_con):
             logger.error(
                 f'Redis unable to connect {REDIS_HOST}:{REDIS_PORT}, waiting')
         time.sleep(2)
+
 
 if __name__ == '__main__':
     logger = create_warehouse_logger('robot_allocator')
