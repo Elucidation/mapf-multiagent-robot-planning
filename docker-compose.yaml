@@ -4,7 +4,7 @@ services:
   world-sim:
     image: elucidation/aw_base:latest
     volumes:
-      - vol1:/home/app
+      - C:\Users\sam\Documents\GitHub\mapf-multiagent-robot-planning:/home/app/mapf-multiagent-robot-planning
     networks:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
@@ -13,11 +13,14 @@ services:
     depends_on:
       - redis-db # To publish world_t messages, robot positions, states etc.
     command: python -m world_sim reset
+    logging:
+      options:
+        max-size: 10m
   # Robot Allocator
   robot-allocator:
     image: elucidation/aw_base:latest
     volumes:
-      - vol1:/home/app
+      - C:\Users\sam\Documents\GitHub\mapf-multiagent-robot-planning:/home/app/mapf-multiagent-robot-planning
     networks:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
@@ -27,11 +30,14 @@ services:
       - order-processor # To set up tasks etc.
       - redis-db # subscribe to world_t, pull/process tasks, robots etc.
     command: python -m robot_allocator
+    logging:
+      options:
+        max-size: 10m
   # Order Processor
   order-processor:
     image: elucidation/aw_base:latest
     volumes:
-      - vol1:/home/app
+      - C:\Users\sam\Documents\GitHub\mapf-multiagent-robot-planning:/home/app/mapf-multiagent-robot-planning
     networks:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
@@ -40,11 +46,14 @@ services:
     depends_on:
       - redis-db # Manage Orders/Stations/Tasks
     command: python -m inventory_management_system.order_processor reset
+    logging:
+      options:
+        max-size: 10m
   # Fake Order Sender
   fake-order-sender:
     image: elucidation/aw_base:latest
     volumes:
-      - vol1:/home/app
+      - C:\Users\sam\Documents\GitHub\mapf-multiagent-robot-planning:/home/app/mapf-multiagent-robot-planning
     networks:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
@@ -53,11 +62,14 @@ services:
     depends_on:
       - redis-db # Submit order requests
     command: python -m inventory_management_system.fake_order_sender -k 10 --max-item-id 47 -d 1
+    logging:
+      options:
+        max-size: 10m
   # Node Web Server
   web-node:
     image: node:alpine
     volumes:
-      - vol1:/home/app
+      - C:\Users\sam\Documents\GitHub\mapf-multiagent-robot-planning:/home/app/mapf-multiagent-robot-planning
     networks:
       - aw-net
     working_dir: /home/app/mapf-multiagent-robot-planning/dev
@@ -68,6 +80,9 @@ services:
     depends_on:
       - redis-db # To subscribe to world_t messages
     command: /bin/sh -c "npm --prefix ./env_visualizer install && node env_visualizer/"
+    logging:
+      options:
+        max-size: 10m
   # Redis DB
   redis-db:
     image: redis:alpine
@@ -78,11 +93,14 @@ services:
     ports:
       - 6379:6379
     command: redis-server --save 60 1 --loglevel warning
+    logging:
+      options:
+        max-size: 10m
 
 volumes:
   # Requires a pre-existing volume with the base dir pointing to this cloned git repo
-  vol1:
-    external: true
+  # vol1:
+  #   external: true
   redis-vol:
     external: true
 
