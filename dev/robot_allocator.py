@@ -282,7 +282,7 @@ class RobotAllocator:
 
     def update(self, robots=None, time_read=None):
         """Process jobs and assign robots tasks."""
-        if time_read:
+        if time_read is not None:
             t_start = time_read
         else:
             t_start = time.perf_counter()
