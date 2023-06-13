@@ -13,10 +13,9 @@ Robot Allocator:
 import json
 import random
 from typing import Optional, Tuple
-import logging
 import os
 import time
-import sqlite3
+import redis
 from inventory_management_system.Item import ItemId
 from inventory_management_system.TaskStatus import TaskStatus
 from inventory_management_system.TaskKeyParser import parse_task_key_to_ids
@@ -28,7 +27,6 @@ from robot import Robot, RobotId, RobotStatus
 from world_db import WorldDatabaseManager
 from warehouse_logger import create_warehouse_logger
 from warehouses.warehouse_loader import WorldInfo
-import redis
 # pylint: disable=redefined-outer-name
 
 # Max number of steps to search with A*, should be ~worst case distance in grid
@@ -138,7 +136,7 @@ class RobotAllocator:
         # Get positions along the route
         robot_home = self.robot_home_zones[robot.robot_id]
         item_zone = self.item_load_zones[task_ids.item_id]
-        # Note: Hacky, off-by-one because sqlite3 db starts indexing at 1, not zero
+        # Note: Hacky, off-by-one because indexing starts at 1, not zero
         station_zone = self.station_zones[task_ids.station_id - 1]
 
         # Create job and increment counter
@@ -210,25 +208,26 @@ class RobotAllocator:
                 logger.error('Robot collision, pathing out of it')
                 continue  # Ignore edge case robot collision to allow for recovering out
             # Add all positions along future path
-            for t, pos in enumerate(robot.future_path):
-                dynamic_obstacles.add((pos[0], pos[1], t))
+            for t_step, pos in enumerate(robot.future_path):
+                dynamic_obstacles.add((pos[0], pos[1], t_step))
                 # Also add it at future and past time to keep robots from slipping nearby
-                dynamic_obstacles.add((pos[0], pos[1], t+1))
+                dynamic_obstacles.add((pos[0], pos[1], t_step+1))
                 # TODO : This is hacky, get more precise on when robots go along paths.
-                dynamic_obstacles.add((pos[0], pos[1], t-1))
+                dynamic_obstacles.add((pos[0], pos[1], t_step-1))
 
             path_t = len(robot.future_path)
             if robot.future_path:
                 # Add final position a few times to give space for robot to move
                 last_pos = robot.future_path[path_t-1]
-                for t in range(path_t, path_t+5):
-                    dynamic_obstacles.add((last_pos[0], last_pos[1], t))
+                for t_step in range(path_t, path_t+5):
+                    dynamic_obstacles.add((last_pos[0], last_pos[1], t_step))
             else:
                 # Robot stationary, add current robot position as static obstacle
                 static_obstacles.add((robot.pos[0], robot.pos[1]))
         return (dynamic_obstacles, static_obstacles)
 
     def get_robot(self, robot_id: RobotId) -> Robot:
+        """Get robot by id from stored list of robots"""
         # TODO : Replace this with dict[robot_id] -> robot
         for robot in self.robots:
             if robot.robot_id == robot_id:
@@ -237,6 +236,7 @@ class RobotAllocator:
 
     def robot_pick_item(self, robot_id: RobotId,
                         item_id: ItemId) -> Tuple[bool, Optional[ItemId]]:
+        """Robot by id pick the given item if possible, return held item."""
         # Return fail if already holding an item
         robot = self.get_robot(robot_id)
         if not robot.hold_item(item_id):
@@ -245,7 +245,7 @@ class RobotAllocator:
         return (True, robot.held_item_id)
 
     def robot_drop_item(self, robot_id: RobotId) -> Tuple[bool, Optional[ItemId]]:
-        # Return fail if it wasn't holding an item
+        """Robot by id drop held item, or false if none"""
         robot = self.get_robot(robot_id)
         item_id = robot.drop_item()
         if item_id is None:
@@ -255,32 +255,34 @@ class RobotAllocator:
         return (True, item_id)
 
     def get_available_robots(self) -> list[Robot]:
-        # Finds all robots currently available
+        """Finds all robots currently available"""
         return [robot for robot in self.robots if robot.state == RobotStatus.AVAILABLE]
 
+    def get_first_available_robot(self) -> Optional[Robot]:
+        """Get first available robot."""
+        for robot in self.robots:
+            if robot.state == RobotStatus.AVAILABLE:
+                return robot
+        return None
+
     def set_robot_error(self, robot_id: RobotId):
+        """Set robot state to error"""
         robot = self.get_robot(robot_id)
         robot.state = RobotStatus.ERROR
 
     def assign_task_to_robot(self) -> Optional[Job]:
-        # Check if any available robots and available tasks
-        # If yes, create a job for that robot, update states and return the job here
-        try:
-            available_robots = self.get_available_robots()
-            if not available_robots:
-                return None
-
-            # Pop task and push into inprogress
-            task_key = self.redis_db.lpop('tasks:new')
-            if not task_key:
-                return None
-        except sqlite3.Error as err:
-            logger.error(
-                f'Couldn\'t access DB, did not assign anything: {err}')
+        """ Check and assign available robot available task.
+        If yes, create a job for that robot, update states and return the job. """
+        robot = self.get_first_available_robot()
+        if not robot:
             return None
 
-        # Available robots and tasks, create a job for the first pair
-        robot = available_robots[0]
+        # Pop task and push into inprogress
+        task_key = self.redis_db.lpop('tasks:new')
+        if not task_key:
+            return None
+
+        # Available robot and tasks, create a job for the first pair
         job = self.make_job(task_key, robot)
         if job:
             self.logger.info(f'ASSIGNED TASK TO ROBOT: {robot} : {job}')
@@ -290,6 +292,7 @@ class RobotAllocator:
         return job
 
     def update(self, robots=None, time_read=None):
+        """Process jobs and assign robots tasks."""
         if time_read:
             t_start = time_read
         else:
@@ -301,31 +304,33 @@ class RobotAllocator:
         else:
             self.robots = self.wdb.get_robots()
 
-        def updateTooLong():
+        def update_too_long():
+            """Check if time since t_start > MAX_UPDATE_TIME_SEC"""
             return (time.perf_counter() - t_start) > MAX_UPDATE_TIME_SEC
 
-        if updateTooLong():
-            logger.warning(
-                f'update started too late {time.perf_counter() - t_start:.2f}, skipping')
+        if update_too_long():
+            logger.warning('update started too late %.2fd, skipping',
+                           time.perf_counter() - t_start)
             return
 
         # Check and update any jobs
         job_keys = list(self.jobs)
         shuffled_job_keys = random.sample(job_keys, len(job_keys))
-        # Only process jobs for up to 100ms
+
+        # Only process jobs for up to MAX_TIME_CHECK_JOB_SEC locally and MAX_UPDATE_TIME_SEC total
         jobs_processed = 0
         for job_key in shuffled_job_keys:
             job = self.jobs[job_key]
             self.check_and_update_job(job)
             jobs_processed += 1
-            if ((time.perf_counter() - t_start) > MAX_TIME_CHECK_JOB_SEC) or updateTooLong():
+            if ((time.perf_counter() - t_start) > MAX_TIME_CHECK_JOB_SEC) or update_too_long():
                 break
 
         # Now check for any available robots and tasks for up to 100ms
         t_assign = time.perf_counter()
         robots_assigned = 0
         available_robots_count = len(self.get_available_robots())
-        while (time.perf_counter() - t_assign) < MAX_TIME_ASSIGN_JOB_SEC and not updateTooLong():
+        while (time.perf_counter() - t_assign) < MAX_TIME_ASSIGN_JOB_SEC and not update_too_long():
             if not self.assign_task_to_robot():
                 break
             robots_assigned += 1
@@ -341,6 +346,7 @@ class RobotAllocator:
             f'assigned {robots_assigned}/{available_robots_count} available robots')
 
     def sleep(self):
+        """Sleep for dt_sec"""
         time.sleep(self.dt_sec)
 
     def generate_path(self, pos_a: Position, pos_b: Position,
@@ -355,6 +361,7 @@ class RobotAllocator:
         return path
 
     def job_start(self, job: Job) -> bool:
+        """Start job, pathing robot to item zone, or home."""
         # Check if item zone lock available
         if self.item_locks[job.item_zone] and self.item_locks[job.item_zone] != job.job_id:
             # Item zone in use
@@ -390,6 +397,7 @@ class RobotAllocator:
         return True
 
     def job_try_pick_item(self, job: Job) -> bool:
+        """Have robot try and pick the item for the job."""
         # Check that robot is at item zone or has a path
         robot = self.get_robot(job.robot_id)
         if robot.pos != job.item_zone:
@@ -417,6 +425,7 @@ class RobotAllocator:
         return True
 
     def job_go_to_station(self, job: Job) -> bool:
+        """Have robot go to station."""
         # Check if station zone lock available
         if (self.station_locks[job.station_zone] and
                 self.station_locks[job.station_zone] != job.job_id):
@@ -432,7 +441,7 @@ class RobotAllocator:
         job.path_item_to_station = self.generate_path(
             current_pos, job.station_zone, dynamic_obstacles, static_obstacles)
         if not job.path_item_to_station:
-            logger.warning(f'No path to station for {job}')
+            logger.warning('No path to station for %s', job)
             # Try going home instead to leave space at station
             path_to_home = self.generate_path(
                 current_pos, job.robot_home, dynamic_obstacles, static_obstacles)
@@ -453,6 +462,7 @@ class RobotAllocator:
         return True
 
     def job_drop_item_at_station(self, job: Job) -> bool:
+        """Have robot drop item at station if possible."""
         # Check that robot is at station zone
         robot = self.get_robot(job.robot_id)
         if robot.pos != job.station_zone:
@@ -473,7 +483,7 @@ class RobotAllocator:
             self.set_robot_error(job.robot_id)
             job.error = True
             return False
-        elif item_id != job.item_id:
+        if item_id != job.item_id:
             self.logger.error(
                 f"Robot {job.robot_id} was holding the wrong "
                 f"item: {item_id}, needed {job.item_id}")
@@ -493,6 +503,7 @@ class RobotAllocator:
         return True
 
     def job_return_home(self, job: Job) -> bool:
+        """Transition to return home state, having robot path home."""
         # Try to generate new path for robot
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
@@ -514,6 +525,7 @@ class RobotAllocator:
         return True
 
     def job_arrive_home(self, job: Job) -> bool:
+        """If robot at home, finish the job."""
         # Check that robot is at home zone
         robot = self.get_robot(job.robot_id)
         if robot.pos != job.robot_home:
@@ -542,6 +554,7 @@ class RobotAllocator:
         return self.jobs.pop(job.job_id, None) is not None
 
     def job_restart(self, job: Job):
+        """If something went wrong, reset job state to start, same robot/task"""
         self.logger.error(
             f'{job} in error for, resetting job and Robot {job.robot_id} etc.')
 
@@ -613,23 +626,24 @@ class RobotAllocator:
                   for json_data in json.loads(data['robots'])]
 
         logger.info(
-            f'Step start T={world_sim_t} timestamp={timestamp} ---------------------------------'
-            '--------------------------------------------------------')
+            'Step start T=%d timestamp=%s ---------------------------------'
+            '--------------------------------------------------------', world_sim_t, timestamp)
         self.update(robots, time_read=time_read)
         logger.debug('Step end')
 
 
 def wait_for_redis_connection(redis_con):
+    """Wait until a redis ping succeeds, try every 2 seconds."""
     while True:
         try:
             if redis_con.ping():
                 break
             else:
                 logger.warning(
-                    f'Ping failed for redis server {REDIS_HOST}:{REDIS_PORT}, waiting')
+                    'Ping failed for redis server %s:%d, waiting', REDIS_HOST, REDIS_PORT)
         except redis.ConnectionError:
             logger.error(
-                f'Redis unable to connect {REDIS_HOST}:{REDIS_PORT}, waiting')
+                'Redis unable to connect %s:%d, waiting', REDIS_HOST, REDIS_PORT)
         time.sleep(2)
 
 

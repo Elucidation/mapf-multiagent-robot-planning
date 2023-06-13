@@ -48,7 +48,7 @@ class Job:
 
         # Initialize state
         self.state = JobState.WAITING_TO_START
-    
+
     def copy(self):
         """Return a new copy of this job"""
         job_data = {
@@ -73,39 +73,46 @@ class Job:
         self.state = JobState.WAITING_TO_START
 
     def start(self):
+        """Transition WAITING_TO_START -> PICKING_ITEM"""
         if self.state != JobState.WAITING_TO_START:
             raise ValueError(f'Cannot start in current state {self.state}')
         self.state = JobState.PICKING_ITEM
 
     def pick_item(self):
+        """Transition PICKING_ITEM -> ITEM_PICKED"""
         if self.state != JobState.PICKING_ITEM:
             raise ValueError(f'Cannot pick item in current state {self.state}')
         self.state = JobState.ITEM_PICKED
 
     def going_to_station(self):
+        """Transition ITEM_PICKED -> GOING_TO_STATION"""
         if self.state != JobState.ITEM_PICKED:
             raise ValueError(
                 f'Cannot go to station in current state {self.state}')
         self.state = JobState.GOING_TO_STATION
 
     def drop_item(self):
+        """Transition GOING_TO_STATION -> ITEM_DROPPED"""
         if self.state != JobState.GOING_TO_STATION:
             raise ValueError(f'Cannot drop item in current state {self.state}')
         self.state = JobState.ITEM_DROPPED
 
     def return_home(self):
+        """Transition ITEM_DROPPED -> RETURNING_HOME"""
         if self.state != JobState.ITEM_DROPPED:
             raise ValueError(
                 f'Cannot return home in current state {self.state}')
         self.state = JobState.RETURNING_HOME
 
     def complete(self):
+        """Transition RETURNING_HOME -> COMPLETE"""
         if self.state != JobState.RETURNING_HOME:
             raise ValueError(
                 f'Cannot complete job in current state {self.state}')
         self.state = JobState.COMPLETE
 
     def error(self):
+        """Transition to ERROR"""
         self.state = JobState.ERROR
 
     def __repr__(self):
