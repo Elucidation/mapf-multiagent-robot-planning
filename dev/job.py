@@ -63,7 +63,12 @@ class Job:
             'station_zone': self.station_zone,
             'robot_home': self.robot_home
         }
-        return Job(self.job_id, job_data)
+        new_job = Job(self.job_id, job_data)
+        new_job.state = self.state
+        new_job.path_robot_to_item = self.path_robot_to_item.copy()
+        new_job.path_item_to_station = self.path_item_to_station.copy()
+        new_job.path_station_to_home = self.path_station_to_home.copy()
+        return new_job
 
     def reset(self):
         """Reset job state to initial created state, remove paths."""
