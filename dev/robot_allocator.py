@@ -368,10 +368,10 @@ class RobotAllocator:
                 robot.state_description = 'Pathing home, waiting till item zone available'
             return False  # Did not start job as no path existed yet
 
-        self.logger.info(f'Starting job {job} for Robot {job.robot_id}')
         robot.set_path(job.path_robot_to_item)
         robot.state_description = 'Pathing to item zone'
         job.start()
+        self.logger.info(f'Started {job}')
         return True
 
     def job_try_pick_item(self, job: Job) -> bool:
