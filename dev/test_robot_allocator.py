@@ -16,11 +16,11 @@ import numpy as np
 mock_redis = Mock()
 
 mock_logger = Mock()
-mock_logger.debug = print
-mock_logger.info = print
-mock_logger.warn = print
-mock_logger.warning = print
-mock_logger.error = print
+# mock_logger.debug = print
+# mock_logger.info = print
+# mock_logger.warn = print
+# mock_logger.warning = print
+# mock_logger.error = print
 
 mock_wdb = Mock(spec=WorldDatabaseManager)
 mock_heuristic = Mock()
@@ -81,8 +81,7 @@ class TestRobotAllocator(unittest.TestCase):
         robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic)
 
         # Replace generate path with a mock
-        robot_mgr.generate_path = Mock()
-        robot_mgr.generate_path.return_value = Path([Position([1,2]), Position([2,2])])
+        robot_mgr.generate_path = Mock(return_value=Path([Position([1,2]), Position([2,2])]))
         
         mock_redis.lpop.return_value = task_key
         job = robot_mgr.assign_task_to_robot()
@@ -111,8 +110,7 @@ class TestRobotAllocator(unittest.TestCase):
         robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic)
 
         # Replace generate path with a mock
-        robot_mgr.generate_path = Mock()
-        robot_mgr.generate_path.return_value = Path([Position([1,2]), Position([2,2])])
+        robot_mgr.generate_path = Mock(return_value=Path([Position([1,2]), Position([2,2])]))
         
         mock_redis.lpop.return_value = task_key
         job = robot_mgr.assign_task_to_robot()
@@ -170,8 +168,7 @@ class TestRobotAllocator(unittest.TestCase):
         robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic)
 
         # Replace generate path with a mock
-        robot_mgr.generate_path = Mock()
-        robot_mgr.generate_path.return_value = Path([Position([1,2]), Position([2,2])])
+        robot_mgr.generate_path = Mock(return_value=Path([Position([1,2]), Position([2,2])]))
         
         mock_redis.lpop.side_effect = [task_key, None] # Only one task key given
         robot_mgr.update()
@@ -181,7 +178,6 @@ class TestRobotAllocator(unittest.TestCase):
         self.assertEqual(robot_mgr.jobs[0].robot_id, robot.robot_id)
         self.assertEqual(robot_mgr.jobs[0].task_key, task_key)
         self.assertEqual(robot_mgr.jobs[0].state, JobState.WAITING_TO_START)
-        print('allocations:',robot_mgr.allocations)
 
         mock_redis.lpop.side_effect = None
         mock_redis.lpop.return_value = None
@@ -225,9 +221,11 @@ class TestRobotAllocator(unittest.TestCase):
         # Expect job complete and removed
         robot.pos = robot_mgr.jobs[0].robot_home
         robot_mgr.update()
-        print('allocations:',robot_mgr.allocations)
+        # Note: Allocations not yet managed
+        self.assertIsNone(robot_mgr.allocations[robot.robot_id])
         self.assertEqual(len(robot_mgr.jobs), 0)
 
-        # Expect no change after
+        # Expect no change on next update
         robot_mgr.update()
+        self.assertIsNone(robot_mgr.allocations[robot.robot_id])
         self.assertEqual(len(robot_mgr.jobs), 0)
