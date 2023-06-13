@@ -107,8 +107,8 @@ class RobotAllocator:
             self.redis_db.lpush('tasks:new', *task_keys)
         self.redis_db.delete('tasks:inprogress')
 
-        # Track robot allocations as allocations[robot_id] = Job
-        self.allocations: dict[RobotId, Optional[Job]] = {
+        # Track robot allocations as allocations[robot_id] = job_id
+        self.allocations: dict[RobotId, Optional[JobId]] = {
             robot.robot_id: None for robot in self.robots}
 
     def make_job(self, task_key: str, robot: Robot) -> Optional[Job]:
@@ -146,7 +146,7 @@ class RobotAllocator:
         job = Job(job_id, job_data)
         self.jobs[job_id] = job  # Track job
         assert robot.robot_id == job.robot_id
-        self.allocations[robot.robot_id] = job  # Track robot allocation
+        # TODO : Handle reverting tasks:inprogress
         # Set task in progress
         self.redis_db.sadd('tasks:inprogress', task_key)
         # Set robot state
@@ -299,35 +299,57 @@ class RobotAllocator:
 
         if update_too_long():
             self.logger.warning('update started too late %.2fd, skipping',
-                           time.perf_counter() - t_start)
+                                time.perf_counter() - t_start)
             return
 
         # Check and update any jobs
         job_keys = list(self.jobs)
+        # TODO : Replace this with round-robin
         shuffled_job_keys = random.sample(job_keys, len(job_keys))
 
         # Only process jobs for up to MAX_TIME_CHECK_JOB_SEC locally and MAX_UPDATE_TIME_SEC total
         jobs_processed = 0
+        processed_jobs: list[Job] = []
         for job_key in shuffled_job_keys:
-            job = self.jobs[job_key]
+            # Create a copy of the job to be changed
+            job = self.jobs[job_key].copy()
             self.check_and_update_job(job)
             jobs_processed += 1
+            processed_jobs.append(job)
             if ((time.perf_counter() - t_start) > MAX_TIME_CHECK_JOB_SEC) or update_too_long():
                 break
 
-        # Now check for any available robots and tasks for up to 100ms
+        # Now check for any available robots and tasks for up to MAX_TIME_ASSIGN_JOB_SEC locally
+        # and MAX_UPDATE_TIME_SEC total
         t_assign = time.perf_counter()
         robots_assigned = 0
         available_robots_count = len(self.get_available_robots())
+        # TODO : Re-order this as for loop, for available robots / tasks
         while (time.perf_counter() - t_assign) < MAX_TIME_ASSIGN_JOB_SEC and not update_too_long():
             if not self.assign_task_to_robot():
                 break
             robots_assigned += 1
 
         # TODO #82 : Revert changes if at this point update took too long
+        if update_too_long():
+            update_duration_ms = (time.perf_counter() - t_start)*1000
+            self.logger.info(
+                f'update end, took {update_duration_ms:.3f} ms, over threshold, '
+                f'reverting processed {jobs_processed}/{len(shuffled_job_keys)} jobs, '
+                f'reverting assigned {robots_assigned}/{available_robots_count} available robots')
+            return
 
         # Batch update robots now
         self.wdb.update_robots(self.robots)
+        # replace stored jobs that were processed with the chaanged ones
+        for job in processed_jobs:
+            # Either replace job in progress, or pop completed ones
+            if job.state == JobState.COMPLETE:
+                self.allocations[job.robot_id] = None
+                self.jobs.pop(job.job_id, None)
+            else:
+                self.jobs[job.job_id] = job
+                self.allocations[job.robot_id] = job.job_id
         update_duration_ms = (time.perf_counter() - t_start)*1000
         self.logger.info(
             f'update end, took {update_duration_ms:.3f} ms, '
@@ -530,7 +552,7 @@ class RobotAllocator:
         return self.job_complete(job)
 
     def job_complete(self, job: Job) -> bool:
-        """Remove job from allocations and job dict, clear robot allocation"""
+        """Complete job and make robot available"""
         # Normally this will be called in line with arriving home.
         job.complete()
         # Make robot available
@@ -538,9 +560,8 @@ class RobotAllocator:
         robot.state = RobotStatus.AVAILABLE
         robot.task_key = None
         robot.state_description = 'Waiting for task'
-        # Remove job and allocations
-        self.allocations.pop(job.robot_id, None)
-        return self.jobs.pop(job.job_id, None) is not None
+        # Expect update to remove allocations and completed jobs separately
+        return True
 
     def job_restart(self, job: Job):
         """If something went wrong, reset job state to start, same robot/task"""
