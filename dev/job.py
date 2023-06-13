@@ -10,6 +10,7 @@ from robot import RobotId
 
 JobId = NewType('JobId', int)
 
+
 class JobState(Enum):
     """Track state of a job."""
     WAITING_TO_START = 1
@@ -19,9 +20,8 @@ class JobState(Enum):
     ITEM_DROPPED = 5
     RETURNING_HOME = 6
     COMPLETE = 7
-    
-    ERROR = -1
 
+    ERROR = -1
 
 
 class Job:
@@ -48,7 +48,22 @@ class Job:
 
         # Initialize state
         self.state = JobState.WAITING_TO_START
-  
+    
+    def copy(self):
+        """Return a new copy of this job"""
+        job_data = {
+            'task_key': self.task_key,
+            'station_id': self.station_id,
+            'order_id': self.order_id,
+            'item_id': self.item_id,
+            'idx': self.idx,
+            'robot_id': self.robot_id,
+            'robot_start_pos': self.robot_start_pos,
+            'item_zone': self.item_zone,
+            'station_zone': self.station_zone,
+            'robot_home': self.robot_home
+        }
+        return Job(self.job_id, job_data)
 
     def reset(self):
         """Reset job state to initial created state, remove paths."""
@@ -56,7 +71,7 @@ class Job:
         self.path_item_to_station = []
         self.path_station_to_home = []
         self.state = JobState.WAITING_TO_START
-   
+
     def start(self):
         if self.state != JobState.WAITING_TO_START:
             raise ValueError(f'Cannot start in current state {self.state}')
@@ -69,7 +84,8 @@ class Job:
 
     def going_to_station(self):
         if self.state != JobState.ITEM_PICKED:
-            raise ValueError(f'Cannot go to station in current state {self.state}')
+            raise ValueError(
+                f'Cannot go to station in current state {self.state}')
         self.state = JobState.GOING_TO_STATION
 
     def drop_item(self):
@@ -79,17 +95,19 @@ class Job:
 
     def return_home(self):
         if self.state != JobState.ITEM_DROPPED:
-            raise ValueError(f'Cannot return home in current state {self.state}')
+            raise ValueError(
+                f'Cannot return home in current state {self.state}')
         self.state = JobState.RETURNING_HOME
 
     def complete(self):
         if self.state != JobState.RETURNING_HOME:
-            raise ValueError(f'Cannot complete job in current state {self.state}')
+            raise ValueError(
+                f'Cannot complete job in current state {self.state}')
         self.state = JobState.COMPLETE
 
     def error(self):
         self.state = JobState.ERROR
-    
+
     def __repr__(self):
         return (f'Job [Robot {self.robot_id}, Task {self.task_key}]: {self.state.name}, '
                 f'P {len(self.path_robot_to_item)} {len(self.path_item_to_station)} '
