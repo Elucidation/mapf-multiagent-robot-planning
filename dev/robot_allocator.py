@@ -63,7 +63,7 @@ class RobotAllocator:
         # Build true heuristic grid
         # TODO : Reorg this so the function is passed in
         t_start = time.perf_counter()
-        logger.info('Building true heuristic')
+        self.logger.info('Building true heuristic')
         self.true_heuristic_dict = heuristic_dict_builder(self.world_grid)
 
         def true_heuristic(pos_a: Position, pos_b: Position) -> float:
@@ -205,7 +205,7 @@ class RobotAllocator:
             if robot.robot_id == robot_id:
                 continue  # Ignore self
             if robot.pos == this_robot.pos:
-                logger.error('Robot collision, pathing out of it')
+                self.logger.error('Robot collision, pathing out of it')
                 continue  # Ignore edge case robot collision to allow for recovering out
             # Add all positions along future path
             for t_step, pos in enumerate(robot.future_path):
@@ -309,7 +309,7 @@ class RobotAllocator:
             return (time.perf_counter() - t_start) > MAX_UPDATE_TIME_SEC
 
         if update_too_long():
-            logger.warning('update started too late %.2fd, skipping',
+            self.logger.warning('update started too late %.2fd, skipping',
                            time.perf_counter() - t_start)
             return
 
@@ -441,7 +441,7 @@ class RobotAllocator:
         job.path_item_to_station = self.generate_path(
             current_pos, job.station_zone, dynamic_obstacles, static_obstacles)
         if not job.path_item_to_station:
-            logger.warning('No path to station for %s', job)
+            self.logger.warning('No path to station for %s', job)
             # Try going home instead to leave space at station
             path_to_home = self.generate_path(
                 current_pos, job.robot_home, dynamic_obstacles, static_obstacles)
@@ -625,11 +625,11 @@ class RobotAllocator:
         robots = [Robot.from_json(json_data)
                   for json_data in json.loads(data['robots'])]
 
-        logger.info(
+        self.logger.info(
             'Step start T=%d timestamp=%s ---------------------------------'
             '--------------------------------------------------------', world_sim_t, timestamp)
         self.update(robots, time_read=time_read)
-        logger.debug('Step end')
+        self.logger.debug('Step end')
 
 
 def wait_for_redis_connection(redis_con):
