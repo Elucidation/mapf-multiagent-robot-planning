@@ -12,7 +12,7 @@ Robot Allocator:
 """
 import json
 import random
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 import os
 import time
 import redis
@@ -45,7 +45,7 @@ class RobotAllocator:
 
     def __init__(self, logger, redis_con: redis.Redis, wdb: WorldDatabaseManager,
                  world_info: WorldInfo,
-                 heuristic_dict_builder: dict = build_true_heuristic) -> None:
+                 heuristic: Callable[[Position, Position], float]) -> None:
         self.logger = logger
 
         # Connect to redis database
@@ -60,20 +60,9 @@ class RobotAllocator:
         self.item_load_zones = world_info.item_load_zones
         self.station_zones = world_info.station_zones
 
-        # Build true heuristic grid
-        # TODO : Reorg this so the function is passed in
-        t_start = time.perf_counter()
-        self.logger.info('Building true heuristic')
-        self.true_heuristic_dict = heuristic_dict_builder(self.world_grid)
-
-        def true_heuristic(pos_a: Position, pos_b: Position) -> float:
-            return self.true_heuristic_dict[pos_b][pos_a]
-        self.true_heuristic_function = true_heuristic
-        # self.true_heuristic_function = euclidean_heuristic
-        self.logger.warning(
-            f'Heuristic used: {self.true_heuristic_function.__name__}')
-        self.logger.info(
-            f'Built true heuristic grid in {(time.perf_counter() - t_start)*1000:.2f} ms')
+        self.heuristic = heuristic
+        # self.heuristic = euclidean_heuristic
+        self.logger.warning(f'Heuristic used: {self.heuristic.__name__}')
 
         # locks for zones
         self.item_locks: dict[Position, Optional[JobId]] = {
@@ -355,7 +344,7 @@ class RobotAllocator:
         t_start = time.perf_counter()
         path = pf.st_astar(
             self.world_grid, pos_a, pos_b, dynamic_obstacles, static_obstacles=static_obstacles,
-            end_fast=True, max_time=self.max_steps, heuristic=self.true_heuristic_function)
+            end_fast=True, max_time=self.max_steps, heuristic=self.heuristic)
         self.logger.info(
             f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms')
         return path
@@ -654,6 +643,18 @@ if __name__ == '__main__':
     world_info = WorldInfo.from_yaml(
         os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml'))
 
+    # Build true heuristic function
+    t_start = time.perf_counter()
+    logger.info('Building true heuristic')
+    # Build true heuristic grid
+    true_heuristic_dict = build_true_heuristic(world_info.world_grid)
+    logger.info('Built true heuristic grid in %.2fd ms',
+                (time.perf_counter() - t_start)*1000)
+
+    def true_heuristic(pos_a: Position, pos_b: Position) -> float:
+        """Returns A* shortest path between any two points based on world_grid"""
+        return true_heuristic_dict[pos_b][pos_a]
+
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
     REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
@@ -663,7 +664,8 @@ if __name__ == '__main__':
 
     # Init Robot Allocator
     wdb = WorldDatabaseManager(redis_con)  # Contains World/Robot info
-    robot_mgr = RobotAllocator(logger, redis_con, wdb, world_info)
+    robot_mgr = RobotAllocator(
+        logger, redis_con, wdb, world_info, true_heuristic)
 
     # Main loop processing jobs from tasks
     logger.info('Robot Allocator started, waiting for world:state updates')

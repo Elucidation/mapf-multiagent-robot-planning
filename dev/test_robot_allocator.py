@@ -16,13 +16,15 @@ import numpy as np
 mock_redis = Mock()
 
 mock_logger = Mock()
-# mock_logger.debug = print
-# mock_logger.info = print
-# mock_logger.warn = print
-# mock_logger.error = print
+mock_logger.debug = print
+mock_logger.info = print
+mock_logger.warn = print
+mock_logger.warning = print
+mock_logger.error = print
 
 mock_wdb = Mock(spec=WorldDatabaseManager)
-mock_heuristic_builder = Mock()
+mock_heuristic = Mock()
+mock_heuristic.__name__ = 'Mock Heuristic'
 
 # # Set return values for its methods
 # mock_db_manager.get_timestamp.return_value = 1234567890
@@ -31,7 +33,6 @@ mock_heuristic_builder = Mock()
 # mock_db_manager.get_robots.return_value = [Robot(...), Robot(...)]  # Replace with suitable Robot objects
 
 default_grid = np.zeros([5,5])
-default_robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
 default_robot_home_zones = [Position((2,3)), Position((3,4))]
 default_item_load_zones = [Position((1,0)), Position((1,1))]
 default_station_zones = [Position((0,0)), Position((0,1))]
@@ -47,37 +48,37 @@ class TestRobotAllocator(unittest.TestCase):
     def test_instantiate_robot_allocator(self):
         mock_redis.smembers.return_value = set()
         mock_wdb.get_robots.return_value = []
-        robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic_builder)
+        robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic)
         self.assertListEqual(robot_mgr.get_available_robots(), [])
     
     def test_instantiate_robot_allocator_with_robots(self):
         mock_redis.smembers.return_value = set()
-        robots = default_robots.copy()
+        robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
         mock_wdb.get_robots.return_value = robots
-        robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic_builder)
-        self.assertListEqual(robot_mgr.get_available_robots(), default_robots)
+        robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic)
+        self.assertListEqual(robot_mgr.get_available_robots(), robots)
     
     def test_make_allocation(self):
         task_key = 'task:station:1:order:2:0:4'
         task_keys = set([task_key])
         mock_redis.smembers.return_value = task_keys
-        robots = default_robots.copy()
+        robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
         mock_wdb.get_robots.return_value = robots
-        robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic_builder)
+        robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic)
         
         mock_redis.lpop.return_value = task_key
         job = robot_mgr.assign_task_to_robot()
         self.assertIsNotNone(job)
-        self.assertEqual(job.robot_id, default_robots[0].robot_id)
+        self.assertEqual(job.robot_id, robots[0].robot_id)
         self.assertEqual(job.task_key, task_key)
     
     def test_robot_no_pick_not_at_item_zone(self):
         task_key = 'task:station:1:order:2:0:4'
         task_keys = set([task_key])
         mock_redis.smembers.return_value = task_keys
-        robots = default_robots.copy()
+        robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
         mock_wdb.get_robots.return_value = robots
-        robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic_builder)
+        robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic)
 
         # Replace generate path with a mock
         robot_mgr.generate_path = Mock()
@@ -105,9 +106,9 @@ class TestRobotAllocator(unittest.TestCase):
         task_key = 'task:station:1:order:2:0:4'
         task_keys = set([task_key])
         mock_redis.smembers.return_value = task_keys
-        robots = default_robots.copy()
+        robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
         mock_wdb.get_robots.return_value = robots
-        robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic_builder)
+        robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic)
 
         # Replace generate path with a mock
         robot_mgr.generate_path = Mock()
@@ -158,3 +159,75 @@ class TestRobotAllocator(unittest.TestCase):
 
         # Expect False return if trying to update a completed job
         self.assertFalse(robot_mgr.check_and_update_job(job))
+
+    def test_update_good(self):
+        """Expect normal update assigns a task to robot"""
+        task_key = 'task:station:1:order:2:0:4'
+        task_keys = set([task_key])
+        mock_redis.smembers.return_value = task_keys
+        robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
+        mock_wdb.get_robots.return_value = robots
+        robot_mgr = RobotAllocator(mock_logger, mock_redis, mock_wdb, default_world, mock_heuristic)
+
+        # Replace generate path with a mock
+        robot_mgr.generate_path = Mock()
+        robot_mgr.generate_path.return_value = Path([Position([1,2]), Position([2,2])])
+        
+        mock_redis.lpop.side_effect = [task_key, None] # Only one task key given
+        robot_mgr.update()
+        # Expect one job assigned, for the first robot and only task
+        robot = robots[0]
+        self.assertEqual(len(robot_mgr.jobs), 1)
+        self.assertEqual(robot_mgr.jobs[0].robot_id, robot.robot_id)
+        self.assertEqual(robot_mgr.jobs[0].task_key, task_key)
+        self.assertEqual(robot_mgr.jobs[0].state, JobState.WAITING_TO_START)
+        print('allocations:',robot_mgr.allocations)
+
+        mock_redis.lpop.side_effect = None
+        mock_redis.lpop.return_value = None
+        # No more tasks, now expect job to update
+        robot_mgr.update()
+        self.assertEqual(robot_mgr.jobs[0].state, JobState.PICKING_ITEM)
+
+        # Expect still picking state while robot not in zone
+        robot_mgr.update()
+        self.assertEqual(robot_mgr.jobs[0].state, JobState.PICKING_ITEM)
+        self.assertIsNone(robot.held_item_id)
+
+        # Move robot to item zone, now expect state transition
+        robot.pos = robot_mgr.jobs[0].item_zone
+        robot_mgr.update()
+        self.assertEqual(robot_mgr.jobs[0].state, JobState.ITEM_PICKED)
+        self.assertIsNotNone(robot.held_item_id)
+
+        # Expect transition
+        robot_mgr.update()
+        self.assertEqual(robot_mgr.jobs[0].state, JobState.GOING_TO_STATION)
+
+        # Expect still going to station since not there
+        robot_mgr.update()
+        self.assertEqual(robot_mgr.jobs[0].state, JobState.GOING_TO_STATION)
+
+        # Expect transition since at station
+        robot.pos = robot_mgr.jobs[0].station_zone
+        robot_mgr.update()
+        self.assertEqual(robot_mgr.jobs[0].state, JobState.ITEM_DROPPED)
+        self.assertIsNone(robot.held_item_id)
+
+        # Expect transition
+        robot_mgr.update()
+        self.assertEqual(robot_mgr.jobs[0].state, JobState.RETURNING_HOME)
+
+        # Expect no transition till home
+        robot_mgr.update()
+        self.assertEqual(robot_mgr.jobs[0].state, JobState.RETURNING_HOME)
+
+        # Expect job complete and removed
+        robot.pos = robot_mgr.jobs[0].robot_home
+        robot_mgr.update()
+        print('allocations:',robot_mgr.allocations)
+        self.assertEqual(len(robot_mgr.jobs), 0)
+
+        # Expect no change after
+        robot_mgr.update()
+        self.assertEqual(len(robot_mgr.jobs), 0)
