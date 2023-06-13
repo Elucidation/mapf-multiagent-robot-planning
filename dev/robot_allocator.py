@@ -37,6 +37,8 @@ MAX_TIME_CHECK_JOB_SEC = float(
     os.getenv("MAX_TIME_CHECK_JOB_SEC", default="0.100"))
 MAX_TIME_ASSIGN_JOB_SEC = float(
     os.getenv("MAX_TIME_ASSIGN_JOB_SEC", default="0.100"))
+MAX_UPDATE_TIME_SEC = float(
+    os.getenv("MAX_UPDATE_TIME_SEC", default="0.500"))
 
 
 class RobotAllocator:
@@ -287,14 +289,24 @@ class RobotAllocator:
                 'Could not create job this turn, returning task to new')
         return job
 
-    def update(self, robots=None):
-        t_start = time.perf_counter()
+    def update(self, robots=None, time_read=None):
+        if time_read:
+            t_start = time_read
+        else:
+            t_start = time.perf_counter()
         self.logger.debug('update start')
         # Update to latest robots from WDB
         if robots:
             self.robots = robots
         else:
             self.robots = self.wdb.get_robots()
+
+        def updateTooLong():
+            return (time.perf_counter() - t_start) > MAX_UPDATE_TIME_SEC
+        
+        if updateTooLong():
+            logger.warning(f'update started too late {time.perf_counter() - t_start:.2f}, skipping')
+            return
 
         # Check and update any jobs
         job_keys = list(self.jobs)
@@ -305,17 +317,20 @@ class RobotAllocator:
             job = self.jobs[job_key]
             self.check_and_update_job(job)
             jobs_processed += 1
-            if (time.perf_counter() - t_start) > MAX_TIME_CHECK_JOB_SEC:
+            if ((time.perf_counter() - t_start) > MAX_TIME_CHECK_JOB_SEC) or updateTooLong():
                 break
-
+        
+        
         # Now check for any available robots and tasks for up to 100ms
         t_assign = time.perf_counter()
         robots_assigned = 0
         available_robots_count = len(self.get_available_robots())
-        while (time.perf_counter() - t_assign) < MAX_TIME_ASSIGN_JOB_SEC:
+        while (time.perf_counter() - t_assign) < MAX_TIME_ASSIGN_JOB_SEC and not updateTooLong():
             if not self.assign_task_to_robot():
                 break
             robots_assigned += 1
+
+        # TODO #82 : Revert changes if at this point update took too long
 
         # Batch update robots now
         self.wdb.update_robots(self.robots)
@@ -587,6 +602,7 @@ class RobotAllocator:
         # Wait for world state update
         response = self.redis_db.xread(
             {'world:state': '$'}, block=1000, count=1)
+        time_read = time.perf_counter()
         if not response:
             return
         #  Parse robot data from update message
@@ -598,7 +614,7 @@ class RobotAllocator:
         logger.info(
             f'Step start T={world_sim_t} timestamp={timestamp} ---------------------------------'
             '--------------------------------------------------------')
-        self.update(robots)
+        self.update(robots, time_read = time_read)
         logger.debug('Step end')
 
 def wait_for_redis_connection(redis_con):
