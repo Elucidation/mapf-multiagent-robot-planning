@@ -339,8 +339,9 @@ class RobotAllocator:
         # Expectation: No redis writes were done up to this point.
         if update_too_long():
             update_duration_ms = (time.perf_counter() - t_start)*1000
-            self.logger.info(
-                f'update end, took {update_duration_ms:.3f} ms, over threshold, '
+            self.logger.error(
+                f'update end, reverted due to over threshold, '
+                f'took {update_duration_ms:.3f} ms > {MAX_UPDATE_TIME_SEC*1000} ms threshold, '
                 f'reverting processed {jobs_processed}/{len(shuffled_job_keys)} jobs, '
                 f'reverting assigned {robots_assigned}/{available_robots_count} available robots '
                 f'to {new_tasks_count} available tasks')
