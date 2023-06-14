@@ -110,15 +110,10 @@ class RobotAllocator:
         self.allocations: dict[RobotId, Optional[JobId]] = {
             robot.robot_id: None for robot in self.robots}
 
-    def make_job(self, task_key: str, robot: Robot) -> Optional[Job]:
-        """Try to generate and return job if pathing is possible, None otherwise"""
-        if robot.state != RobotStatus.AVAILABLE:
-            # Return task to new queue
-            task_key = self.redis_db.lpush('tasks:new', task_key)
-            raise ValueError(
-                f'{robot} not available for a new job: ({repr(robot.state)} == '
-                f'{repr(RobotStatus.AVAILABLE)}) = {robot.state == RobotStatus.AVAILABLE}')
-
+    def make_job(self, task_key: str, robot: Robot) -> Job:
+        """Create a job for a given robot and task"""
+        assert robot.state == RobotStatus.AVAILABLE
+        
         task_ids = parse_task_key_to_ids(task_key)
 
         # Get positions along the route
@@ -143,11 +138,6 @@ class RobotAllocator:
         job_id = self.job_id_counter
         self.job_id_counter = JobId(self.job_id_counter + 1)
         job = Job(job_id, job_data)
-        self.jobs[job_id] = job  # Track job
-        assert robot.robot_id == job.robot_id
-        # TODO : Handle reverting tasks:inprogress
-        # Set task in progress
-        self.redis_db.sadd('tasks:inprogress', task_key)
         # Set robot state
         robot.state = RobotStatus.IN_PROGRESS
         robot.state_description = 'Assigned new task'
@@ -258,47 +248,49 @@ class RobotAllocator:
         robot = self.get_robot(robot_id)
         robot.state = RobotStatus.ERROR
 
-    def assign_task_to_robot(self) -> Optional[Job]:
-        """ Check and assign available robot available task.
+    def find_and_assign_task_to_robot(self) -> Optional[Job]:
+        """ Find and assign available robot an available task if they exist.
         If yes, create a job for that robot, update states and return the job. """
         robot = self.get_first_available_robot()
         if not robot:
-            return None
+            return None # No available robots
 
         # Pop task and push into inprogress
-        task_key = self.redis_db.lpop('tasks:new')
+        if not self.redis_db.exists('tasks:new') or self.redis_db.llen('tasks:new') == 0:
+            return None # No available tasks
+        task_key = self.redis_db.lpop()
         if not task_key:
             return None
+        return self.assign_task_to_robot(task_key, robot)
+        
+    
+    def assign_task_to_robot(self, task_key: str, robot: Robot) -> Job:
+        """Given available robot and task, create job and assign robot to it"""
+        assert task_key is not None
+        if robot.state != RobotStatus.AVAILABLE:
+            raise ValueError(
+                f'{robot} not available for a new job: ({repr(robot.state)} == '
+                f'{repr(RobotStatus.AVAILABLE)}) = {robot.state == RobotStatus.AVAILABLE}')
 
-        # Available robot and tasks, create a job for the first pair
-        job = self.make_job(task_key, robot)
-        if job:
-            self.logger.info(f'ASSIGNED TASK TO ROBOT: {robot} : {job}')
-        else:
-            self.logger.debug(
-                'Could not create job this turn, returning task to new')
+        job = self.make_job(task_key, robot) # Returns task_key to tasks:new if it fails
+        self.logger.info(f'Created Job: {job}')
         return job
 
     def update(self, robots=None, time_read=None):
-        """Process jobs and assign robots tasks."""
-        if time_read is not None:
-            t_start = time_read
-        else:
-            t_start = time.perf_counter()
+        """Process jobs and assign robots tasks.
+           If update takes longer than a threshold, the step is skipped and redis is not updated."""
+        t_start = time.perf_counter() if time_read is None else time_read
         self.logger.debug('update start')
-        # Update to latest robots from WDB
-        if robots:
-            self.robots = robots
-        else:
-            self.robots = self.wdb.get_robots()
+        
+        # Update to latest robots from WDB if not passed in
+        self.robots = self.wdb.get_robots() if robots is None else robots
 
         def update_too_long():
             """Check if time since t_start > MAX_UPDATE_TIME_SEC"""
             return (time.perf_counter() - t_start) > MAX_UPDATE_TIME_SEC
-
         if update_too_long():
-            self.logger.warning('update started too late %.2fd, skipping',
-                                time.perf_counter() - t_start)
+            self.logger.warning('update started too late at %.2f ms > %.2f ms threshold, skipping',
+                                (time.perf_counter() - t_start)*1000, MAX_UPDATE_TIME_SEC * 1000)
             return
 
         # Check and update any jobs
@@ -321,21 +313,37 @@ class RobotAllocator:
         # Now check for any available robots and tasks for up to MAX_TIME_ASSIGN_JOB_SEC locally
         # and MAX_UPDATE_TIME_SEC total
         t_assign = time.perf_counter()
+        new_jobs: list[Job] = []
+        # Get available robots
         robots_assigned = 0
-        available_robots_count = len(self.get_available_robots())
-        # TODO : Re-order this as for loop, for available robots / tasks
-        while (time.perf_counter() - t_assign) < MAX_TIME_ASSIGN_JOB_SEC and not update_too_long():
-            if not self.assign_task_to_robot():
+        available_robots = self.get_available_robots()
+        available_robots_count = len(available_robots)
+        # Get available new tasks
+        new_tasks = self.redis_db.lrange('tasks:new', 0, available_robots_count)
+        new_tasks_count = len(new_tasks)
+        # For each available pair of robot and tasks
+        for idx in range(min(available_robots_count, new_tasks_count)):
+            if (time.perf_counter() - t_assign) > MAX_TIME_ASSIGN_JOB_SEC:
                 break
+            if update_too_long():
+                break
+            # Assign new task to available robot, creating a new job
+            task_key = new_tasks[idx]
+            robot = available_robots[idx]
+            new_job = self.assign_task_to_robot(task_key, robot)
+            new_jobs.append(new_job)
             robots_assigned += 1
 
-        # TODO #82 : Revert changes if at this point update took too long
+
+        # Revert changes if at this point update took too long
+        # Expectation: No redis writes were done up to this point.
         if update_too_long():
             update_duration_ms = (time.perf_counter() - t_start)*1000
             self.logger.info(
                 f'update end, took {update_duration_ms:.3f} ms, over threshold, '
                 f'reverting processed {jobs_processed}/{len(shuffled_job_keys)} jobs, '
-                f'reverting assigned {robots_assigned}/{available_robots_count} available robots')
+                f'reverting assigned {robots_assigned}/{available_robots_count} available robots '
+                f'to {new_tasks_count} available tasks')
             return
 
         # Batch update robots now
@@ -344,16 +352,36 @@ class RobotAllocator:
         for job in processed_jobs:
             # Either replace job in progress, or pop completed ones
             if job.state == JobState.COMPLETE:
+                # Remove allocation and job on completion
                 self.allocations[job.robot_id] = None
                 self.jobs.pop(job.job_id, None)
-            else:
-                self.jobs[job.job_id] = job
-                self.allocations[job.robot_id] = job.job_id
+                continue
+            
+            if job.state == JobState.ITEM_DROPPED:
+                # Notify task complete (Order Proc adds item to station)
+                self.redis_db.srem('tasks:inprogress', job.task_key)
+                self.redis_db.lpush('tasks:processed', job.task_key)
+                self.logger.info(f'Task {job.task_key} complete, '
+                                f'Robot {job.robot_id} successfully dropped item')
+            
+            self.jobs[job.job_id] = job
+            self.allocations[job.robot_id] = job.job_id
+        
+        # For newly created jobs, track them and make their tasks inprogress in redis
+        for job in new_jobs:
+            self.jobs[job.job_id] = job  # Track job
+        # Move task keys associated with new jobs from new -> inprogress
+        if new_jobs:
+            task_keys = [job.task_key for job in new_jobs]
+            self.redis_db.lpop('tasks:new', len(task_keys))
+            self.redis_db.sadd('tasks:inprogress', *task_keys) # Set tasks in progress
+        
         update_duration_ms = (time.perf_counter() - t_start)*1000
         self.logger.info(
             f'update end, took {update_duration_ms:.3f} ms, '
             f'processed {jobs_processed}/{len(shuffled_job_keys)} jobs, '
-            f'assigned {robots_assigned}/{available_robots_count} available robots')
+            f'assigned {robots_assigned}/{available_robots_count} available robots '
+            f'to {new_tasks_count} available tasks')
 
     def sleep(self):
         """Sleep for dt_sec"""
@@ -499,12 +527,6 @@ class RobotAllocator:
                 f"item: {item_id}, needed {job.item_id}")
             job.error = True
             return False
-
-        # Notify task complete (Order Proc adds item to station)
-        self.redis_db.srem('tasks:inprogress', job.task_key)
-        self.redis_db.lpush('tasks:processed', job.task_key)
-        self.logger.info(f'Task {job.task_key} complete, '
-                         f'Robot {job.robot_id} successfully dropped item')
 
         job.drop_item()
         robot.state_description = f'Finished task: Added item {job.item_id} to station'
@@ -666,7 +688,7 @@ if __name__ == '__main__':
     logger.info('Building true heuristic')
     # Build true heuristic grid
     true_heuristic_dict = build_true_heuristic(world_info.world_grid)
-    logger.info('Built true heuristic grid in %.2fd ms',
+    logger.info('Built true heuristic grid in %.2f ms',
                 (time.perf_counter() - t_start)*1000)
 
     def true_heuristic(pos_a: Position, pos_b: Position) -> float:
