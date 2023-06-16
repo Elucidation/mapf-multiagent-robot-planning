@@ -99,7 +99,7 @@ spec:
         - name: fake-order-sender
           workingDir: /home/app/mapf/dev
           command: ["/bin/sh","-c"]
-          args: ["python -m inventory_management_system.fake_order_sender -k 10 --max-item-id 47 -d 1"]
+          args: ["python -m inventory_management_system.fake_order_sender -k 10 --max-item-id 47 -d 10"]
           image: elucidation/aw_base:latest
           resources:
             requests:
