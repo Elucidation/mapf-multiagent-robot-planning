@@ -103,8 +103,8 @@ spec:
           image: elucidation/aw_base:latest
           resources:
             requests:
-              cpu: "0.01"
-              memory: "10Mi"
+              cpu: "0.1"
+              memory: "100Mi"
           volumeMounts:
             - name: vol1
               mountPath: /home/app
