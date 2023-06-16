@@ -44,6 +44,11 @@ spec:
           volumeMounts:
             - name: redis-vol
               mountPath: /data
+          resources:
+            requests:
+              cpu: "0.2"
+              memory: "200Mi"
+              storage: "200Mi"
         # World Sim
         - name: world-sim
           workingDir: /home/app/mapf/dev
@@ -56,6 +61,11 @@ spec:
           volumeMounts:
             - name: vol1
               mountPath: /home/app
+          resources:
+            requests:
+              cpu: "0.2"
+              memory: "200Mi"
+              storage: "200Mi"
         # Order Processor
         - name: order-processor
           workingDir: /home/app/mapf/dev
@@ -69,6 +79,7 @@ spec:
             requests:
               cpu: "0.2"
               memory: "200Mi"
+              storage: "200Mi"
           volumeMounts:
             - name: vol1
               mountPath: /home/app
@@ -83,6 +94,11 @@ spec:
           volumeMounts:
             - name: vol1
               mountPath: /home/app
+          resources:
+            requests:
+              cpu: "0.2"
+              memory: "200Mi"
+              storage: "200Mi"
         # Fake Order Sender
         - name: fake-order-sender
           workingDir: /home/app/mapf/dev
@@ -93,6 +109,7 @@ spec:
             requests:
               cpu: "0.1"
               memory: "100Mi"
+              storage: "100Mi"
           volumeMounts:
             - name: vol1
               mountPath: /home/app
@@ -112,6 +129,11 @@ spec:
           volumeMounts:
             - name: vol1
               mountPath: /home/app
+          resources:
+            requests:
+              cpu: "0.2"
+              memory: "200Mi"
+              storage: "200Mi"
       restartPolicy: Always
       volumes:
         - name: vol1 # Assumes /home/app/mapf has git dir
