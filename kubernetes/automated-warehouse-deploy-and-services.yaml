@@ -66,13 +66,21 @@ spec:
           volumeMounts:
             - name: vol1
               mountPath: /home/app
-          # Robot Allocator
+        # Robot Allocator
         - name: robot-allocator
           workingDir: /home/app/mapf/dev
           args:
             - python
             - -m
             - robot_allocator
+          image: elucidation/aw_base:latest
+          volumeMounts:
+            - name: vol1
+              mountPath: /home/app
+        # Fake Order Sender
+        - name: fake-order-sender
+          workingDir: /home/app/mapf/dev
+          args: ["python -m inventory_management_system.fake_order_sender -k 10 --max-item-id 47 -d 1"]
           image: elucidation/aw_base:latest
           volumeMounts:
             - name: vol1
