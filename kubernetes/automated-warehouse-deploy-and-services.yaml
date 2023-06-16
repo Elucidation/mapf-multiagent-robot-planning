@@ -46,8 +46,8 @@ spec:
               mountPath: /data
           resources:
             requests:
-              cpu: "0.2"
-              memory: "200Mi"
+              cpu: "0.1"
+              memory: "100Mi"
         # World Sim
         - name: world-sim
           workingDir: /home/app/mapf/dev
@@ -62,8 +62,8 @@ spec:
               mountPath: /home/app
           resources:
             requests:
-              cpu: "0.2"
-              memory: "200Mi"
+              cpu: "0.1"
+              memory: "100Mi"
         # Order Processor
         - name: order-processor
           workingDir: /home/app/mapf/dev
@@ -75,8 +75,8 @@ spec:
           image: elucidation/aw_base:latest
           resources:
             requests:
-              cpu: "0.2"
-              memory: "200Mi"
+              cpu: "0.1"
+              memory: "100Mi"
           volumeMounts:
             - name: vol1
               mountPath: /home/app
@@ -93,8 +93,8 @@ spec:
               mountPath: /home/app
           resources:
             requests:
-              cpu: "0.2"
-              memory: "200Mi"
+              cpu: "0.1"
+              memory: "100Mi"
         # Fake Order Sender
         - name: fake-order-sender
           workingDir: /home/app/mapf/dev
@@ -103,8 +103,8 @@ spec:
           image: elucidation/aw_base:latest
           resources:
             requests:
-              cpu: "0.1"
-              memory: "100Mi"
+              cpu: "0.01"
+              memory: "10Mi"
           volumeMounts:
             - name: vol1
               mountPath: /home/app
@@ -126,8 +126,8 @@ spec:
               mountPath: /home/app
           resources:
             requests:
-              cpu: "0.2"
-              memory: "200Mi"
+              cpu: "0.1"
+              memory: "100Mi"
       restartPolicy: Always
       volumes:
         - name: vol1 # Assumes /home/app/mapf has git dir
