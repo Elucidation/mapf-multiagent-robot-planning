@@ -87,6 +87,26 @@ spec:
           volumeMounts:
             - name: vol1
               mountPath: /home/app
+        # Node web UI
+        - name: web-node
+          workingDir: /home/app/mapf/dev
+          args:
+            - /bin/sh
+            - -c
+            - npm --prefix ./env_visualizer install && node env_visualizer/
+          image: node:alpine
+          ports:
+            - containerPort: 3000
+          env:
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: PORT # socket io port
+              value: "30001"
+          volumeMounts:
+            - name: vol1
+              mountPath: /home/app
       restartPolicy: Always
       volumes:
         - name: vol1 # Assumes /home/app/mapf has git dir
@@ -109,3 +129,17 @@ spec:
       protocol: TCP
       port: 6379
       targetPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-node-service
+spec:
+  selector:
+    app: mapf
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 30001
+      nodePort: 30001
+  type: NodePort
