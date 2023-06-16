@@ -49,7 +49,7 @@ spec:
             - python
             - -m
             - world_sim
-            - reset
+            # - reset  # resets world
           image: elucidation/aw_base:latest
           volumeMounts:
             - name: vol1
@@ -61,7 +61,7 @@ spec:
             - python
             - -m
             - inventory_management_system.order_processor
-            - reset
+            # - reset  # resets order db
           image: elucidation/aw_base:latest
           volumeMounts:
             - name: vol1
