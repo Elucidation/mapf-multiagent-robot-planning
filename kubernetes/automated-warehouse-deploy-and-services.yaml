@@ -17,16 +17,6 @@ spec:
         app: mapf
     spec:
       hostname: automated-warehouse-pod
-      # subdomain: redis-service
-      initContainers:
-      - name: setup-vol1-container
-        command: ["/bin/sh","-c"]
-        args: ["[ -d mapf ] && exit 0; apk add git && git clone https://github.com/Elucidation/mapf-multiagent-robot-planning/ mapf"]
-        image: alpine
-        workingDir: /home/app/
-        volumeMounts:
-        - mountPath: /home/app
-          name: vol1
       containers:
         # Redis DB
         - name: redis-db
@@ -50,7 +40,7 @@ spec:
               memory: "100Mi"
         # World Sim
         - name: world-sim
-          workingDir: /home/app/mapf/dev
+          workingDir: /home/app/git-sync/mapf/dev
           args:
             - python
             - -m
@@ -66,7 +56,7 @@ spec:
               memory: "100Mi"
         # Order Processor
         - name: order-processor
-          workingDir: /home/app/mapf/dev
+          workingDir: /home/app/git-sync/mapf/dev
           args:
             - python
             - -m
@@ -82,7 +72,7 @@ spec:
               mountPath: /home/app
         # Robot Allocator
         - name: robot-allocator
-          workingDir: /home/app/mapf/dev
+          workingDir: /home/app/git-sync/mapf/dev
           args:
             - python
             - -m
@@ -97,7 +87,7 @@ spec:
               memory: "500Mi"
         # Fake Order Sender
         - name: fake-order-sender
-          workingDir: /home/app/mapf/dev
+          workingDir: /home/app/git-sync/mapf/dev
           command: ["/bin/sh","-c"]
           args: ["python -m inventory_management_system.fake_order_sender -k 10 --max-item-id 47 -d 10"]
           image: elucidation/aw_base:latest
@@ -110,7 +100,7 @@ spec:
               mountPath: /home/app
         # Node web UI
         - name: web-node
-          workingDir: /home/app/mapf/dev
+          workingDir: /home/app/git-sync/mapf/dev
           args:
             - /bin/sh
             - -c

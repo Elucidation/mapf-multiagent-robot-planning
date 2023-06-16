@@ -1,26 +1,43 @@
-# Every morning pull the latest git updates from the google_kubernetes branch
+# Every morning at 3am sync the latest google_kubernetes branch to /home/app/git-sync/mapf
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: git-sync
 spec:
   schedule: "0 3 * * *"  # runs every day at 3am
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
       template:
         spec:
           containers:
           - name: git-sync
-            image: k8s.gcr.io/git-sync:v3.1.5
-            args:
-            - -repo=https://github.com/Elucidation/mapf-multiagent-robot-planning.git
-            - -branch=google_kubernetes
-            - -depth=1
-            - -dest=.
+            image: k8s.gcr.io/git-sync/git-sync:v3.2.2
+            securityContext:
+              runAsUser: 0  # Run as root for permissions
+            env:
+              - name: GIT_SYNC_REPO
+                value: "https://github.com/Elucidation/mapf-multiagent-robot-planning.git"
+              - name: GIT_SYNC_BRANCH
+                value: "google_kubernetes"
+              - name: GIT_SYNC_DEPTH
+                value: "1"
+              - name: GIT_SYNC_DEST
+                value: "mapf"
+              - name: GIT_SYNC_ROOT
+                value: "/home/app/git-sync"
+              - name: GIT_SYNC_ONE_TIME
+                value: "true"
             volumeMounts:
             - name: git-volume
-              mountPath: /home/app/mapf
-          restartPolicy: OnFailure
+              mountPath: /home/app
+            resources:
+              requests:
+                cpu: "0.1"
+                memory: "100Mi"
+          restartPolicy: Never
           volumes:
           - name: git-volume
             persistentVolumeClaim:
