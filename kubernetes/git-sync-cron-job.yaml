@@ -4,7 +4,7 @@ kind: CronJob
 metadata:
   name: git-sync
 spec:
-  schedule: "47 22 * * *"  # runs every day at 3am
+  schedule: "0 3 * * *"  # runs every day at 3am
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
