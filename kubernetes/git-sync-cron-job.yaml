@@ -4,7 +4,7 @@ kind: CronJob
 metadata:
   name: git-sync
 spec:
-  schedule: "0 3 * * *"  # runs every day at 3am
+  schedule: "47 22 * * *"  # runs every day at 3am
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
@@ -12,31 +12,43 @@ spec:
     spec:
       template:
         spec:
+          initContainers:
+            - name: git-sync-once
+              image: k8s.gcr.io/git-sync/git-sync:v3.2.2
+              securityContext:
+                runAsUser: 0  # Run as root for permissions
+              env:
+                - name: GIT_SYNC_REPO
+                  value: "https://github.com/Elucidation/mapf-multiagent-robot-planning.git"
+                - name: GIT_SYNC_BRANCH
+                  value: "google_kubernetes"
+                - name: GIT_SYNC_DEPTH
+                  value: "1"
+                - name: GIT_SYNC_DEST
+                  value: "mapf"
+                - name: GIT_SYNC_ROOT
+                  value: "/home/app/git-sync"
+                - name: GIT_SYNC_ONE_TIME
+                  value: "true"
+              volumeMounts:
+              - name: git-volume
+                mountPath: /home/app
+              resources:
+                requests:
+                  cpu: "0.1"
+                  memory: "100Mi"
           containers:
-          - name: git-sync
-            image: k8s.gcr.io/git-sync/git-sync:v3.2.2
-            securityContext:
-              runAsUser: 0  # Run as root for permissions
-            env:
-              - name: GIT_SYNC_REPO
-                value: "https://github.com/Elucidation/mapf-multiagent-robot-planning.git"
-              - name: GIT_SYNC_BRANCH
-                value: "google_kubernetes"
-              - name: GIT_SYNC_DEPTH
-                value: "1"
-              - name: GIT_SYNC_DEST
-                value: "mapf"
-              - name: GIT_SYNC_ROOT
-                value: "/home/app/git-sync"
-              - name: GIT_SYNC_ONE_TIME
-                value: "true"
-            volumeMounts:
-            - name: git-volume
-              mountPath: /home/app
-            resources:
-              requests:
-                cpu: "0.1"
-                memory: "100Mi"
+            # This container sets env variable, which triggers deployment restart
+            # Can look at the var via: kubectl set env deployment/automated-warehouse --list
+            - name: kubectl-set-env
+              image: bitnami/kubectl:latest
+              command: ["/bin/sh", "-c"]
+              args:
+              - "kubectl set env deployment/automated-warehouse RESTART_=$(date +%s) && echo $(date +%s)"
+              resources:
+                requests:
+                  cpu: "0.1"
+                  memory: "100Mi"
           restartPolicy: Never
           volumes:
           - name: git-volume
