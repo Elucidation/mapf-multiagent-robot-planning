@@ -93,8 +93,8 @@ spec:
               mountPath: /home/app
           resources:
             requests:
-              cpu: "0.1"
-              memory: "100Mi"
+              cpu: "0.5"
+              memory: "500Mi"
         # Fake Order Sender
         - name: fake-order-sender
           workingDir: /home/app/mapf/dev
