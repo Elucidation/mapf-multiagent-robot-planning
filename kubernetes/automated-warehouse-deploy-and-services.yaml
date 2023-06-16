@@ -65,6 +65,10 @@ spec:
             - inventory_management_system.order_processor
             # - reset  # resets order db
           image: elucidation/aw_base:latest
+          resources:
+            requests:
+              cpu: "0.2"
+              memory: "200Mi"
           volumeMounts:
             - name: vol1
               mountPath: /home/app
@@ -85,6 +89,10 @@ spec:
           command: ["/bin/sh","-c"]
           args: ["python -m inventory_management_system.fake_order_sender -k 10 --max-item-id 47 -d 1"]
           image: elucidation/aw_base:latest
+          resources:
+            requests:
+              cpu: "0.1"
+              memory: "100Mi"
           volumeMounts:
             - name: vol1
               mountPath: /home/app
@@ -99,10 +107,6 @@ spec:
           ports:
             - containerPort: 3000
           env:
-            - name: REDIS_HOST
-              value: "redis-service"
-            - name: REDIS_PORT
-              value: "6379"
             - name: PORT # socket io port
               value: "30001"
           volumeMounts:
