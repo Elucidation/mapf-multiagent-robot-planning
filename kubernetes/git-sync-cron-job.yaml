@@ -42,9 +42,15 @@ spec:
             # Can look at the var via: kubectl set env deployment/automated-warehouse --list
             - name: kubectl-set-env
               image: bitnami/kubectl:latest
+              env:
+              - name: COMMIT_URL
+                value: "https://api.github.com/repos/Elucidation/mapf-multiagent-robot-planning/commits/google_kubernetes"
               command: ["/bin/sh", "-c"]
-              args:
-              - "kubectl set env deployment/automated-warehouse RESTART_=$(date +%s) && echo $(date +%s)"
+              args: # sets RESTART_ to the latest commit date (if this changes it'll trigger deployment restart)
+                - |
+                  COMMIT_DATE=$(wget -qO- $COMMIT_URL | awk -F'\"' '/date/{print $4; exit}') && 
+                  kubectl set env deployment/automated-warehouse RESTART_=$COMMIT_DATE && 
+                  echo $COMMIT_DATE
               resources:
                 requests:
                   cpu: "0.1"
