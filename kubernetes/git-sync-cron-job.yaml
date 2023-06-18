@@ -41,7 +41,7 @@ spec:
             # This container sets env variable, which triggers deployment restart
             # Can look at the var via: kubectl set env deployment/automated-warehouse --list
             - name: kubectl-set-env
-              image: elucidation/kubectl_curl_jq:latest
+              image: us-west1-docker.pkg.dev/automatedwarehouse/aw/kubectl_curl_jq:1.0
               env:
               - name: COMMIT_URL
                 value: "https://api.github.com/repos/Elucidation/mapf-multiagent-robot-planning/commits/google_kubernetes"
