@@ -392,11 +392,12 @@ class RobotAllocator:
                       dynamic_obstacles, static_obstacles) -> Path:
         """Generate a path from a to b avoiding existing robots"""
         t_start = time.perf_counter()
+        stats = {}
         path = pf.st_astar(
             self.world_grid, pos_a, pos_b, dynamic_obstacles, static_obstacles=static_obstacles,
-            end_fast=True, max_time=self.max_steps, heuristic=self.heuristic)
+            end_fast=True, max_time=self.max_steps, heuristic=self.heuristic, stats=stats)
         self.logger.info(
-            f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms')
+            f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms - {stats}')
         return path
 
     def job_start(self, job: Job) -> bool:

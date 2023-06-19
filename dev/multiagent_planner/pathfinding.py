@@ -52,15 +52,19 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
             return False
         return True
 
-    close_set = set()
+    # g-score: mapping of cost to get to point
+    g_scores = {}
+
     path_track: dict[Position, Optional[Position]] = {}  # coord -> parent
     path_track[pos_a] = None
-    close_set.add(pos_a)
+    g_scores[pos_a] = 0 # Starting position is zero
 
     # priority queue via heapq
-    # heuristc_score, parent, pos
+    # f-score: f-score = g-score + h, best guess cost from node to goal
+    f_score = g_scores[pos_a] + heuristic(pos_a, pos_b)
+    # priority queue contains (f-score, parent, pos)
     priority_queue: list[tuple[float, Optional[Position], Position]] = [
-        (heuristic(pos_a, pos_b), None, pos_a)]
+        (f_score, None, pos_a)]
 
     cells_visited = 0
     while (priority_queue or cells_visited < max_steps):
@@ -73,10 +77,15 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
         neighbors: list[Position] = [
             (row-1, col), (row+1, col), (row, col-1), (row, col+1)]
         for neighbor in neighbors:
-            if neighbor not in close_set and check_valid(neighbor):
-                new_node = (heuristic(neighbor, pos_b), curr, neighbor)
+            # cost from start to current to neighbor
+            potential_g_score = g_scores[curr] + 1 # stepping a grid cell counts as 1
+            # If neighbor available, and tentative g score better than existing if available.
+            if (check_valid(neighbor) and
+                ((neighbor not in g_scores) or potential_g_score < g_scores[neighbor])):
+                g_scores[neighbor] = potential_g_score
+                f_score = g_scores[neighbor] + heuristic(neighbor, pos_b)
+                new_node = (f_score, curr, neighbor)
                 heapq.heappush(priority_queue, new_node)
-                close_set.add(neighbor)
                 path_track[neighbor] = curr
 
     def get_path(curr_node):
@@ -86,8 +95,6 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
             curr_node = path_track[curr_node]
 
         return list(reversed(path))
-
-    # print(f'astar searched {cells_visited} cells')
 
     # If path was found
     if curr == pos_b:
@@ -99,7 +106,8 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
 def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = set(),
              static_obstacles: set = set(), max_time=20,
              maxiters=10000, t_start=0, end_fast=False,
-             heuristic: HeuristicFunction = euclidean_heuristic) -> Path:
+             heuristic: HeuristicFunction = euclidean_heuristic,
+             stats: dict = None) -> Path:
     """Space-Time A* search.
 
     Each tile is position.
@@ -117,6 +125,7 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
         t_start (int, optional): offset start time if this path starts later in dynamic obstacles. 
         end_fast (bool, optional): end as soon as destination reached vs waiting till max_time.
         heuristic (HeuristicFunction, optional): Heuristic used, Defaults to euclidean_heuristic
+        stats (dict, optional): store run-time stats here if it exists. Defaults to None.
 
     Raises:
         ValueError: _description_
@@ -147,21 +156,23 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
             return False
         return True
 
-    close_set = set()
     path_track: dict[PositionST, Optional[PositionST]] = {}  # coord -> parent
     curr: PositionST = (pos_a[0], pos_a[1], t_start)
     path_track[curr] = None
-    close_set.add(curr)
+    # g-score: mapping of cost to get to point
+    g_scores = {}
+    g_scores[curr] = 0 # Starting position is zero
+
+    # f-score: f-score = g-score + h, best guess cost from node to goal
+    f_score = g_scores[curr] + heuristic(pos_a, pos_b)
 
     # priority queue via heapq
-    # heuristc_score, parent, pos, time
-    priority_queue: list[tuple[float, Optional[PositionST], PositionST]] = [
-        (heuristic(pos_a, pos_b), None, curr)]
+    # f-score, parent, pos, time
+    priority_queue: list[tuple[float, Optional[PositionST], PositionST]] = [(f_score, None, curr)]
 
-    i = 0
-    while (priority_queue and i < maxiters):
+    cells_visited = 0
+    while (priority_queue and cells_visited < maxiters):
         _, _, curr = heapq.heappop(priority_queue)
-        close_set.add(curr)
         # End once destination reached
         if end_fast and curr[:2] == pos_b:
             break
@@ -178,14 +189,18 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
                                        (row, col-1, t+1),
                                        (row, col+1, t+1)]
         for neighbor in neighbors:
-            if neighbor not in close_set and check_valid(neighbor):
-                new_node: tuple[float, PositionST, PositionST] = (
-                    heuristic(neighbor[:2], pos_b), curr, neighbor)
+            # cost from start to current to neighbor
+            potential_g_score = g_scores[curr] + 1 # stepping a grid cell counts as 1
+            # If neighbor available, and tentative g score better than existing if available.
+            if (check_valid(neighbor) and
+                ((neighbor not in g_scores) or potential_g_score < g_scores[neighbor])):
+                g_scores[neighbor] = potential_g_score
+                f_score = g_scores[neighbor] + heuristic(neighbor[:2], pos_b)
+                new_node: tuple[float, PositionST, PositionST] = (f_score, curr, neighbor)
                 heapq.heappush(
                     priority_queue, new_node)
-                # close_set.add(neighbor)
                 path_track[neighbor] = curr
-        i += 1
+        cells_visited += 1
 
     def get_path(col):
         path = []
@@ -195,11 +210,15 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
 
         return list(reversed(path))
 
-    # If path was found
+    path = []
     if curr[:2] == pos_b:
-        return get_path(curr)
-    # No path found
-    return []
+        path = get_path(curr)
+
+    if stats is not None:
+        stats['cells_visited'] = cells_visited
+        stats['path_length'] = len(path)
+
+    return path
 
 
 def find_all_collisions(paths: list[list[Position]]):
