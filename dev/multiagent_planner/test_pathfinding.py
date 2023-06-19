@@ -92,8 +92,8 @@ class TestPathfinding(unittest.TestCase):
         path_static = pathfinding.st_astar(
             grid, starts[0], goals[0], dynamic_obstacles, static_obstacles, end_fast=True)
         # - [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-        # - [1, S, x, x, x, x, 0, x, x, x, 1]
-        # - [1, 0, 0, 0, 0, x, x, x, B, x, 1]
+        # - [1, S, x, x, x, x, x, x, x, x, 1]
+        # - [1, 0, 0, 0, 0, 0, 0, 0, B, x, 1]
         # - [1, 0, 0, 0, 1, 0, 1, 1, 0, x, 1]
         # - [1, 0, 0, 0, 1, 0, 1, 1, x, x, 1]
         # - [1, 0, 0, 0, 1, 0, 1, 1, F, 0, 1]
@@ -104,7 +104,7 @@ class TestPathfinding(unittest.TestCase):
         # - [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
         expected_path_static = [
             (1, 1), (1, 2), (1, 3), (1, 4),
-            (1, 5), (2, 5), (2, 6), (2, 7), (1, 7),
+            (1, 5), (1, 6), (1, 7),
             (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8)]
         self.assertEqual(path_static, expected_path_static)
     
