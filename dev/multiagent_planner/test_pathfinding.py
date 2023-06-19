@@ -1,6 +1,10 @@
 """Unit tests for pathfinding."""
 import unittest
+import numpy as np
+from .pathfinding import Position
+# from .pathfinding_heuristic import timeit
 from . import pathfinding
+from . import pathfinding_heuristic as pfh
 from .multiagent import get_scenario
 # python -m unittest
 
@@ -103,6 +107,66 @@ class TestPathfinding(unittest.TestCase):
             (1, 5), (2, 5), (2, 6), (2, 7), (1, 7),
             (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8)]
         self.assertEqual(path_static, expected_path_static)
+    
+    def test_true_heuristic_1(self):
+        grid = np.array([
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1],
+            [1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        ])
+        heuristic_dict = pfh.build_true_heuristic(grid)
+        def true_heuristic(pos_a: Position, pos_b: Position) -> float:
+            return float(heuristic_dict[pos_b][pos_a])
+
+        start_pt = Position([7, 2])
+        goal_pt = Position([7, 9])
+        # print(heuristic_dict[tuple(goal_pt)])
+        # [[-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1]
+        # [-1 14 13 12 11 10  9  8  7  6 -1]
+        # [-1 15 14 13 -1  9  8  7  6  5 -1]
+        # [-1 16 15 14 -1 -1 -1  6  5  4 -1]
+        # [-1 17 16 15 -1 27 -1 -1 -1  3 -1]
+        # [-1 18 17 16 -1 26 27 28 -1  2 -1]
+        # [-1 19 18 17 -1 25 26 27 -1  1 -1]
+        # [-1 20 19 18 -1 24 25 26 -1  0 -1]
+        # [-1 21 20 19 -1 23 24 25 -1  1 -1]
+        # [-1 22 21 20 21 22 23 24 -1  2 -1]
+        # [-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1]]
+        # print(true_heuristic(start_pt, goal_pt)) -> 19.0
+
+        # @timeit
+        def do_astar():
+            path = pathfinding.astar(grid, start_pt, goal_pt)
+            return path
+
+
+
+        # @timeit
+        def do_true_astar():
+            path = pathfinding.astar(grid, start_pt, goal_pt, heuristic=true_heuristic)
+            return path
+
+        path1 = do_astar()
+        path2 = do_true_astar()
+        # print(path1)
+        # print(path2)
+        self.assertListEqual(path1, [(7, 2), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (2, 7), (3, 7), (3, 8), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)])
+        self.assertListEqual(path2, [(7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)])
+
+        # astar searched 50 cells
+        # 'do_astar' End. Took 0.803 ms
+        # astar searched 20 cells
+        # 'do_true_astar' End. Took 0.448 ms
+        # [(7, 2), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (2, 7), (3, 7), (3, 8), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)]
+        # [(7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)]
         
 
 

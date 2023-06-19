@@ -6,21 +6,6 @@ import time
 import numpy as np
 from .pathfinding import astar, Position
 
-grid = np.array([
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-    [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-])
-
-
 def timeit(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -72,6 +57,19 @@ def build_true_heuristic(grid):
     return true_heuristic_dict_for_grid
 
 if __name__ == '__main__':
+    grid = np.array([
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    ])
     heuristic_dict = build_true_heuristic(grid)
     def true_heuristic(pos_a: Position, pos_b: Position) -> float:
         return float(heuristic_dict[pos_b][pos_a])
