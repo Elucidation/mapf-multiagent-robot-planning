@@ -96,7 +96,7 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
     return []
 
 
-def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set,
+def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = set(),
              static_obstacles: set = set(), max_time=20,
              maxiters=10000, t_start=0, end_fast=False,
              heuristic: HeuristicFunction = euclidean_heuristic) -> Path:

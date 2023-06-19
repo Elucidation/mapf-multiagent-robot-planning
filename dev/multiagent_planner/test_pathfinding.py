@@ -108,7 +108,7 @@ class TestPathfinding(unittest.TestCase):
             (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8)]
         self.assertEqual(path_static, expected_path_static)
     
-    def test_true_heuristic_1(self):
+    def test_true_heuristic_astar(self):
         grid = np.array([
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -167,6 +167,42 @@ class TestPathfinding(unittest.TestCase):
         # 'do_true_astar' End. Took 0.448 ms
         # [(7, 2), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (2, 7), (3, 7), (3, 8), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)]
         # [(7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)]
+    
+    def test_true_heuristic_st_astar(self):
+        grid = np.array([
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1],
+            [1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        ])
+        heuristic_dict = pfh.build_true_heuristic(grid)
+        def true_heuristic(pos_a: Position, pos_b: Position) -> float:
+            return float(heuristic_dict[pos_b][pos_a])
+
+        start_pt = Position([7, 2])
+        goal_pt = Position([7, 9])
+
+        # @timeit
+        def do_st_astar():
+            path = pathfinding.st_astar(grid, start_pt, goal_pt, end_fast=True)
+            return path
+
+        # @timeit
+        def do_st_true_astar():
+            path = pathfinding.st_astar(grid, start_pt, goal_pt, heuristic=true_heuristic, end_fast=True)
+            return path
+
+        path1 = do_st_astar()
+        path2 = do_st_true_astar()
+        self.assertListEqual(path1, [(7, 2), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (2, 7), (3, 7), (3, 8), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)])
+        self.assertListEqual(path2, [(7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)])
         
 
 
