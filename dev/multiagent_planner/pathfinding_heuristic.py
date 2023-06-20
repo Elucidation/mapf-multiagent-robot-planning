@@ -54,9 +54,7 @@ def build_true_heuristic(grid, positions: list[Position]):
     heuristic_dict[pos] = 2D np grid with each cell containing integer distance to it from pos
     Impassable cells are -1 score
     """
-    true_heuristic_dict_for_grid = {}
-    for pos in positions:
-        true_heuristic_dict_for_grid[tuple(pos)] = get_distances(grid, pos)
+    true_heuristic_dict_for_grid = {Position(pos): get_distances(grid, pos) for pos in positions}
     return true_heuristic_dict_for_grid
 
 
