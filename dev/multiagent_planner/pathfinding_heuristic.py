@@ -21,10 +21,11 @@ def timeit(func):
 
 
 # @timeit
-def get_distances(grid, start: Position, dtype=np.int8):
+def get_distances(grid, start: Position, dtype=np.int32):
     # start is [row, col] of grid (2d array, 0 is open, 1 is wall)
-    # We will use -1 to represent inaccessible areas
-    distances = -np.ones_like(grid, dtype=dtype)
+    # We will use a special value to represent inaccessible areas
+    SPECIAL = -1
+    distances = np.full_like(grid, fill_value=SPECIAL, dtype=dtype)
 
     # Directions for moving up, down, left, right
     directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
@@ -39,8 +40,9 @@ def get_distances(grid, start: Position, dtype=np.int8):
         current = queue.popleft()
         for dx, dy in directions:
             new_x, new_y = current[0] + dx, current[1] + dy
+            # If valid cell, grid is empty and hasn't been set in distances yet, replace it
             if ((0 <= new_x < grid.shape[0]) and (0 <= new_y < grid.shape[1]) and
-                    grid[new_x, new_y] == 0 and distances[new_x, new_y] == -1):
+                    grid[new_x, new_y] == 0 and distances[new_x, new_y] == SPECIAL):
                 distances[new_x, new_y] = distances[current[0], current[1]] + 1
                 queue.append((new_x, new_y))
     return distances
@@ -87,3 +89,19 @@ if __name__ == '__main__':
     expected_bytes = entry.itemsize*expected_size
     measured_bytes = byte_size_dict
     print(f'Measured {measured_bytes} vs {expected_bytes}, diff = {measured_bytes / expected_bytes * 100 : .2f} %')
+
+    print('---')
+    import random
+    random.seed(123)
+    K = 1000000
+    valid_starts = [Position(row) for row in np.argwhere(world_info.world_grid == 0)]
+    valid_goals = world_info.get_all_zones()
+    starts = [random.choice(valid_starts) for _ in range(K)]
+    goals = [random.choice(valid_goals) for _ in range(K)]
+    print(f'Testing true heuristic grid on {K} queries')
+    t_start = time.perf_counter()
+    for i in range(K):
+        pos_a = starts[i]
+        pos_b = goals[i]
+        dist = true_heuristic_dict[pos_b][pos_a]
+    print(f'Did {K} queries into true heuristic grid in {(time.perf_counter() - t_start)*1000:.2f} ms',)
