@@ -75,12 +75,15 @@ if __name__ == '__main__':
     # Build true heuristic grid
     true_heuristic_dict = build_true_heuristic(world_info.world_grid, world_info.get_all_zones())
     print(f'Built true heuristic grid in {(time.perf_counter() - t_start)*1000:.2f} ms',)
-    entry = next(iter(true_heuristic_dict.values()))
+    entry: np.ndarray = next(iter(true_heuristic_dict.values()))
     print(f'Dict with {len(true_heuristic_dict)} keys, ')
     byte_size_dict = sum([(sys.getsizeof(key) + value.nbytes) for key, value in true_heuristic_dict.items()])
     print(f'Size: {byte_size_dict:,} bytes, one entry: {entry.nbytes} dtype = {entry.dtype}')
     N, M = world_info.world_grid.shape
     expected_size = N*M*len(true_heuristic_dict)
     print(f'NxM = {N}x{M} = {N*M}')
-    print(f'Expected size ~NxMxZ = {N}x{M}x{len(true_heuristic_dict)} = {expected_size:,} ints')
-    print(f'For int32 = 4 bytes, 4 bytes * {expected_size:,} = {4*expected_size:,} bytes')
+    print(f'Expected size ~NxMxZ = {N}x{M}x{len(true_heuristic_dict)} = {expected_size:,} values')
+    print(f'For {entry.dtype} = {entry.itemsize} bytes, so {entry.itemsize} bytes * {expected_size:,} = {entry.itemsize*expected_size:,} bytes')
+    expected_bytes = entry.itemsize*expected_size
+    measured_bytes = byte_size_dict
+    print(f'Measured {measured_bytes} vs {expected_bytes}, diff = {measured_bytes / expected_bytes * 100 : .2f} %')
