@@ -46,16 +46,20 @@ def load_warehouse_yaml_xy(filename: str) -> Tuple[
 
 
 class WorldInfo:
+    """Contains world grid, zones for robot docks, items, and stations)"""
     def __init__(self,
                  world_grid: np.ndarray,
                  robot_home_zones: List[Position],
                  item_load_zones: List[Position],
                  station_zones: List[Position],
                  ) -> None:
-        self.world_grid = world_grid
-        self.robot_home_zones = robot_home_zones
-        self.item_load_zones = item_load_zones
-        self.station_zones = station_zones
+        self.world_grid: np.ndarray = world_grid
+        self.robot_home_zones: List[Position] = robot_home_zones
+        self.item_load_zones: List[Position] = item_load_zones
+        self.station_zones: List[Position] = station_zones
+    
+    def get_all_zones(self):
+        return self.robot_home_zones + self.item_load_zones + self.station_zones
 
     @staticmethod
     def from_yaml(filename: str) -> 'WorldInfo':

@@ -122,12 +122,13 @@ class TestPathfinding(unittest.TestCase):
             [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         ])
-        heuristic_dict = pfh.build_true_heuristic(grid)
-        def true_heuristic(pos_a: Position, pos_b: Position) -> float:
-            return float(heuristic_dict[pos_b][pos_a])
-
         start_pt = Position([7, 2])
         goal_pt = Position([7, 9])
+        positions = [goal_pt]
+        heuristic_dict = pfh.build_true_heuristic(grid, positions)
+        def true_heuristic(pos_a: Position, pos_b: Position) -> float:
+            return float(heuristic_dict[pos_b][pos_a])
+        
         # print(heuristic_dict[tuple(goal_pt)])
         # [[-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1]
         # [-1 14 13 12 11 10  9  8  7  6 -1]
@@ -182,12 +183,12 @@ class TestPathfinding(unittest.TestCase):
             [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         ])
-        heuristic_dict = pfh.build_true_heuristic(grid)
-        def true_heuristic(pos_a: Position, pos_b: Position) -> float:
-            return float(heuristic_dict[pos_b][pos_a])
-
         start_pt = Position([7, 2])
         goal_pt = Position([7, 9])
+        positions = [goal_pt]
+        heuristic_dict = pfh.build_true_heuristic(grid, positions)
+        def true_heuristic(pos_a: Position, pos_b: Position) -> float:
+            return float(heuristic_dict[pos_b][pos_a])
 
         # @timeit
         def do_st_astar():

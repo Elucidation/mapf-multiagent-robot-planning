@@ -6,6 +6,7 @@ import time
 import numpy as np
 from .pathfinding import astar, Position
 
+
 def timeit(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -38,23 +39,24 @@ def get_distances(grid, start: Position):
         current = queue.popleft()
         for dx, dy in directions:
             new_x, new_y = current[0] + dx, current[1] + dy
-            if (0 <= new_x < grid.shape[0]) and (0 <= new_y < grid.shape[1]):
-                if grid[new_x, new_y] == 0 and distances[new_x, new_y] == -1:
-                    distances[new_x, new_y] = distances[current[0],
-                                                        current[1]] + 1
-                    queue.append((new_x, new_y))
+            if ((0 <= new_x < grid.shape[0]) and (0 <= new_y < grid.shape[1]) and
+                    grid[new_x, new_y] == 0 and distances[new_x, new_y] == -1):
+                distances[new_x, new_y] = distances[current[0], current[1]] + 1
+                queue.append((new_x, new_y))
     return distances
 
 # @timeit
-def build_true_heuristic(grid):
+def build_true_heuristic(grid, positions: list[Position]):
     """
-    Builds a heuristic dict for all open grid cells h[pos] = np grid open cell integer distances
+    Builds a heuristic dict keyed for all given positions
+    heuristic_dict[pos] = 2D np grid with each cell containing integer distance to it from pos
     Impassable cells are -1 score
     """
     true_heuristic_dict_for_grid = {}
-    for pos in np.argwhere(grid == 0):
+    for pos in positions:
         true_heuristic_dict_for_grid[tuple(pos)] = get_distances(grid, pos)
     return true_heuristic_dict_for_grid
+
 
 if __name__ == '__main__':
     grid = np.array([
@@ -70,12 +72,15 @@ if __name__ == '__main__':
         [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     ])
-    heuristic_dict = build_true_heuristic(grid)
-    def true_heuristic(pos_a: Position, pos_b: Position) -> float:
-        return float(heuristic_dict[pos_b][pos_a])
 
     start_pt = Position([7, 2])
     goal_pt = Position([7, 9])
+
+    zones = [start_pt, goal_pt]
+    heuristic_dict = build_true_heuristic(grid, zones)
+
+    def true_heuristic(pos_a: Position, pos_b: Position) -> float:
+        return float(heuristic_dict[pos_b][pos_a])
     print(heuristic_dict[tuple(goal_pt)])
     print(true_heuristic(start_pt, goal_pt))
 
@@ -83,8 +88,6 @@ if __name__ == '__main__':
     def do_astar():
         path = astar(grid, start_pt, goal_pt)
         return path
-
-
 
     @timeit
     def do_true_astar():

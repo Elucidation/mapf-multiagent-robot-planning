@@ -694,7 +694,7 @@ if __name__ == '__main__':
     t_start = time.perf_counter()
     logger.info('Building true heuristic')
     # Build true heuristic grid
-    true_heuristic_dict = build_true_heuristic(world_info.world_grid)
+    true_heuristic_dict = build_true_heuristic(world_info.world_grid, world_info.get_all_zones())
     logger.info('Built true heuristic grid in %.2f ms',
                 (time.perf_counter() - t_start)*1000)
 
