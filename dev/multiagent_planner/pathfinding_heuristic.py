@@ -21,10 +21,10 @@ def timeit(func):
 
 
 # @timeit
-def get_distances(grid, start: Position):
+def get_distances(grid, start: Position, dtype=np.int8):
     # start is [row, col] of grid (2d array, 0 is open, 1 is wall)
     # We will use -1 to represent inaccessible areas
-    distances = -np.ones_like(grid)
+    distances = -np.ones_like(grid, dtype=dtype)
 
     # Directions for moving up, down, left, right
     directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
