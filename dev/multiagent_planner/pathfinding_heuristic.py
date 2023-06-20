@@ -4,7 +4,7 @@ from collections import deque
 import functools
 import time
 import numpy as np
-from .pathfinding import astar, Position
+from .pathfinding import Position
 
 
 def timeit(func):
@@ -59,49 +59,28 @@ def build_true_heuristic(grid, positions: list[Position]):
 
 
 if __name__ == '__main__':
-    grid = np.array([
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ])
+    from warehouses.warehouse_loader import WorldInfo
+    import os
+    import sys
+    # Load world info from yaml
+    world_info = WorldInfo.from_yaml(
+        os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml'))
+    print(
+        f'World Shape: {world_info.world_grid.shape}, {len(world_info.robot_home_zones)} robots,'
+        f' {len(world_info.item_load_zones)} item zones, {len(world_info.station_zones)} stations')
 
-    start_pt = Position([7, 2])
-    goal_pt = Position([7, 9])
-
-    zones = [start_pt, goal_pt]
-    heuristic_dict = build_true_heuristic(grid, zones)
-
-    def true_heuristic(pos_a: Position, pos_b: Position) -> float:
-        return float(heuristic_dict[pos_b][pos_a])
-    print(heuristic_dict[tuple(goal_pt)])
-    print(true_heuristic(start_pt, goal_pt))
-
-    @timeit
-    def do_astar():
-        path = astar(grid, start_pt, goal_pt)
-        return path
-
-    @timeit
-    def do_true_astar():
-        path = astar(grid, start_pt, goal_pt, heuristic=true_heuristic)
-        return path
-
-    path1 = do_astar()
-    path2 = do_true_astar()
-    print(path1)
-    print(path2)
-
-    # astar searched 50 cells
-    # 'do_astar' End. Took 0.803 ms
-    # astar searched 20 cells
-    # 'do_true_astar' End. Took 0.448 ms
-    # [(7, 2), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (2, 7), (3, 7), (3, 8), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)]
-    # [(7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9)]
+    # Build true heuristic function
+    t_start = time.perf_counter()
+    print('Building true heuristic')
+    # Build true heuristic grid
+    true_heuristic_dict = build_true_heuristic(world_info.world_grid, world_info.get_all_zones())
+    print(f'Built true heuristic grid in {(time.perf_counter() - t_start)*1000:.2f} ms',)
+    entry = next(iter(true_heuristic_dict.values()))
+    print(f'Dict with {len(true_heuristic_dict)} keys, ')
+    byte_size_dict = sum([(sys.getsizeof(key) + value.nbytes) for key, value in true_heuristic_dict.items()])
+    print(f'Size: {byte_size_dict:,} bytes, one entry: {entry.nbytes} dtype = {entry.dtype}')
+    N, M = world_info.world_grid.shape
+    expected_size = N*M*len(true_heuristic_dict)
+    print(f'NxM = {N}x{M} = {N*M}')
+    print(f'Expected size ~NxMxZ = {N}x{M}x{len(true_heuristic_dict)} = {expected_size:,} ints')
+    print(f'For int32 = 4 bytes, 4 bytes * {expected_size:,} = {4*expected_size:,} bytes')
