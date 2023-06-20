@@ -21,7 +21,7 @@ def timeit(func):
 
 
 # @timeit
-def get_distances(grid, start: Position, dtype=np.int32):
+def get_distances(grid, start: Position, dtype=int):
     # start is [row, col] of grid (2d array, 0 is open, 1 is wall)
     # We will use a special value to represent inaccessible areas
     SPECIAL = -1
@@ -104,4 +104,6 @@ if __name__ == '__main__':
         pos_a = starts[i]
         pos_b = goals[i]
         dist = true_heuristic_dict[pos_b][pos_a]
-    print(f'Did {K} queries into true heuristic grid in {(time.perf_counter() - t_start)*1000:.2f} ms',)
+    t_end = time.perf_counter()
+    print(f'Did {K:,} queries into true heuristic grid in {(t_end - t_start)*1000:.2f} ms',)
+    # Did 1,000,000 queries into true heuristic grid in 306.90 ms
