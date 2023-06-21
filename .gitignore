@@ -161,3 +161,6 @@ node_modules
 
 # Ignore python TimedRotatingFileHandler output logs
 *.log.*
+
+# Ignore python pickle files
+*.pkl
