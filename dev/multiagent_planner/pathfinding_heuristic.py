@@ -23,11 +23,14 @@ def timeit(func):
 
 
 # @timeit
-def get_distances(grid, start: Position, dtype=int):
+def get_distances(grid, start: Position, dtype=None):
     # start is [row, col] of grid (2d array, 0 is open, 1 is wall)
     # We will use a special value to represent inaccessible areas
     SPECIAL = -1
-    distances = np.full_like(grid, fill_value=SPECIAL, dtype=dtype)
+    if not dtype:
+        distances = np.full_like(grid, fill_value=SPECIAL)
+    else:
+        distances = np.full_like(grid, fill_value=SPECIAL, dtype=dtype)
 
     # Directions for moving up, down, left, right
     directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
