@@ -68,10 +68,11 @@ def load_heuristic_from_file(filename: str):
         _dict = pickle.load(f)    
     return _dict
 
-def load_heuristic(warehouse_yaml: str, world_info: 'WorldInfo', logger: str) -> tuple['WorldInfo', dict]:
+def load_heuristic(warehouse_yaml: str, world_info: 'WorldInfo', logger: str, 
+                   force_rebuild=False) -> tuple['WorldInfo', dict]:
     """Tries to load heuristic dict from file, else builds and saves it. Returns the dict"""
     filename = f'{os.path.splitext(warehouse_yaml)[0]}_heuristic.pkl'
-    if os.path.exists(filename):
+    if os.path.exists(filename) and not force_rebuild:
         logger.info(f'Found existing heuristic for {warehouse_yaml} -> {filename}, loading')
         t_start = time.perf_counter()
         _dict = load_heuristic_from_file(filename)
