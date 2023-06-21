@@ -84,7 +84,7 @@ def load_heuristic(warehouse_yaml: str, world_info: 'WorldInfo', logger: str) ->
         _dict = build_true_heuristic(world_info.world_grid, world_info.get_all_zones())
         logger.info(f'Built true heuristic grid in {(time.perf_counter() - t_start)*1000:.2f} ms')
         write_heuristic_to_file(filename, _dict)
-    return world_info, _dict
+    return _dict
 
 if __name__ == '__main__':
     from warehouses.warehouse_loader import WorldInfo
