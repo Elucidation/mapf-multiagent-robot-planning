@@ -21,7 +21,7 @@ from inventory_management_system.TaskKeyParser import parse_task_key_to_ids
 from job import Job, JobId, JobState
 import multiagent_planner.pathfinding as pf
 from multiagent_planner.pathfinding import Position, Path
-from multiagent_planner.pathfinding_heuristic import build_true_heuristic
+from multiagent_planner.pathfinding_heuristic import load_heuristic
 from robot import Robot, RobotId, RobotStatus
 from world_db import WorldDatabaseManager
 from warehouse_logger import create_warehouse_logger
@@ -686,17 +686,13 @@ def wait_for_redis_connection(redis_con):
 if __name__ == '__main__':
     logger = create_warehouse_logger('robot_allocator')
 
+    warehouse_yaml = os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml')
+    
     # Load world info from yaml
-    world_info = WorldInfo.from_yaml(
-        os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml'))
-
-    # Build true heuristic function
-    t_start = time.perf_counter()
-    logger.info('Building true heuristic')
-    # Build true heuristic grid
-    true_heuristic_dict = build_true_heuristic(world_info.world_grid, world_info.get_all_zones())
-    logger.info('Built true heuristic grid in %.2f ms',
-                (time.perf_counter() - t_start)*1000)
+    world_info = WorldInfo.from_yaml(warehouse_yaml)
+    # Load or build true heuristic dict
+    true_heuristic_dict = load_heuristic(warehouse_yaml=warehouse_yaml,
+                                         world_info=world_info, logger=logger)
 
     def true_heuristic(pos_a: Position, pos_b: Position) -> float:
         """Returns A* shortest path between any two points based on world_grid"""

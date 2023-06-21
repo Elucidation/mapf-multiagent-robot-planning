@@ -3,6 +3,7 @@
 from collections import deque
 import functools
 import pickle
+import os
 import time
 import numpy as np
 from .pathfinding import Position
@@ -67,10 +68,27 @@ def load_heuristic_from_file(filename: str):
         _dict = pickle.load(f)    
     return _dict
 
+def load_heuristic(warehouse_yaml: str, world_info: 'WorldInfo', logger: str) -> tuple['WorldInfo', dict]:
+    """Tries to load heuristic dict from file, else builds and saves it. Returns the dict"""
+    filename = f'{os.path.splitext(warehouse_yaml)[0]}_heuristic.pkl'
+    if os.path.exists(filename):
+        logger.info(f'Found existing heuristic for {warehouse_yaml} -> {filename}, loading')
+        t_start = time.perf_counter()
+        _dict = load_heuristic_from_file(filename)
+        logger.info(f'Loaded true heuristic grid in {(time.perf_counter() - t_start)*1000:.2f} ms')
+    else:
+        # Build true heuristic function
+        t_start = time.perf_counter()
+        logger.info(f'Building true heuristic for {warehouse_yaml}')
+        # Build true heuristic grid
+        _dict = build_true_heuristic(world_info.world_grid, world_info.get_all_zones())
+        logger.info(f'Built true heuristic grid in {(time.perf_counter() - t_start)*1000:.2f} ms')
+        write_heuristic_to_file(filename, _dict)
+    return world_info, _dict
+
 if __name__ == '__main__':
     from warehouses.warehouse_loader import WorldInfo
     import os
-    import sys
     # Load world info from yaml
     warehouse_yaml = os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml')
     
