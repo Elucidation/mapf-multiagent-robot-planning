@@ -282,7 +282,8 @@ class RobotAllocator:
         t_start = time.perf_counter() if time_read is None else time_read
         self.logger.debug('update start')
         
-        # Update to latest robots from WDB if not passed in
+        # 1 - Update to latest robots from WDB if not passed in
+        t_load_robots = time.perf_counter()
         self.robots = self.wdb.get_robots() if robots is None else robots
 
         def update_too_long():
@@ -292,8 +293,10 @@ class RobotAllocator:
             self.logger.warning('update started too late at %.2f ms > %.2f ms threshold, skipping',
                                 (time.perf_counter() - t_start)*1000, MAX_UPDATE_TIME_SEC * 1000)
             return
+        t_load_robots = (time.perf_counter() - t_load_robots)*1000
 
-        # Check and update any jobs
+        # 2 - Check and update any jobs
+        t_update_jobs = time.perf_counter()
         job_keys = list(self.jobs)
         # TODO : Replace this with round-robin
         shuffled_job_keys = random.sample(job_keys, len(job_keys))
@@ -309,9 +312,10 @@ class RobotAllocator:
             processed_jobs.append(job)
             if ((time.perf_counter() - t_start) > MAX_TIME_CHECK_JOB_SEC) or update_too_long():
                 break
+        t_update_jobs = (time.perf_counter() - t_update_jobs)*1000
 
-        # Now check for any available robots and tasks for up to MAX_TIME_ASSIGN_JOB_SEC locally
-        # and MAX_UPDATE_TIME_SEC total
+        # 3 - Now check for any available robots and tasks for
+        # up to MAX_TIME_ASSIGN_JOB_SEC locally and MAX_UPDATE_TIME_SEC total
         t_assign = time.perf_counter()
         new_jobs: list[Job] = []
         # Get available robots
@@ -333,6 +337,7 @@ class RobotAllocator:
             new_job = self.assign_task_to_robot(task_key, robot)
             new_jobs.append(new_job)
             robots_assigned += 1
+        t_assign = (time.perf_counter() - t_assign)*1000
 
 
         # Revert changes if at this point update took too long
@@ -347,7 +352,8 @@ class RobotAllocator:
                 f'to {new_tasks_count} available tasks')
             return
 
-        # Batch update robots now
+        # 4 - Batch update robots now
+        t_update_all = time.perf_counter()
         self.wdb.update_robots(self.robots)
         # replace stored jobs that were processed with the chaanged ones
         for job in processed_jobs:
@@ -377,12 +383,15 @@ class RobotAllocator:
             self.redis_db.lpop('tasks:new', len(task_keys))
             self.redis_db.sadd('tasks:inprogress', *task_keys) # Set tasks in progress
         
+        t_update_all = (time.perf_counter() - t_update_all)*1000
+
         update_duration_ms = (time.perf_counter() - t_start)*1000
         self.logger.info(
             f'update end, took {update_duration_ms:.3f} ms, '
             f'processed {jobs_processed}/{len(shuffled_job_keys)} jobs, '
             f'assigned {robots_assigned}/{available_robots_count} available robots '
-            f'to {new_tasks_count} available tasks')
+            f'to {new_tasks_count} available tasks. '
+            f'[{t_load_robots:.3f}, {t_update_jobs:.3f}, {t_assign:.3f}, {t_update_all:.3f}] ms')
 
     def sleep(self):
         """Sleep for dt_sec"""
