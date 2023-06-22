@@ -164,3 +164,10 @@ node_modules
 
 # Ignore python pickle files
 *.pkl
+
+# Ignore redis dump.rdb
+redis/
+*.rdb
+
+# Ignore local npm cache
+npm_cache/
