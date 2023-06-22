@@ -53,7 +53,7 @@ function drawSpecialZone(tileX, tileY, className, label) {
 
 function svg_create_item_zones(zones) {
   return zones.map((zone, idx) => {
-    let item_name = world.item_names[idx];
+    let item_name = world.item_names[idx%world.item_names.length];
     if (item_name == undefined) {
       console.error(`undefined item name for item load zone ${idx}`);
     }
@@ -138,12 +138,12 @@ function svg_update_robots(robots, t) {
     // Update held items if it exists
     let item_name = "-";
     if (robot.held_item_id != undefined) {
-      if (world.item_names[robot.held_item_id] == undefined) {
+      if (world.item_names[robot.held_item_id%world.item_names.length] == undefined) {
         console.error(
           `undefined item name: ${robot.held_item_id} for ${robot}`
         );
       } else {
-        item_name = world.item_names[robot.held_item_id];
+        item_name = world.item_names[robot.held_item_id%world.item_names.length];
       }
     }
 
@@ -554,7 +554,7 @@ socket.on("ims_all_orders", (/** @type {any} */ data) => {
       order.item_ids = Object.keys(order.items);
       order.item_quantities = Object.values(order.items);
       order.item_names = order.item_ids.map(
-        (item_id) => world.item_names[item_id]
+        (item_id) => world.item_names[item_id%world.item_names.length]
       );
     });
     stations.forEach((station) => {
@@ -566,14 +566,14 @@ socket.on("ims_all_orders", (/** @type {any} */ data) => {
           station.items_in_station
         );
         station.station_item_names = station.station_item_ids.map(
-          (item_id) => world.item_names[item_id]
+          (item_id) => world.item_names[item_id%world.item_names.length]
         );
       }
       if (station.items_in_order) {
         station.order_item_ids = Object.keys(station.items_in_order);
         station.order_item_quantities = Object.values(station.items_in_order);
         station.order_item_names = station.order_item_ids.map(
-          (item_id) => world.item_names[item_id]
+          (item_id) => world.item_names[item_id%world.item_names.length]
         );
       }
     });
@@ -611,14 +611,14 @@ function update_robot_table(robots) {
     // Held Item
     let held_item_name = "";
     if (robot.held_item_id)
-      held_item_name = world.item_names[robot.held_item_id];
+      held_item_name = world.item_names[robot.held_item_id%world.item_names.length];
     addCell(held_item_name);
     // Task
     let task_description = "";
     if (robot.task_key) {
       const taskComponents = robot.task_key.split(":"); // task:station:4:order:104:0:2
       const [_a, _b, stationId, _c, orderId, itemId] = taskComponents;
-      let item_name = world.item_names[itemId];
+      let item_name = world.item_names[itemId%world.item_names.length];
       task_description = `Move item ${item_name} to station ${stationId} for order ${orderId}`;
     }
     addCell(task_description);
