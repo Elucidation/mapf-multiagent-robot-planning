@@ -382,7 +382,9 @@ function updateStationOrderTable(table, station_orders) {
   const tableBody = table.querySelector("tbody");
   tableBody.innerHTML = "";
 
-  station_orders.forEach((entry) => {
+  // Only show first 25 stations
+  station_orders.slice(0,25).forEach((entry, idx) => {
+    
     const row = document.createElement("tr");
 
     // Station ID
@@ -595,8 +597,8 @@ function update_robot_table(robots) {
   // Clear out any existing rows
   tbody.innerHTML = "";
 
-  // Add a new row for each robot
-  robots.forEach((robot) => {
+  // Add a new row for each robot, first 25 robots only.
+  robots.slice(0, 25).forEach((robot) => {
     const row = document.createElement("tr");
 
     // Function to create a cell and add it to the row
