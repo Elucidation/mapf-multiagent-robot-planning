@@ -100,10 +100,11 @@ class World(object):
             'robots': json.dumps([robot.json_data() for robot in self.robots])
         }
 
-    def state_dict(self):
+    def state_dict(self, time_to_next_step_sec=None):
         """Returns a dict with the t, and robot jsons"""
         return {
             't': self.t,
+            'time_to_next_step_sec':time_to_next_step_sec,
             'robots': json.dumps([robot.json_data() for robot in self.robots])
         }
 
@@ -220,11 +221,13 @@ class World(object):
             self.logger.error(
                 f'update took {update_duration_ms:.2f} > {self.dt_sec*1000} ms')
         # Log state of world (t and robot info) to DB
-        self.wdb.log_world_state(self.state_dict())
+        time_to_next_step_sec = self.get_time_to_next_step_s()
+        self.wdb.log_world_state(self.state_dict(time_to_next_step_sec))
         # Return if any robot has moved or not
         return state_changed
-
-    def sleep(self):
+    
+    def get_time_to_next_step_s(self) -> float:
+        """Returns the estimated time in seconds till the next step."""
         delay = self.dt_sec
         if self.last_step_start_time:
             # Get delay needed to reach next time step based on the start of the last
@@ -233,6 +236,10 @@ class World(object):
             # If that time already passed, push delay as many time steps needed.
             while delay <= 0:
                 delay += self.dt_sec
+        return delay
+
+    def sleep(self):
+        delay = self.get_time_to_next_step_s()
         logger.debug(f'sleep for {delay} sec')
         time.sleep(delay)
 
