@@ -81,19 +81,21 @@ class WorldDatabaseManager:
         return self.redis.hset(robot_key, 'path', json.dumps(path))
 
     @timeit
-    def update_robots(self, robots: List[Robot]):
-        pipeline = self.redis.pipeline()
+    def update_robots(self, robots: List[Robot], pipeline: 'redis.Pipeline' = None):
+        # Execute update if pipeline not defined, else pass to pipeline.
+        _pipeline = self.redis.pipeline() if pipeline is None else pipeline
         for robot in robots:
             robot_key = f'robot:{robot.robot_id}'
-            pipeline.hset(robot_key, mapping=robot.json_data())
+            _pipeline.hset(robot_key, mapping=robot.json_data())
             # Add robot to busy/free based on state
             if robot.state == RobotStatus.AVAILABLE:
-                pipeline.sadd('robots:free', robot_key)
-                pipeline.srem('robots:busy', robot_key)
+                _pipeline.sadd('robots:free', robot_key)
+                _pipeline.srem('robots:busy', robot_key)
             elif robot.state == RobotStatus.IN_PROGRESS:
-                pipeline.sadd('robots:busy', robot_key)
-                pipeline.srem('robots:free', robot_key)
-        pipeline.execute()
+                _pipeline.sadd('robots:busy', robot_key)
+                _pipeline.srem('robots:free', robot_key)
+        if pipeline is None:
+            _pipeline.execute()
 
     def _parse_position(self, position_str: str) -> Position:
         pos_x, pos_y = json.loads(position_str)

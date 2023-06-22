@@ -95,16 +95,16 @@ class RobotAllocator:
                 robot.state_description = 'Allocator restart, trying to going home'
                 if path_to_home:
                     robot.set_path(path_to_home)
-        self.wdb.update_robots(self.robots)
 
-        # Get delta time step used by world sim
-        self.dt_sec = self.wdb.get_dt_sec()
+        pipeline = self.redis_db.pipeline()
+        self.wdb.update_robots(self.robots, pipeline=pipeline)
 
         # Move all in progress tasks back to head of new
         task_keys = self.redis_db.smembers('tasks:inprogress')
         if task_keys:
-            self.redis_db.lpush('tasks:new', *task_keys)
-        self.redis_db.delete('tasks:inprogress')
+            pipeline.lpush('tasks:new', *task_keys)
+        pipeline.delete('tasks:inprogress')
+        pipeline.execute()
 
         # Track robot allocations as allocations[robot_id] = job_id
         self.allocations: dict[RobotId, Optional[JobId]] = {
@@ -352,9 +352,11 @@ class RobotAllocator:
                 f'to {new_tasks_count} available tasks')
             return
 
-        # 4 - Batch update robots now
+        # 4 - Batch update robots, jobs, tasks now
         t_update_all = time.perf_counter()
-        self.wdb.update_robots(self.robots)
+        pipeline = self.redis_db.pipeline()
+        self.wdb.update_robots(self.robots, pipeline=pipeline)
+
         # replace stored jobs that were processed with the chaanged ones
         for job in processed_jobs:
             # Either replace job in progress, or pop completed ones
@@ -366,8 +368,8 @@ class RobotAllocator:
             
             if job.state == JobState.ITEM_DROPPED:
                 # Notify task complete (Order Proc adds item to station)
-                self.redis_db.srem('tasks:inprogress', job.task_key)
-                self.redis_db.lpush('tasks:processed', job.task_key)
+                pipeline.srem('tasks:inprogress', job.task_key)
+                pipeline.lpush('tasks:processed', job.task_key)
                 self.logger.info(f'Task {job.task_key} complete, '
                                 f'Robot {job.robot_id} successfully dropped item')
             
@@ -380,9 +382,11 @@ class RobotAllocator:
         # Move task keys associated with new jobs from new -> inprogress
         if new_jobs:
             task_keys = [job.task_key for job in new_jobs]
-            self.redis_db.lpop('tasks:new', len(task_keys))
-            self.redis_db.sadd('tasks:inprogress', *task_keys) # Set tasks in progress
-        
+            pipeline.lpop('tasks:new', len(task_keys))
+            pipeline.sadd('tasks:inprogress', *task_keys) # Set tasks in progress
+
+        # Execute transactions on redis
+        pipeline.execute()
         t_update_all = (time.perf_counter() - t_update_all)*1000
 
         update_duration_ms = (time.perf_counter() - t_start)*1000
