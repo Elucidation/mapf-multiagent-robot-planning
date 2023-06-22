@@ -312,9 +312,10 @@ if __name__ == '__main__':
 
     logger.info('Main loop start...')
     while True:
+        t_start = time.perf_counter()
         world.step()
-        if world.t % 5 == 0:
-            logger.info(f'Step {world.t}')
+        step_duration_ms = (time.perf_counter() - t_start)*1000
+        logger.info(f'Step {world.t} - took {step_duration_ms:.3f} ms')
 
         ROBOT_STR = '|'.join(
             [f'{robot.pos[0]},{robot.pos[1]}' for robot in world.robots])
