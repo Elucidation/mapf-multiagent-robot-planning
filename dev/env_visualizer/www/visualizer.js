@@ -59,7 +59,7 @@ function svg_create_item_zones(zones) {
     }
     const hover_label = createSVGElement("title");
     hover_label.textContent = `Item Load Zone ${idx}`;
-    zone = drawSpecialZone(zone.x, zone.y, "item_load_zone", `${item_name}`);
+    zone = drawSpecialZone(zone.x, zone.y, "item_load_zone", `${item_name}s`);
     zone.appendChild(hover_label);
     return zone;
   });
@@ -97,7 +97,7 @@ function svg_create_robots(robots) {
     const circleId = `robot_${robot.id}`;
     const labelText = createCircleLabel(
       circleId,
-      `Robot ${robot.id}`,
+      `Bot-${robot.id}`,
       "robot_label"
     );
     const heldItemText = createCircleLabel(

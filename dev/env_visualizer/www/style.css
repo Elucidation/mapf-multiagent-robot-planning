@@ -5,80 +5,34 @@ body {
     Arial, sans-serif;
 }
 
-#form {
-  background: rgba(0, 0, 0, 0.15);
-  padding: 0.25rem;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  height: 3rem;
-  box-sizing: border-box;
-  backdrop-filter: blur(10px);
-}
-
-#input {
-  border: none;
-  padding: 0 1rem;
-  flex-grow: 1;
-  border-radius: 2rem;
-  margin: 0.25rem;
-}
-
-#input:focus {
-  outline: none;
-}
-
-#form > button {
-  background: #333;
-  border: none;
-  padding: 0 1rem;
-  margin: 0.25rem;
-  border-radius: 3px;
-  outline: none;
-  color: #fff;
-}
-
-#messages {
-  list-style-type: none;
-  margin: 0;
-  padding: 0;
-}
-
-#messages > li {
-  padding: 0.5rem 1rem;
-}
-
-#messages > li:nth-child(odd) {
-  background: #efefef;
-}
-
 svg {
   border: 5px solid black;
 }
 .empty {
   fill: white;
-  stroke: black;
 }
 .wall {
   fill: gray;
-  stroke: black;
+  stroke: rgba(0, 0, 0, 0.5);
+  
 }
 
 .item_load_zone {
   fill: rgb(93, 123, 179);
-  stroke: black;
+  stroke: rgba(0, 0, 0, 0.5);
+  font-size: smaller;
 }
 
 .station_zone {
   fill: rgb(170, 179, 48);
-  stroke: black;
+  stroke: rgba(0, 0, 0, 0.5);
+  font-size: smaller;
 }
 
 .robot_home_zone {
   fill: rgb(80, 109, 87);
-  stroke: black;
+  stroke: rgba(0, 0, 0, 0.5);
+  font-size: smaller;
 }
 
 .robot {
@@ -88,10 +42,11 @@ svg {
 
 text.robot_label {
   fill: beige;
+  font-size: smaller;
 }
 
 text.robot_held_item_label {
-  fill: aqua;
+  fill: gold;
 }
 
 path {
@@ -111,13 +66,9 @@ path {
 }
 table.outer {
   width: 100%;
-  /* border-style: ridge; */
-  /* border-width: 5; */
 }
 table.subgroup {
   width: 100%;
-  /* border-style: solid;
-  border-width: 1; */
   border-collapse: collapse;
 }
 table.subgroup td {
@@ -153,17 +104,12 @@ table.subgroup td.failed {
 /* Robot Table */
 
 table.robots {
-  /* width: 100%; */
-  /* border-style: ridge;
-  border-width: 5; */
   margin: 0.25rem;
   border-collapse: collapse;
   min-width: 960px;
 }
 table.robots tr {
-  /* border-style: solid; */
   padding: 0.25rem;
-  /* border-width: 1; */
 }
 table.robots td, th {
   vertical-align: top;
