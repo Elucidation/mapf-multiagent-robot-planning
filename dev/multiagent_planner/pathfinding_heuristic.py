@@ -23,7 +23,7 @@ def timeit(func):
 
 
 # @timeit
-def get_distances(grid, start: Position, dtype=None):
+def get_distances(grid, start: Position, dtype=None) -> np.ndarray:
     # start is [row, col] of grid (2d array, 0 is open, 1 is wall)
     # We will use a special value to represent inaccessible areas
     SPECIAL = -1
@@ -71,8 +71,8 @@ def load_heuristic_from_file(filename: str):
         _dict = pickle.load(f)    
     return _dict
 
-def load_heuristic(warehouse_yaml: str, world_info: 'WorldInfo', logger: str, 
-                   force_rebuild=False) -> tuple['WorldInfo', dict]:
+def load_heuristic(warehouse_yaml: str, world_info: 'WorldInfo', logger: str,
+                   force_rebuild=False) -> dict[Position, np.ndarray]:
     """Tries to load heuristic dict from file, else builds and saves it. Returns the dict"""
     filename = f'{os.path.splitext(warehouse_yaml)[0]}_heuristic.pkl'
     if os.path.exists(filename) and not force_rebuild:
