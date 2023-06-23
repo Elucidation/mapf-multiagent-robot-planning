@@ -26,16 +26,13 @@ def create_warehouse_logger(name, folder='logs/curr/', log_to_file=False):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
+    if logger.hasHandlers():
+        return logger
+
     # All messages up to info to stdout, including error messages
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.INFO)
     stdout_handler.setFormatter(formatter)
     logger.addHandler(stdout_handler)
-
-    # Error messages to stderr
-    stderr_handler = logging.StreamHandler(sys.stderr)
-    stderr_handler.setLevel(logging.ERROR)
-    stderr_handler.setFormatter(formatter)
-    logger.addHandler(stderr_handler)
 
     return logger
