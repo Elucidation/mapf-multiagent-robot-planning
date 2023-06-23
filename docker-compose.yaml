@@ -1,4 +1,7 @@
 version: "3.8"
+# .env file should contain something like:
+# WAREHOUSE_YAML=warehouses/main_warehouse.yaml
+# MAX_ITEM_ID=47
 services:
   # World Simulator
   world-sim:
@@ -10,6 +13,7 @@ services:
     working_dir: /home/app/mapf/dev
     environment:
       - REDIS_HOST=redis-db
+      - WAREHOUSE_YAML=${WAREHOUSE_YAML}
     depends_on:
       - redis-db # To publish world_t messages, robot positions, states etc.
     command: python -m world_sim reset
@@ -26,6 +30,7 @@ services:
     working_dir: /home/app/mapf/dev
     environment:
       - REDIS_HOST=redis-db
+      - WAREHOUSE_YAML=${WAREHOUSE_YAML}
     depends_on:
       - order-processor # To set up tasks etc.
       - redis-db # subscribe to world_t, pull/process tasks, robots etc.
@@ -43,6 +48,7 @@ services:
     working_dir: /home/app/mapf/dev
     environment:
       - REDIS_HOST=redis-db
+      - WAREHOUSE_YAML=${WAREHOUSE_YAML}
     depends_on:
       - redis-db # Manage Orders/Stations/Tasks
     command: python -m inventory_management_system.order_processor reset
@@ -59,10 +65,11 @@ services:
     working_dir: /home/app/mapf/dev
     environment:
       - REDIS_HOST=redis-db
+      - WAREHOUSE_YAML=${WAREHOUSE_YAML}
     depends_on:
       - redis-db # Submit order requests
       - order-processor
-    command: python -m inventory_management_system.fake_order_sender -k 10 --max-item-id 47 -d 1
+    command: python -m inventory_management_system.fake_order_sender -k 10 --max-item-id ${MAX_ITEM_ID} -d 1
     logging:
       options:
         max-size: 10m
@@ -78,6 +85,7 @@ services:
       - 3000:3000
     environment:
       - REDIS_HOST=redis-db
+      - WAREHOUSE_YAML=${WAREHOUSE_YAML}
     depends_on:
       - redis-db # To subscribe to world_t messages
     command: /bin/sh -c "npm --prefix ./env_visualizer install && node env_visualizer/"
