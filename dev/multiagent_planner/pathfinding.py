@@ -118,7 +118,8 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
              static_obstacles: set = set(), max_time=20,
              max_cells=10000, t_start=0, end_fast=False,
              heuristic: Optional[HeuristicFunction] = None,
-             stats: dict = None) -> Path:
+             stats: dict = None,
+             validate_ends = True) -> Path:
     """Space-Time A* search.
 
     Each tile is position.
@@ -137,6 +138,7 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
         end_fast (bool, optional): end as soon as destination reached vs waiting till max_time.
         heuristic (HeuristicFunction, optional): Heuristic (set for pos_b), Defaults to euclidean_heuristic
         stats (dict, optional): store run-time stats here if it exists. Defaults to None.
+        validate_ends (bool, optional): Check if start and end positions are valid. Defaults to True.
 
     Raises:
         ValueError: _description_
@@ -147,21 +149,24 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
 
     if graph[pos_a[0], pos_a[1]] > 0 or graph[pos_b[0], pos_b[1]] > 0:
         raise ValueError('Start/End locations in walls')
-    if pos_a in static_obstacles or pos_b in static_obstacles:
+    if validate_ends and (pos_a in static_obstacles or pos_b in static_obstacles):
         return []  # Start/End in static obstacles
 
     def check_valid(stpos: PositionST) -> bool:
         (row, col, t) = stpos
+        pos = stpos[:2]
         max_row, max_col = graph.shape
         if t > max_time+t_start:
             return False
+        if not validate_ends and (pos == pos_a or pos == pos_b):
+            return True # Start/end positions are considered valid at all times
         if row < 0 or row >= max_row:
             return False
         if col < 0 or col >= max_col:
             return False
         if graph[row, col] > 0:
             return False
-        if (row, col) in static_obstacles:
+        if pos in static_obstacles:
             return False
         if stpos in dynamic_obstacles:
             return False
