@@ -12,7 +12,7 @@ Robot Allocator:
 """
 import json
 import random
-from typing import Callable, Optional, Tuple
+from typing import Optional, Tuple
 import os
 import time
 import redis
@@ -76,45 +76,75 @@ class RobotAllocator:
         # Get delta time step used by world sim
         self.dt_sec = self.wdb.get_dt_sec()
 
-        # Get all robots regardless of state
-        # assume no robots will be added or removed for duration of this instance
-        self.robots = self.wdb.get_robots()
-        # Reset Robot states and drop any held items
-        for idx, robot in enumerate(self.robots):
-            robot.held_item_id = None
-            robot.state = RobotStatus.AVAILABLE
-            robot.task_key = None
-            robot.state_description = 'Waiting for task'
-            if robot.pos != self.robot_home_zones[idx]:
-                # Not at home, try to go home, assume current pos in any zone as not an obstacle
-                dynamic_obstacles, static_obstacles = self.get_current_obstacles(
-                    robot.robot_id, robot.pos, robot.pos)
-                path_to_home = self.generate_path(
-                    robot.pos, self.robot_home_zones[idx], dynamic_obstacles, static_obstacles)
-                self.logger.warning(
-                    'Starting outside of home, attempting to send home')
-                robot.state_description = 'Allocator restart, trying to going home'
-                if path_to_home:
-                    robot.set_path(path_to_home)
+        # Using world info set up static dynamic obstacles
+        self.static_obstacles = self.get_all_static_obstacles()
 
-        pipeline = self.redis_db.pipeline()
-        self.wdb.update_robots(self.robots, pipeline=pipeline)
-
-        # Move all in progress tasks back to head of new
-        task_keys = self.redis_db.smembers('tasks:inprogress')
-        if task_keys:
-            pipeline.lpush('tasks:new', *task_keys)
-        pipeline.delete('tasks:inprogress')
-        pipeline.execute()
+        # Try and wait for world state update to get data and reset robots
+        response = self.redis_db.xread(
+            {'world:state': '$'}, block=1000, count=1)
+        if response:
+            #  Parse robot data from update message
+            timestamp, data = response[0][1][0]
+            self.world_sim_t = int(data['t'])
+            self.robots = [Robot.from_json(json_data)
+                           for json_data in json.loads(data['robots'])]
+            self.logger.info(
+                'RA restart Step start T=%d timestamp=%s %s',
+                self.world_sim_t, timestamp, '-'*100)
+        else:
+            # Get all robots regardless of state
+            # assume no robots will be added or removed for duration of this instance
+            self.robots = self.wdb.get_robots()
 
         # Track robot allocations as allocations[robot_id] = job_id
         self.allocations: dict[RobotId, Optional[JobId]] = {
             robot.robot_id: None for robot in self.robots}
 
+        # Latest dynamic obstacles, reset on update(), updated with every new path in that cycle
+        self.latest_dynamic_obstacles = None
+
+        # Try to find paths for robots to go home, since robots no longer are pathing, no
+        # issue with this taking more than one time step.
+        for idx, robot in enumerate(self.robots):
+            # On RA reset we assume any existing tasks/jobs are lost for the robot,
+            # so drop item and task, assign it a job to go home if it's not already there.
+            robot.held_item_id = None
+            robot.task_key = None
+            if robot.pos == self.robot_home_zones[idx]:
+                robot.set_path([])  # Clear any paths
+                robot.state_description = 'Waiting for task'
+                robot.state = RobotStatus.AVAILABLE
+                continue
+
+            # Assign a job to go home if it's not already there.
+            job = self.make_and_assign_taskless_return_home_job(robot)
+            self.logger.warning(
+                f'{robot.robot_id} starting outside of home, assigning taskless job home {job}')
+            self.jobs[job.job_id] = job
+            self.allocations[robot.robot_id] = job.job_id
+        self.wdb.update_robots(self.robots)  # Update new robot state
+
+        # Move all in progress tasks back to head of new
+        task_keys = self.redis_db.smembers('tasks:inprogress')
+        pipeline = self.redis_db.pipeline()
+        if task_keys:
+            pipeline.lpush('tasks:new', *task_keys)
+        pipeline.delete('tasks:inprogress')
+        pipeline.execute()
+
+    def get_all_static_obstacles(self):
+        """Get all static obstacles"""
+        static_obstacles: set[tuple[int, int]] = set()  # set{(row,col), ...}
+        # Maeke all zones static obstacles (lifted later for individual robots)
+        static_obstacles.update(self.robot_home_zones)
+        static_obstacles.update(self.item_load_zones)
+        static_obstacles.update(self.station_zones)
+        return static_obstacles
+
     def make_job(self, task_key: str, robot: Robot) -> Job:
         """Create a job for a given robot and task"""
         assert robot.state == RobotStatus.AVAILABLE
-        
+
         task_ids = parse_task_key_to_ids(task_key)
 
         # Get positions along the route
@@ -145,47 +175,59 @@ class RobotAllocator:
         robot.task_key = job.task_key
         return job
 
-    def get_current_obstacles(self, robot_id: RobotId,
-                              item_zone_pos: Optional[Position] = None,
-                              station_zone_pos: Optional[Position] = None,
-                              ) -> tuple[set[tuple[int, int, int]], set[tuple[int, int]]]:
+    def make_and_assign_taskless_return_home_job(self, robot: Robot) -> Job:
+        """Create and assign a taskless job for a given robot to go home."""
+        robot_home = self.robot_home_zones[robot.robot_id]
+
+        # Create job and increment counter
+        job_data = {
+            'task_key': '',
+            'station_id': None,
+            'order_id': None,
+            'item_id': None,
+            'idx': None,
+            'robot_id': robot.robot_id,
+            'robot_start_pos': robot.pos,
+            'robot_home': robot_home,
+            'item_zone': None,
+            'station_zone': None,
+        }
+        job_id = self.job_id_counter
+        self.job_id_counter = JobId(self.job_id_counter + 1)
+        job = Job(job_id, job_data)
+        job.state = JobState.RESTART_MGR_GO_HOME  # Next stop is returning home
+        # Set robot state
+        robot.state = RobotStatus.IN_PROGRESS
+        robot.state_description = 'Allocator restart, trying to return home'
+        robot.task_key = None
+        # Set current pos or end pos locks if they end in zones
+        if robot.pos in self.station_locks:
+            self.station_locks[robot.pos] = job_id
+        elif robot.pos in self.item_locks:
+            self.item_locks[robot.pos] = job_id
+        if robot.future_path:
+            end_pos = robot.future_path[-1]
+            if end_pos in self.station_locks:
+                self.station_locks[end_pos] = job_id
+            elif end_pos in self.item_locks:
+                self.item_locks[end_pos] = job_id
+        return job
+
+    def get_all_current_dynamic_obstacles(self) -> set[tuple[int, int, int]]:
         """Return existing robot future paths as dynamic obstacles
 
-        Returns a tuple of:
+        Returns:
             set[tuple[int, int, int]]: set of (row, col, t) dynamic obstacles with current t=-1
-            set[tuple[int, int]]: set of (row, col) static obstacles
 
         """
         # For dynamic obstacles, assume current moment is t=-1, next moment is t=0
         dynamic_obstacles: set[tuple[int, int, int]
                                ] = set()  # set{(row,col,t), ...}
-        static_obstacles: set[tuple[int, int]] = set()  # set{(row,col), ...}
-
-        this_robot = self.get_robot(robot_id)
-        # Block off all other robot docks as static obstacles
-        for idx, dock in enumerate(self.robot_home_zones):
-            if idx == robot_id:
-                continue
-            static_obstacles.add((dock[0], dock[1]))
-
-        # Block off all item zones (except any given one) as static
-        for pos in self.item_load_zones:
-            if pos == item_zone_pos:
-                continue
-            static_obstacles.add((pos[0], pos[1]))
-
-        # Block off all station zones (except any given one) as static
-        for pos in self.station_zones:
-            if pos == station_zone_pos:
-                continue
-            static_obstacles.add((pos[0], pos[1]))
 
         for robot in self.robots:
-            if robot.robot_id == robot_id:
-                continue  # Ignore self
-            if robot.pos == this_robot.pos:
-                self.logger.error('Robot collision, pathing out of it')
-                continue  # Ignore edge case robot collision to allow for recovering out
+            if not robot.future_path:
+                # Robot will be added as a static obstacle separately
+                continue
             # Add all positions along future path
             for t_step, pos in enumerate(robot.future_path):
                 dynamic_obstacles.add((pos[0], pos[1], t_step))
@@ -194,16 +236,24 @@ class RobotAllocator:
                 # TODO : This is hacky, get more precise on when robots go along paths.
                 dynamic_obstacles.add((pos[0], pos[1], t_step-1))
 
-            path_t = len(robot.future_path)
-            if robot.future_path:
-                # Add final position a few times to give space for robot to move
-                last_pos = robot.future_path[path_t-1]
-                for t_step in range(path_t, path_t+5):
-                    dynamic_obstacles.add((last_pos[0], last_pos[1], t_step))
-            else:
-                # Robot stationary, add current robot position as static obstacle
-                static_obstacles.add((robot.pos[0], robot.pos[1]))
-        return (dynamic_obstacles, static_obstacles)
+            path_len_t = len(robot.future_path)
+            # Add final position a few times to give space for robot to move
+            last_pos = robot.future_path[path_len_t-1]
+            for t_step in range(path_len_t, path_len_t+5):
+                dynamic_obstacles.add((last_pos[0], last_pos[1], t_step))
+
+        return dynamic_obstacles
+
+    def get_current_static_obstacles(self) -> set[Position]:
+        """Return static obstacles with stationary robots too
+
+        Returns a set[Position]: set of (row, col) static obstacles
+        """
+        # Add stationary robots to static obstacles
+        static_obstacles = self.static_obstacles.copy()
+        static_obstacles.update(
+            robot.pos for robot in self.robots if not robot.future_path)
+        return static_obstacles
 
     def get_robot(self, robot_id: RobotId) -> Robot:
         """Get robot by id from stored list of robots"""
@@ -254,17 +304,16 @@ class RobotAllocator:
         If yes, create a job for that robot, update states and return the job. """
         robot = self.get_first_available_robot()
         if not robot:
-            return None # No available robots
+            return None  # No available robots
 
         # Pop task and push into inprogress
         if not self.redis_db.exists('tasks:new') or self.redis_db.llen('tasks:new') == 0:
-            return None # No available tasks
+            return None  # No available tasks
         task_key = self.redis_db.lpop()
         if not task_key:
             return None
         return self.assign_task_to_robot(task_key, robot)
-        
-    
+
     def assign_task_to_robot(self, task_key: str, robot: Robot) -> Job:
         """Given available robot and task, create job and assign robot to it"""
         assert task_key is not None
@@ -273,7 +322,8 @@ class RobotAllocator:
                 f'{robot} not available for a new job: ({repr(robot.state)} == '
                 f'{repr(RobotStatus.AVAILABLE)}) = {robot.state == RobotStatus.AVAILABLE}')
 
-        job = self.make_job(task_key, robot) # Returns task_key to tasks:new if it fails
+        # Returns task_key to tasks:new if it fails
+        job = self.make_job(task_key, robot)
         self.logger.info(f'Created Job: {job}')
         return job
 
@@ -282,7 +332,7 @@ class RobotAllocator:
            If update takes longer than a threshold, the step is skipped and redis is not updated."""
         t_start = time.perf_counter() if time_read is None else time_read
         self.logger.debug('update start')
-        
+
         # 1 - Update to latest robots from WDB if not passed in
         t_load_robots = time.perf_counter()
         self.robots = self.wdb.get_robots() if robots is None else robots
@@ -302,6 +352,8 @@ class RobotAllocator:
         # TODO : Replace this with round-robin
         shuffled_job_keys = random.sample(job_keys, len(job_keys))
 
+        # Get the dynamic obstacles for this timestep
+        self.latest_dynamic_obstacles = self.get_all_current_dynamic_obstacles()
         # Only process jobs for up to MAX_TIME_CHECK_JOB_SEC locally and MAX_UPDATE_TIME_SEC total
         jobs_processed = 0
         processed_jobs: list[Job] = []
@@ -324,7 +376,9 @@ class RobotAllocator:
         available_robots = self.get_available_robots()
         available_robots_count = len(available_robots)
         # Get available new tasks
-        new_tasks = self.redis_db.lrange('tasks:new', 0, available_robots_count)
+        all_new_tasks_count = self.redis_db.llen('tasks:new')
+        new_tasks = self.redis_db.lrange(
+            'tasks:new', 0, available_robots_count)
         new_tasks_count = len(new_tasks)
         # For each available pair of robot and tasks
         for idx in range(min(available_robots_count, new_tasks_count)):
@@ -340,7 +394,6 @@ class RobotAllocator:
             robots_assigned += 1
         t_assign = (time.perf_counter() - t_assign)*1000
 
-
         # Revert changes if at this point update took too long
         # Expectation: No redis writes were done up to this point.
         if update_too_long():
@@ -350,7 +403,7 @@ class RobotAllocator:
                 f'took {update_duration_ms:.3f} ms > {MAX_UPDATE_TIME_SEC*1000} ms threshold, '
                 f'reverting processed {jobs_processed}/{len(shuffled_job_keys)} jobs, '
                 f'reverting assigned {robots_assigned}/{available_robots_count} available robots '
-                f'to {new_tasks_count} available tasks')
+                f'to {new_tasks_count}/{all_new_tasks_count} available tasks')
             return
 
         # 4 - Batch update robots, jobs, tasks now
@@ -366,17 +419,17 @@ class RobotAllocator:
                 self.allocations[job.robot_id] = None
                 self.jobs.pop(job.job_id, None)
                 continue
-            
+
             if job.state == JobState.ITEM_DROPPED:
                 # Notify task complete (Order Proc adds item to station)
                 pipeline.srem('tasks:inprogress', job.task_key)
                 pipeline.lpush('tasks:processed', job.task_key)
                 self.logger.info(f'Task {job.task_key} complete, '
-                                f'Robot {job.robot_id} successfully dropped item')
-            
+                                 f'Robot {job.robot_id} successfully dropped item')
+
             self.jobs[job.job_id] = job
             self.allocations[job.robot_id] = job.job_id
-        
+
         # For newly created jobs, track them and make their tasks inprogress in redis
         for job in new_jobs:
             self.jobs[job.job_id] = job  # Track job
@@ -384,7 +437,8 @@ class RobotAllocator:
         if new_jobs:
             task_keys = [job.task_key for job in new_jobs]
             pipeline.lpop('tasks:new', len(task_keys))
-            pipeline.sadd('tasks:inprogress', *task_keys) # Set tasks in progress
+            # Set tasks in progress
+            pipeline.sadd('tasks:inprogress', *task_keys)
 
         # Execute transactions on redis
         pipeline.execute()
@@ -395,7 +449,7 @@ class RobotAllocator:
             f'update end, took {update_duration_ms:.3f} ms, '
             f'processed {jobs_processed}/{len(shuffled_job_keys)} jobs, '
             f'assigned {robots_assigned}/{available_robots_count} available robots '
-            f'to {new_tasks_count} available tasks. '
+            f'to {new_tasks_count}/{all_new_tasks_count} available tasks '
             f'[{t_load_robots:.3f}, {t_update_jobs:.3f}, {t_assign:.3f}, {t_update_all:.3f}] ms')
 
     def sleep(self):
@@ -414,15 +468,37 @@ class RobotAllocator:
         }
 
         true_dists = self.heuristic_dict[pos_b]
+
         def true_heuristic(pos_a: Position) -> float:
             """Returns A* shortest path between any two points based on world_grid"""
             return true_dists[pos_a]
         path = pf.st_astar(
             self.world_grid, pos_a, pos_b, dynamic_obstacles, static_obstacles=static_obstacles,
-            end_fast=True, max_time=self.max_steps, heuristic=true_heuristic, stats=stats)
+            end_fast=True, max_time=self.max_steps, heuristic=true_heuristic, stats=stats,
+            validate_ends=False)
         self.logger.info(
             f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms - {stats}')
         return path
+
+    def set_robot_path(self, robot: Robot, path: Path):
+        """Sets robot path, and also updates latest dynamic obstacles with this"""
+        robot.set_path(path)
+        if self.latest_dynamic_obstacles is not None:
+            # TODO : Avoid repeating this.
+            # Add all positions along future path
+            for t_step, pos in enumerate(path):
+                self.latest_dynamic_obstacles.add((pos[0], pos[1], t_step))
+                # Also add it at future and past time to keep robots from slipping nearby
+                self.latest_dynamic_obstacles.add((pos[0], pos[1], t_step+1))
+                # TODO : This is hacky, get more precise on when robots go along paths.
+                self.latest_dynamic_obstacles.add((pos[0], pos[1], t_step-1))
+
+            path_len_t = len(path)
+            # Add final position a few times to give space for robot to move
+            last_pos = path[path_len_t-1]
+            for t_step in range(path_len_t, path_len_t+5):
+                self.latest_dynamic_obstacles.add(
+                    (last_pos[0], last_pos[1], t_step))
 
     def job_start(self, job: Job) -> bool:
         """Start job, pathing robot to item zone, or home."""
@@ -435,10 +511,9 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
         # Try to generate new path for robot
-        dynamic_obstacles, static_obstacles = self.get_current_obstacles(
-            job.robot_id, item_zone_pos=job.item_zone)
+        static_obstacles = self.get_current_static_obstacles()
         job.path_robot_to_item = self.generate_path(
-            current_pos, job.item_zone, dynamic_obstacles, static_obstacles)
+            current_pos, job.item_zone, self.latest_dynamic_obstacles, static_obstacles)
         if not job.path_robot_to_item:
             self.logger.warning(f'Robot {job.robot_id} no path to item zone')
 
@@ -446,15 +521,15 @@ class RobotAllocator:
                 return False
             # Not at home, so try going home instead for now
             path_to_home = self.generate_path(
-                current_pos, job.robot_home, dynamic_obstacles, static_obstacles)
+                current_pos, job.robot_home, self.latest_dynamic_obstacles, static_obstacles)
             self.logger.warning(
                 f'Trying to go home {current_pos} -> {job.robot_home}')
             if path_to_home:
-                robot.set_path(path_to_home)
+                self.set_robot_path(robot, path_to_home)
                 robot.state_description = 'Pathing home, waiting till item zone available'
             return False  # Did not start job as no path existed yet
 
-        robot.set_path(job.path_robot_to_item)
+        self.set_robot_path(robot, job.path_robot_to_item)
         robot.state_description = 'Pathing to item zone'
         job.start()
         self.logger.info(f'Started {job}')
@@ -466,7 +541,8 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         if robot.pos != job.item_zone:
             if not robot.future_path:
-                self.logger.error('Robot path diverged from job, reset state')
+                self.logger.error(
+                    f'Robot {robot.robot_id} path diverged from job pick item, reset state')
                 job.started = False
                 return False
             self.logger.debug(
@@ -500,17 +576,16 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
         # Try to generate new path for robot
-        dynamic_obstacles, static_obstacles = self.get_current_obstacles(
-            job.robot_id, item_zone_pos=job.item_zone, station_zone_pos=job.station_zone)
+        static_obstacles = self.get_current_static_obstacles()
         job.path_item_to_station = self.generate_path(
-            current_pos, job.station_zone, dynamic_obstacles, static_obstacles)
+            current_pos, job.station_zone, self.latest_dynamic_obstacles, static_obstacles)
         if not job.path_item_to_station:
             self.logger.warning('No path to station for %s', job)
             # Try going home instead to leave space at station
             path_to_home = self.generate_path(
-                current_pos, job.robot_home, dynamic_obstacles, static_obstacles)
+                current_pos, job.robot_home, self.latest_dynamic_obstacles, static_obstacles)
             if path_to_home:
-                robot.set_path(path_to_home)
+                self.set_robot_path(robot, path_to_home)
                 robot.state_description = 'Pathing home, waiting till station available'
             return False  # Did not start job as no path existed yet
 
@@ -518,7 +593,7 @@ class RobotAllocator:
         self.item_locks[job.item_zone] = None
 
         # Send robot to station
-        robot.set_path(job.path_item_to_station)
+        self.set_robot_path(robot, job.path_item_to_station)
         robot.state_description = 'Pathing to station'
         job.going_to_station()
         self.logger.info(
@@ -531,7 +606,8 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         if robot.pos != job.station_zone:
             if not robot.future_path:
-                self.logger.error('Robot path diverged from job, reset state')
+                self.logger.error(
+                    f'Robot {robot.robot_id} path diverged from job drop item, reset state')
                 job.going_to_station = False
                 return False
             self.logger.debug(
@@ -563,15 +639,14 @@ class RobotAllocator:
         # Try to generate new path for robot
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
-        dynamic_obstacles, static_obstacles = self.get_current_obstacles(
-            job.robot_id, station_zone_pos=job.station_zone)
+        static_obstacles = self.get_current_static_obstacles()
         job.path_station_to_home = self.generate_path(
-            current_pos, job.robot_home, dynamic_obstacles, static_obstacles)
+            current_pos, job.robot_home, self.latest_dynamic_obstacles, static_obstacles)
         if not job.path_station_to_home:
             self.logger.warning(f'Robot {job.robot_id} no path back home')
             return False  # Did not start job as no path existed yet
         # Send robot home
-        robot.set_path(job.path_station_to_home)
+        self.set_robot_path(robot, job.path_station_to_home)
         robot.state_description = 'Finished task, returning home'
         job.return_home()
         # Release lock on station
@@ -586,8 +661,8 @@ class RobotAllocator:
         robot = self.get_robot(job.robot_id)
         if robot.pos != job.robot_home:
             if not robot.future_path:
-                self.logger.error('Robot path diverged from job, reset state')
-                job.returning_home = False
+                self.logger.error(
+                    f'Robot {robot.robot_id} path diverged from job arrive home, reset state')
                 return False
             self.logger.debug(
                 f'Robot {job.robot_id} not yet to robot home {robot.pos} -> {job.robot_home}')
@@ -629,15 +704,47 @@ class RobotAllocator:
         # Try going home instead to leave space at station
         robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
-        dynamic_obstacles, static_obstacles = self.get_current_obstacles(
-            job.robot_id)
+        static_obstacles = self.get_current_static_obstacles()
         path_to_home = self.generate_path(
-            current_pos, job.robot_home, dynamic_obstacles, static_obstacles)
+            current_pos, job.robot_home, self.latest_dynamic_obstacles, static_obstacles)
         if path_to_home:
-            robot.set_path(path_to_home)
+            self.set_robot_path(robot, path_to_home)
         # Set robots start pos to where it is currently
         # job.robot_start_pos = robot.pos
         return False
+
+    def job_restart_manager_return_home(self, job: Job) -> bool:
+        """Transition to restart manager return home state, wait for path and then path home."""
+        robot = self.get_robot(job.robot_id)
+        # Wait for existing path to finish
+        if robot.future_path:
+            self.logger.warning(
+                f'{job} - Robot {job.robot_id} still finishing path')
+            return False  # Did not generate path home yet since still have path
+        current_pos = robot.pos
+        # If path finished at home, we're done here
+        if current_pos == job.robot_home:
+            job.return_home()
+            return self.job_arrive_home(job)
+        # Try to find path to home
+        static_obstacles = self.get_current_static_obstacles()
+        job.path_station_to_home = self.generate_path(
+            current_pos, job.robot_home, self.latest_dynamic_obstacles, static_obstacles)
+        if not job.path_station_to_home:
+            self.logger.warning(f'Robot {job.robot_id} no path back home')
+            return False  # Did not start job as no path existed yet
+        # Send robot home
+        self.set_robot_path(robot, job.path_station_to_home)
+        robot.state_description = 'Returning home'
+        job.return_home()
+        # Release lock on any zones if pos was in them
+        if current_pos in self.station_locks:
+            self.station_locks[current_pos] = None
+        elif current_pos in self.item_locks:
+            self.item_locks[current_pos] = None
+        self.logger.info(
+            f'Sending Robot {job.robot_id} back home for {job.task_key}')
+        return True
 
     # Map states to methods
     state_methods = {
@@ -648,6 +755,7 @@ class RobotAllocator:
         JobState.ITEM_DROPPED: 'job_return_home',
         JobState.RETURNING_HOME: 'job_arrive_home',
         JobState.COMPLETE: None,
+        JobState.RESTART_MGR_GO_HOME: 'job_restart_manager_return_home',
         JobState.ERROR: 'job_restart',
     }
 
@@ -677,12 +785,18 @@ class RobotAllocator:
         #  Parse robot data from update message
         timestamp, data = response[0][1][0]
         world_sim_t = int(data['t'])
+        if world_sim_t <= self.world_sim_t:
+            # Error out of RA since WS restarted, let RA container restart
+            # TODO : Consider just resetting/restarting RA allocator in main loop.
+            raise ValueError(
+                'World time step state earlier than previous, world sim restarted.')
+        self.world_sim_t = world_sim_t
         robots = [Robot.from_json(json_data)
                   for json_data in json.loads(data['robots'])]
 
         self.logger.info(
             'Step start T=%d timestamp=%s ---------------------------------'
-            '--------------------------------------------------------', world_sim_t, timestamp)
+            '--------------------------------------------------------', self.world_sim_t, timestamp)
         self.update(robots, time_read=time_read)
         self.logger.debug('Step end')
 
@@ -705,8 +819,9 @@ def wait_for_redis_connection(redis_con):
 if __name__ == '__main__':
     logger = create_warehouse_logger('robot_allocator')
 
-    warehouse_yaml = os.getenv('WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml')
-    
+    warehouse_yaml = os.getenv(
+        'WAREHOUSE_YAML', 'warehouses/main_warehouse.yaml')
+
     # Load world info from yaml
     world_info = WorldInfo.from_yaml(warehouse_yaml)
     # Load or build true heuristic dict

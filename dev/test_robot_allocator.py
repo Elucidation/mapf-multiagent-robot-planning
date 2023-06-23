@@ -46,6 +46,7 @@ class TestRobotAllocator(unittest.TestCase):
     def test_instantiate_robot_allocator(self):
         mock_redis.smembers.return_value = set()
         mock_wdb.get_robots.return_value = []
+        mock_redis.xread.return_value = None
         robot_mgr = RobotAllocator(logger, mock_redis, mock_wdb, default_world, mock_heuristic)
         self.assertListEqual(robot_mgr.get_available_robots(), [])
     
@@ -53,6 +54,7 @@ class TestRobotAllocator(unittest.TestCase):
         mock_redis.smembers.return_value = set()
         robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
         mock_wdb.get_robots.return_value = robots
+        mock_redis.xread.return_value = None
         robot_mgr = RobotAllocator(logger, mock_redis, mock_wdb, default_world, mock_heuristic)
         self.assertListEqual(robot_mgr.get_available_robots(), robots)
     
@@ -62,6 +64,7 @@ class TestRobotAllocator(unittest.TestCase):
         mock_redis.smembers.return_value = task_keys
         robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
         mock_wdb.get_robots.return_value = robots
+        mock_redis.xread.return_value = None
         robot_mgr = RobotAllocator(logger, mock_redis, mock_wdb, default_world, mock_heuristic)
         
         mock_redis.lpop.return_value = task_key
@@ -74,8 +77,10 @@ class TestRobotAllocator(unittest.TestCase):
         task_key = 'task:station:1:order:2:0:4'
         task_keys = set([task_key])
         mock_redis.smembers.return_value = task_keys
+        mock_redis.xread.return_value = None
         robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
         mock_wdb.get_robots.return_value = robots
+        mock_redis.xread.return_value = None
         robot_mgr = RobotAllocator(logger, mock_redis, mock_wdb, default_world, mock_heuristic)
 
         # Replace generate path with a mock
@@ -106,6 +111,7 @@ class TestRobotAllocator(unittest.TestCase):
         mock_redis.smembers.return_value = task_keys
         robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
         mock_wdb.get_robots.return_value = robots
+        mock_redis.xread.return_value = None
         robot_mgr = RobotAllocator(logger, mock_redis, mock_wdb, default_world, mock_heuristic)
 
         # Replace generate path with a mock
@@ -162,6 +168,7 @@ class TestRobotAllocator(unittest.TestCase):
         task_key = 'task:station:1:order:2:0:4'
         task_keys = set([task_key])
         mock_redis.smembers.return_value = task_keys
+        mock_redis.xread.return_value = None
         robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
         mock_wdb.get_robots.return_value = robots
         robot_mgr = RobotAllocator(logger, mock_redis, mock_wdb, default_world, mock_heuristic)
@@ -237,6 +244,7 @@ class TestRobotAllocator(unittest.TestCase):
         mock_redis.smembers.return_value = task_keys
         robots = [Robot(RobotId(0), Position((2,3))),Robot(RobotId(1), Position((3,4)))]
         mock_wdb.get_robots.return_value = robots
+        mock_redis.xread.return_value = None
         robot_mgr = RobotAllocator(logger, mock_redis, mock_wdb, default_world, mock_heuristic)
 
         # Replace generate path with a mock
