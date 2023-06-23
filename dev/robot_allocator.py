@@ -75,6 +75,9 @@ class RobotAllocator:
         self.job_id_counter: JobId = JobId(0)
         self.jobs: dict[JobId, Job] = {}
 
+        # Get delta time step used by world sim
+        self.dt_sec = self.wdb.get_dt_sec()
+
         # Get all robots regardless of state
         # assume no robots will be added or removed for duration of this instance
         self.robots = self.wdb.get_robots()
