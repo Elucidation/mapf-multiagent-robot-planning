@@ -171,3 +171,6 @@ redis/
 
 # Ignore local npm cache
 npm_cache/
+
+# Ignore profiler dumps
+*.prof
