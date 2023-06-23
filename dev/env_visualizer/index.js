@@ -186,7 +186,7 @@ var r_client;
     },
   });
   r_client.on("error", (err) => {
-    if (err.code != "ECONNREFUSED") console.warn("Redis error:", err.code);
+    if (err.code != "ECONNREFUSED") console.warn("Redis error:", err);
   });
   await r_client.connect(); // Wait for connection
 
