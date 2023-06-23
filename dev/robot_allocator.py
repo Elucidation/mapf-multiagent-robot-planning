@@ -785,7 +785,7 @@ class RobotAllocator:
         #  Parse robot data from update message
         timestamp, data = response[0][1][0]
         world_sim_t = int(data['t'])
-        if world_sim_t <= self.world_sim_t:
+        if self.world_sim_t and world_sim_t <= self.world_sim_t:
             # Error out of RA since WS restarted, let RA container restart
             # TODO : Consider just resetting/restarting RA allocator in main loop.
             raise ValueError(
