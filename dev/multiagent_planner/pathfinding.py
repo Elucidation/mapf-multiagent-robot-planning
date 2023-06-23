@@ -10,25 +10,32 @@ PositionST = tuple[int, int, int]  # (row, col, time)
 Collision = tuple[int, int, int, int]  # (path_idx, row, col, time)
 Path = list[Position]
 PathST = list[PositionST]
-HeuristicFunction = Callable[[Position, Position], float]
+# Heuristic Function is heuristic from pos_a to a fixed goal position that is set ahead
+HeuristicFunction = Callable[[Position], float]
+HeuristicFunctionGenerator = Callable[[Position], HeuristicFunction]
 
 
-def manhattan_heuristic(pos_a: Position, pos_b: Position) -> float:
-    return abs(pos_a[0] - pos_b[0]) + abs(pos_a[1] - pos_b[1])
+def get_manhattan_heuristic(pos_b):
+    def manhattan_heuristic(pos_a: Position) -> float:
+        return abs(pos_a[0] - pos_b[0]) + abs(pos_a[1] - pos_b[1])
+    return manhattan_heuristic
 
-
-def euclidean_heuristic(pos_a: Position, pos_b: Position) -> float:
-    return math.sqrt((pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2)
-
+def get_euclidean_heuristic(pos_b):
+    def euclidean_heuristic(pos_a: Position) -> float:
+        return math.sqrt((pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2)
+    return euclidean_heuristic
 
 def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
-          heuristic: HeuristicFunction = euclidean_heuristic) -> list[Position]:
+          heuristic: Optional[HeuristicFunction] = None
+          ) -> list[Position]:
     """A* search through graph from p
 
     Args:
         graph (2D np array): The grid to path through
         pos_a (Position): Start position
         pos_b (Position): Finish position
+        max_steps (int, optional): Max number of steps. Defaults to 10000.
+        heuristic (HeuristicFunction, optional): Heuristic used for pos_b
 
     Raises:
         ValueError: If start/end positions are in walls or out of grid
@@ -52,6 +59,10 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
             return False
         return True
 
+    # Default to euclidean heuristic if none was provided
+    if (heuristic is None):
+        heuristic = get_euclidean_heuristic(pos_b)
+
     # g-score: mapping of cost to get to point
     g_scores = {}
 
@@ -61,7 +72,7 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
 
     # priority queue via heapq
     # f-score: f-score = g-score + h, best guess cost from node to goal
-    f_score = g_scores[pos_a] + heuristic(pos_a, pos_b)
+    f_score = g_scores[pos_a] + heuristic(pos_a)
     # priority queue contains (f-score, parent, pos)
     priority_queue: list[tuple[float, Optional[Position], Position]] = [
         (f_score, None, pos_a)]
@@ -83,7 +94,7 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
             if (check_valid(neighbor) and
                 ((neighbor not in g_scores) or potential_g_score < g_scores[neighbor])):
                 g_scores[neighbor] = potential_g_score
-                f_score = g_scores[neighbor] + heuristic(neighbor, pos_b)
+                f_score = g_scores[neighbor] + heuristic(neighbor)
                 new_node = (f_score, curr, neighbor)
                 heapq.heappush(priority_queue, new_node)
                 path_track[neighbor] = curr
@@ -105,8 +116,8 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
 
 def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = set(),
              static_obstacles: set = set(), max_time=20,
-             maxiters=10000, t_start=0, end_fast=False,
-             heuristic: HeuristicFunction = euclidean_heuristic,
+             max_cells=10000, t_start=0, end_fast=False,
+             heuristic: Optional[HeuristicFunction] = None,
              stats: dict = None) -> Path:
     """Space-Time A* search.
 
@@ -121,10 +132,10 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
         dynamic_obstacles (set): set{(row,col,t), ...} of obstacles to avoid. Defaults to set().
         static_obstacles (set): set{(row,col), ...} of obstacles to avoid. Defaults to set().
         max_time (int, optional): max time to search up to. Defaults to 20.
-        maxiters (int, optional): _description_. Defaults to 10000.
+        max_cells (int, optional): max cells to visit. Defaults to 10000.
         t_start (int, optional): offset start time if this path starts later in dynamic obstacles. 
         end_fast (bool, optional): end as soon as destination reached vs waiting till max_time.
-        heuristic (HeuristicFunction, optional): Heuristic used, Defaults to euclidean_heuristic
+        heuristic (HeuristicFunction, optional): Heuristic (set for pos_b), Defaults to euclidean_heuristic
         stats (dict, optional): store run-time stats here if it exists. Defaults to None.
 
     Raises:
@@ -156,6 +167,10 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
             return False
         return True
 
+    # Default to euclidean heuristic if none was provided
+    if (heuristic is None):
+        heuristic = get_euclidean_heuristic(pos_b)
+
     path_track: dict[PositionST, Optional[PositionST]] = {}  # coord -> parent
     curr: PositionST = (pos_a[0], pos_a[1], t_start)
     path_track[curr] = None
@@ -164,14 +179,14 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
     g_scores[curr] = 0 # Starting position is zero
 
     # f-score: f-score = g-score + h, best guess cost from node to goal
-    f_score = g_scores[curr] + heuristic(pos_a, pos_b)
+    f_score = g_scores[curr] + heuristic(pos_a)
 
     # priority queue via heapq
     # f-score, parent, pos, time
     priority_queue: list[tuple[float, Optional[PositionST], PositionST]] = [(f_score, None, curr)]
 
     cells_visited = 0
-    while (priority_queue and cells_visited < maxiters):
+    while (priority_queue and cells_visited < max_cells):
         _, _, curr = heapq.heappop(priority_queue)
         # End once destination reached
         if end_fast and curr[:2] == pos_b:
@@ -195,7 +210,7 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
             if (check_valid(neighbor) and
                 ((neighbor not in g_scores) or potential_g_score < g_scores[neighbor])):
                 g_scores[neighbor] = potential_g_score
-                f_score = g_scores[neighbor] + heuristic(neighbor[:2], pos_b)
+                f_score = g_scores[neighbor] + heuristic(neighbor[:2])
                 new_node: tuple[float, PositionST, PositionST] = (f_score, curr, neighbor)
                 heapq.heappush(
                     priority_queue, new_node)

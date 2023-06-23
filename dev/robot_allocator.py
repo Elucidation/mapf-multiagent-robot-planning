@@ -44,7 +44,7 @@ class RobotAllocator:
 
     def __init__(self, logger, redis_con: redis.Redis, wdb: WorldDatabaseManager,
                  world_info: WorldInfo,
-                 heuristic: Callable[[Position, Position], float]) -> None:
+                 heuristic_dict: dict[Position, 'np.ndarray']) -> None:
         self.logger = logger
 
         # Connect to redis database
@@ -59,9 +59,7 @@ class RobotAllocator:
         self.item_load_zones = world_info.item_load_zones
         self.station_zones = world_info.station_zones
 
-        self.heuristic = heuristic
-        # self.heuristic = euclidean_heuristic
-        self.logger.warning(f'Heuristic used: {self.heuristic.__name__}')
+        self.heuristic_dict = heuristic_dict
 
         # locks for zones
         self.item_locks: dict[Position, Optional[JobId]] = {
@@ -414,9 +412,14 @@ class RobotAllocator:
             'count_dynamic_obstacles': len(dynamic_obstacles),
             'count_static_obstacles': len(static_obstacles)
         }
+
+        true_dists = self.heuristic_dict[pos_b]
+        def true_heuristic(pos_a: Position) -> float:
+            """Returns A* shortest path between any two points based on world_grid"""
+            return true_dists[pos_a]
         path = pf.st_astar(
             self.world_grid, pos_a, pos_b, dynamic_obstacles, static_obstacles=static_obstacles,
-            end_fast=True, max_time=self.max_steps, heuristic=self.heuristic, stats=stats)
+            end_fast=True, max_time=self.max_steps, heuristic=true_heuristic, stats=stats)
         self.logger.info(
             f'generate_path took {(time.perf_counter() - t_start)*1000:.3f} ms - {stats}')
         return path
@@ -710,10 +713,6 @@ if __name__ == '__main__':
     true_heuristic_dict = load_heuristic(warehouse_yaml=warehouse_yaml,
                                          world_info=world_info, logger=logger)
 
-    def true_heuristic(pos_a: Position, pos_b: Position) -> float:
-        """Returns A* shortest path between any two points based on world_grid"""
-        return true_heuristic_dict[pos_b][pos_a]
-
     # Set up redis
     REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
     REDIS_PORT = int(os.getenv("REDIS_PORT", default="6379"))
@@ -724,7 +723,7 @@ if __name__ == '__main__':
     # Init Robot Allocator
     wdb = WorldDatabaseManager(redis_con)  # Contains World/Robot info
     robot_mgr = RobotAllocator(
-        logger, redis_con, wdb, world_info, true_heuristic)
+        logger, redis_con, wdb, world_info, true_heuristic_dict)
 
     # Main loop processing jobs from tasks
     logger.info('Robot Allocator started, waiting for world:state updates')
