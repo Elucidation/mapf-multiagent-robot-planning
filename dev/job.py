@@ -21,6 +21,7 @@ class JobState(Enum):
     RETURNING_HOME = 6
     COMPLETE = 7
 
+    RESTART_MGR_GO_HOME = 8
     ERROR = -1
 
 
@@ -103,8 +104,8 @@ class Job:
         self.state = JobState.ITEM_DROPPED
 
     def return_home(self):
-        """Transition ITEM_DROPPED -> RETURNING_HOME"""
-        if self.state != JobState.ITEM_DROPPED:
+        """Transition ITEM_DROPPED|RESTART_MGR_GO_HOME -> RETURNING_HOME"""
+        if self.state != JobState.ITEM_DROPPED and self.state != JobState.RESTART_MGR_GO_HOME:
             raise ValueError(
                 f'Cannot return home in current state {self.state}')
         self.state = JobState.RETURNING_HOME
