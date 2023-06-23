@@ -66,7 +66,7 @@ class World(object):
 
         self.past_robot_positions: dict = dict()
         self.world_state = True
-        self.collision: Optional[Any] = None
+        self.collisions: Optional[Any] = None
         self.item_load_zones = item_load_zones
         self.station_zones = station_zones
 
@@ -133,15 +133,18 @@ class World(object):
     @timeit
     def _check_valid_state(self) -> bool:
         latest_positions: Dict[Position, RobotId] = dict()
+        self.collisions = []
         for robot in self.robots:
             # Check robot on space tile (not a wall)
             grid_val = self.get_grid_tile_for_position(robot.pos)
             if grid_val != EnvType.SPACE:
-                self.collision = {robot.robot_id: [robot.pos, robot.get_last_pos()],
-                                  'type': 'Hit wall'}
-                self.logger.error(
-                    f'Robot collided with non-space tile {self.collision}')
-                return False
+                past_pos = robot.get_last_pos()
+                self.collisions.append({
+                    robot.robot_id: {
+                        'pos': robot.pos,
+                        'prev_pos': past_pos,
+                    },
+                    'type': 'Hit wall'})
 
             # vertex conflict
             # Check that no two robots have the same position
@@ -150,11 +153,16 @@ class World(object):
                 other_robot = self.get_robot_by_id(latest_positions[robot.pos])
                 past_pos = robot.get_last_pos()
                 other_robot_past_pos = other_robot.get_last_pos()
-                self.collision = {robot.robot_id: [robot.pos, past_pos],
-                                  other_robot.robot_id: [other_robot.pos, other_robot_past_pos],
-                                  'type': 'Robot overlap collision'}
-                # self.logger.error(f'Robot collision {self.collision}')
-                return False
+                self.collisions.append({
+                    robot.robot_id: {
+                        'pos': robot.pos,
+                        'prev_pos': past_pos,
+                    },
+                    other_robot.robot_id: {
+                        'pos': other_robot.pos,
+                        'prev_pos': other_robot_past_pos
+                    },
+                    'type': '2R C'})
             else:
                 latest_positions[robot.pos] = robot.robot_id
 
@@ -172,13 +180,18 @@ class World(object):
                 r2_now = other_robot.pos
                 # Check if robots went directly through each other
                 if (r1_past == r2_now and r1_now == r2_past):
-                    self.collision = {robot.robot_id: [r1_now, r1_past],
-                                      other_robot.robot_id: [other_robot.pos, r2_now, r2_past],
-                                      'type': 'Robot passing collision'}
-                    return False
+                    self.collisions.append({
+                        robot.robot_id: {
+                            'pos': r1_now,
+                            'prev_pos': r1_past,
+                        },
+                        other_robot.robot_id: {
+                            'pos': r2_now,
+                            'prev_pos': r2_past
+                        },
+                        'type': '2R C-C'})
 
-        self.collision = None
-        return True
+        return self.collisions == []
 
     @timeit
     def step_robots(self) -> bool:
@@ -329,5 +342,5 @@ if __name__ == '__main__':
         logger.debug(f'Step {world.t} {ROBOT_STR}')
         if not world.get_current_state():
             logger.error(
-                f'World State invalid, collision(s): {world.collision}')
+                f'World State invalid, {len(world.collisions)} collision(s): {world.collisions}')
         world.sleep()
