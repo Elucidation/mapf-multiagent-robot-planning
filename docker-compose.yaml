@@ -61,6 +61,7 @@ services:
       - REDIS_HOST=redis-db
     depends_on:
       - redis-db # Submit order requests
+      - order-processor
     command: python -m inventory_management_system.fake_order_sender -k 10 --max-item-id 47 -d 1
     logging:
       options:
