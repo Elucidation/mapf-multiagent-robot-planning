@@ -20,10 +20,12 @@ def get_manhattan_heuristic(pos_b):
         return abs(pos_a[0] - pos_b[0]) + abs(pos_a[1] - pos_b[1])
     return manhattan_heuristic
 
+
 def get_euclidean_heuristic(pos_b):
     def euclidean_heuristic(pos_a: Position) -> float:
         return math.sqrt((pos_a[0] - pos_b[0])**2 + (pos_a[1] - pos_b[1])**2)
     return euclidean_heuristic
+
 
 def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
           heuristic: Optional[HeuristicFunction] = None
@@ -68,7 +70,7 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
 
     path_track: dict[Position, Optional[Position]] = {}  # coord -> parent
     path_track[pos_a] = None
-    g_scores[pos_a] = 0 # Starting position is zero
+    g_scores[pos_a] = 0  # Starting position is zero
 
     # priority queue via heapq
     # f-score: f-score = g-score + h, best guess cost from node to goal
@@ -89,10 +91,11 @@ def astar(graph, pos_a: Position, pos_b: Position, max_steps=10000,
             (row-1, col), (row+1, col), (row, col-1), (row, col+1)]
         for neighbor in neighbors:
             # cost from start to current to neighbor
-            potential_g_score = g_scores[curr] + 1 # stepping a grid cell counts as 1
+            # stepping a grid cell counts as 1
+            potential_g_score = g_scores[curr] + 1
             # If neighbor available, and tentative g score better than existing if available.
             if (check_valid(neighbor) and
-                ((neighbor not in g_scores) or potential_g_score < g_scores[neighbor])):
+                    ((neighbor not in g_scores) or potential_g_score < g_scores[neighbor])):
                 g_scores[neighbor] = potential_g_score
                 f_score = g_scores[neighbor] + heuristic(neighbor)
                 new_node = (f_score, curr, neighbor)
@@ -119,7 +122,7 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
              max_cells=10000, t_start=0, end_fast=False,
              heuristic: Optional[HeuristicFunction] = None,
              stats: dict = None,
-             validate_ends = True) -> Path:
+             validate_ends=True) -> Path:
     """Space-Time A* search.
 
     Each tile is position.
@@ -159,7 +162,7 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
         if t > max_time+t_start:
             return False
         if not validate_ends and (pos == pos_a or pos == pos_b):
-            return True # Start/end positions are considered valid at all times
+            return True  # Start/end positions are considered valid at all times
         if row < 0 or row >= max_row:
             return False
         if col < 0 or col >= max_col:
@@ -181,14 +184,15 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
     path_track[curr] = None
     # g-score: mapping of cost to get to point
     g_scores = {}
-    g_scores[curr] = 0 # Starting position is zero
+    g_scores[curr] = 0  # Starting position is zero
 
     # f-score: f-score = g-score + h, best guess cost from node to goal
     f_score = g_scores[curr] + heuristic(pos_a)
 
     # priority queue via heapq
     # f-score, parent, pos, time
-    priority_queue: list[tuple[float, Optional[PositionST], PositionST]] = [(f_score, None, curr)]
+    priority_queue: list[tuple[float, Optional[PositionST], PositionST]] = [
+        (f_score, None, curr)]
 
     cells_visited = 0
     while (priority_queue and cells_visited < max_cells):
@@ -210,13 +214,15 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
                                        (row, col+1, t+1)]
         for neighbor in neighbors:
             # cost from start to current to neighbor
-            potential_g_score = g_scores[curr] + 1 # stepping a grid cell counts as 1
+            # stepping a grid cell counts as 1
+            potential_g_score = g_scores[curr] + 1
             # If neighbor available, and tentative g score better than existing if available.
             if (check_valid(neighbor) and
-                ((neighbor not in g_scores) or potential_g_score < g_scores[neighbor])):
+                    ((neighbor not in g_scores) or potential_g_score < g_scores[neighbor])):
                 g_scores[neighbor] = potential_g_score
                 f_score = g_scores[neighbor] + heuristic(neighbor[:2])
-                new_node: tuple[float, PositionST, PositionST] = (f_score, curr, neighbor)
+                new_node: tuple[float, PositionST, PositionST] = (
+                    f_score, curr, neighbor)
                 heapq.heappush(
                     priority_queue, new_node)
                 path_track[neighbor] = curr

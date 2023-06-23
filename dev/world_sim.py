@@ -104,7 +104,7 @@ class World(object):
         """Returns a dict with the t, and robot jsons"""
         return {
             't': self.t,
-            'time_to_next_step_sec':time_to_next_step_sec,
+            'time_to_next_step_sec': time_to_next_step_sec,
             'robots': json.dumps([robot.json_data() for robot in self.robots])
         }
 
@@ -238,7 +238,7 @@ class World(object):
         self.wdb.log_world_state(self.state_dict(time_to_next_step_sec))
         # Return if any robot has moved or not
         return state_changed
-    
+
     def get_time_to_next_step_s(self) -> float:
         """Returns the estimated time in seconds till the next step."""
         delay = self.dt_sec
@@ -279,6 +279,7 @@ class World(object):
 
     def __repr__(self):
         return f'Env {self.width}x{self.height} [VALID:{self.get_current_state()}]: {self.robots}'
+
 
 def wait_for_redis_connection(redis_con):
     while True:
