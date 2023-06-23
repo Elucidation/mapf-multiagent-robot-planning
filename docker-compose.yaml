@@ -89,20 +89,13 @@ services:
     networks:
       - aw-net
     volumes:
-      - redis-vol:/data
+      - ./dev/redis/data:/data
     ports:
       - 6379:6379
     command: redis-server --save 60 1 --loglevel warning
     logging:
       options:
         max-size: 10m
-
-volumes:
-  # Requires a pre-existing volume with the base dir pointing to this cloned git repo
-  # vol1:
-  #   external: true
-  redis-vol:
-    external: true
 
 networks:
   aw-net:
