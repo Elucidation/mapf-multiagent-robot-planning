@@ -85,9 +85,8 @@ class Robot(object):
         """Move to next position if available, bool success."""
         if not self.future_path:
             return False  # Didn't change
-        next_pos = self.future_path.pop(0)
         self.last_pos = self.pos
-        self.pos = next_pos
+        self.pos = self.future_path.pop(0)
         return True
 
     def __repr__(self):
