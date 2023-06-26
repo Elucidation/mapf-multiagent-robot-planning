@@ -193,15 +193,15 @@ class World(object):
 
         return self.collisions == []
 
-    @timeit
-    def step_robots(self) -> bool:
+    def step_robots(self) -> list[bool]:
+        """Step robots, and return a bool list of those robots that changed positions."""
         self.past_robot_positions.clear()
         for robot in self.robots:
             self.past_robot_positions[robot.pos] = robot.robot_id
 
-        state_changed = False
-        for robot in self.robots:
-            state_changed |= robot.move_to_next_position()
+        state_changed = [False] * len(self.robots)
+        for idx, robot in enumerate(self.robots):
+            state_changed[idx] = robot.move_to_next_position()
         return state_changed
 
     @timeit
@@ -220,8 +220,9 @@ class World(object):
         self.world_state = self._check_valid_state()
         self.t += 1
 
-        if state_changed:
-            self.wdb.update_robots(self.robots)
+        if any(state_changed):
+            changed_robots = [robot for robot, changed in zip(self.robots, state_changed) if changed]
+            self.wdb.update_robots(changed_robots)
 
         self.wdb.update_timestamp(self.t)
 
