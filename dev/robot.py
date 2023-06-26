@@ -112,7 +112,7 @@ class Robot(object):
     def json_data(self):
         return {'robot_id': self.robot_id,
                 'position': json.dumps(self.pos),
-                'held_item_id': json.dumps(self.held_item_id),
+                'held_item_id': self.held_item_id or '',
                 'state': self.state.value,
                 'task_key': self.task_key or '',
                 'state_description': self.state_description or '',
@@ -122,12 +122,8 @@ class Robot(object):
     @staticmethod
     def from_json(json_data: str):
         future_path = deque([tuple(pos) for pos in json.loads(json_data['path'])])
-        held_item_id = json.loads(json_data['held_item_id'])
-        if held_item_id:
-            held_item_id = ItemId(int(held_item_id))
-        state_description = ''
-        if json_data['state_description']:
-            state_description = json_data['state_description']
+        held_item_id = ItemId(int(json_data['held_item_id'])) if json_data['held_item_id'] else None
+        state_description = json_data['state_description'] if json_data['state_description'] else ''
         return Robot(RobotId(int(json_data['robot_id'])),
                      tuple(json.loads(json_data['position'])),
                      held_item_id,

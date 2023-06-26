@@ -234,7 +234,11 @@ async function update_robots(robots_data) {
     // @ts-ignore
     robot.pos = { x: pos[0], y: pos[1] };
     // @ts-ignore
-    robot.held_item_id = JSON.parse(robot.held_item_id);
+    if (robot.held_item_id != '') {
+      robot.held_item_id = parseInt(robot.held_item_id);
+    } else {
+      robot.held_item_id = null;
+    }
     // @ts-ignore
     robot.path = JSON.parse(robot.path);
   });

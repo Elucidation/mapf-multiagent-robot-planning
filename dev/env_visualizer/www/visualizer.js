@@ -137,7 +137,7 @@ function svg_update_robots(robots, t) {
 
     // Update held items if it exists
     let item_name = "-";
-    if (robot.held_item_id != undefined) {
+    if (robot.held_item_id != null) {
       if (world.item_names[robot.held_item_id%world.item_names.length] == undefined) {
         console.error(
           `undefined item name: ${robot.held_item_id} for ${robot}`
@@ -612,7 +612,7 @@ function update_robot_table(robots) {
     addCell(robot.robot_id);
     // Held Item
     let held_item_name = "";
-    if (robot.held_item_id)
+    if (robot.held_item_id != null)
       held_item_name = world.item_names[robot.held_item_id%world.item_names.length];
     addCell(held_item_name);
     // Task
