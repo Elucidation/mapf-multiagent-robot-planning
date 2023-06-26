@@ -220,8 +220,7 @@ class OrderProcessor:
             # Remove the task key from the task group
             self.r.srem(task_subkeys.task_group_key, task_key)
             self.r.xadd('tasks:finished', {
-                        'task_key': task_key, 'status': 'error'})
-            self.r.xtrim('tasks:finished', maxlen=100, approximate=True)
+                        'task_key': task_key, 'status': 'error'}, maxlen=100, approximate=True)
             # Note : If error, move task back into tasks:new head otherwise
             logger.info(f'Finished task {task_key} item {task_subkeys.item_id} with error')
             return
@@ -278,8 +277,7 @@ class OrderProcessor:
         finished_order['station'] = station_key
         # Remove from set orders:inprogress
         self.r.srem('orders:inprogress', order_key)
-        self.r.xadd('orders:finished', finished_order)
-        self.r.xtrim('orders:finished', maxlen=20, approximate=True)
+        self.r.xadd('orders:finished', finished_order, maxlen=20, approximate=True)
         self.r.delete(order_key)
 
 def wait_for_redis_connection(redis_con):
