@@ -42,7 +42,7 @@ class Robot(object):
         self.held_item_id = held_item_id
         self.state = state
         # Contains future positions
-        self.future_path: deque = deque(path)  # deque[(x,y), (x,y), ...]
+        self.future_path: list = path  # deque[(x,y), (x,y), ...]
         self.held_item_id = held_item_id
         self.last_pos = None
         self.task_key = task_key
@@ -51,7 +51,7 @@ class Robot(object):
     def set_path(self, path: Path):
         """Set future path to given path, removing anything already there."""
         # TODO : Verify legal
-        self.future_path = deque(path)
+        self.future_path = path
 
     def add_path(self, path):
         """Extend future path with given path."""
@@ -85,7 +85,7 @@ class Robot(object):
         """Move to next position if available, bool success."""
         if not self.future_path:
             return False  # Didn't change
-        next_pos = self.future_path.popleft()
+        next_pos = self.future_path.pop(0)
         self.last_pos = self.pos
         self.pos = next_pos
         return True
@@ -100,12 +100,12 @@ class Robot(object):
                 'state': self.state.value,
                 'task_key': self.task_key or '',
                 'state_description': self.state_description or '',
-                'path': json.dumps(list(self.future_path)),
+                'path': json.dumps(self.future_path),
                 }
 
     @staticmethod
     def from_json(json_data: str):
-        future_path = deque([tuple(pos) for pos in json.loads(json_data['path'])])
+        future_path = [tuple(pos) for pos in json.loads(json_data['path'])]
         held_item_id = ItemId(int(json_data['held_item_id'])) if json_data['held_item_id'] else None
         state_description = json_data['state_description'] if json_data['state_description'] else ''
         return Robot(RobotId(int(json_data['robot_id'])),
