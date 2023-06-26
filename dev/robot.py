@@ -39,7 +39,6 @@ class Robot(object):
                  path: list = [], task_key = '', state_description = 'Initialized'):
         self.robot_id = robot_id
         self.pos = (int(pos[0]), int(pos[1]))  # (X col, Y row)
-        self.pos_history: deque = deque(maxlen=10)
         self.held_item_id = held_item_id
         self.state = state
         # Contains future positions
@@ -48,12 +47,6 @@ class Robot(object):
         self.last_pos = None
         self.task_key = task_key
         self.state_description = state_description
-        self.reset_position_history()
-
-    def reset_position_history(self):
-        """Reset history with current position."""
-        self.pos_history.clear()
-        self.pos_history.append(self.pos)
 
     def set_path(self, path: Path):
         """Set future path to given path, removing anything already there."""
@@ -85,12 +78,6 @@ class Robot(object):
             return None
         return self.future_path[0]
 
-    def _pop_next_pos(self):
-        """Return next position or current if none are there."""
-        if not self.future_path:
-            return None
-        return self.future_path.popleft()
-
     def get_last_pos(self):
         return self.last_pos
 
@@ -98,12 +85,9 @@ class Robot(object):
         """Move to next position if available, bool success."""
         if not self.future_path:
             return False  # Didn't change
-        next_pos = self._pop_next_pos()
+        next_pos = self.future_path.popleft()
         self.last_pos = self.pos
-        # print(self.pos, next_pos)
         self.pos = next_pos
-        # TODO : Consider adding repeated positions to history?
-        self.pos_history.append(self.pos)
         return True
 
     def __repr__(self):
