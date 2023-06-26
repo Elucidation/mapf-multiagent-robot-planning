@@ -852,3 +852,6 @@ if __name__ == '__main__':
         except redis.exceptions.TimeoutError as e:
             logger.warning('Redis time-out error, waiting and trying again.')
             time.sleep(1)
+        except ValueError as e:
+            logger.warning('Resetting robot allocator since world_sim restarted')
+            robot_mgr = RobotAllocator(logger, redis_con, wdb, world_info, true_heuristic_dict)
