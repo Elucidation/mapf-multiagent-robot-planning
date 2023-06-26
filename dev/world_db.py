@@ -13,7 +13,6 @@ from robot import Robot, RobotId, RobotStatus, Position
 logger = create_warehouse_logger("database_world_manager")
 
 
-
 class WorldDatabaseManager:
     """DB Manager for world state"""
 
@@ -58,7 +57,8 @@ class WorldDatabaseManager:
         robot_key = f'robot:{robot_id}'
         return self.redis.hset(robot_key, 'path', json.dumps(path))
 
-    def update_robots(self, robots: List[Robot], robots_json_data:List[str] = None, pipeline: 'redis.Pipeline' = None):
+    def update_robots(self, robots: List[Robot],
+                      robots_json_data: List[str] = None, pipeline: 'redis.Pipeline' = None):
         # Execute update if pipeline not defined, else pass to pipeline.
         _pipeline = self.redis.pipeline() if pipeline is None else pipeline
         for idx, robot in enumerate(robots):
