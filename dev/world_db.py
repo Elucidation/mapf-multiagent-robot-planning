@@ -13,33 +13,17 @@ from robot import Robot, RobotId, RobotStatus, Position
 logger = create_warehouse_logger("database_world_manager")
 
 
-def timeit(func):
-    """Decorator for timing functions in WDB"""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        logger.debug(f'{func.__name__!r} Start')
-        t_start = time.perf_counter()
-        result = func(*args, **kwargs)
-        t_end = time.perf_counter()
-        logger.debug(
-            f'{func.__name__!r} End. Took {(t_end - t_start)*1000:.3f} ms')
-        return result
-    return wrapper
-
 
 class WorldDatabaseManager:
     """DB Manager for world state"""
 
-    @timeit
     def __init__(self, redis_con: redis.Redis):
         self.redis = redis_con
         logger.debug('Initialized WorldDatabaseManager instance')
 
-    @timeit
     def reset(self):
         self.delete_tables()
 
-    @timeit
     def delete_tables(self):
         logger.warning('Resetting redis Robots/State')
         for key in self.redis.scan_iter("robot:*"):
@@ -47,7 +31,6 @@ class WorldDatabaseManager:
         self.redis.delete('world:state', 'states', 'robots:all',
                           'robots:busy', 'robots:free')
 
-    @timeit
     def add_robots(self, robots: List[Robot]):
         print('----')
         pipeline = self.redis.pipeline()
@@ -59,28 +42,22 @@ class WorldDatabaseManager:
             # Add robots as free initially
         pipeline.execute()
 
-    @timeit
     def get_timestamp(self) -> int:
         return int(self.redis.hget('states', 'timestamp'))
 
-    @timeit
     def update_timestamp(self, t: int):
         return self.redis.hset('states', 'timestamp', t)
 
-    @timeit
     def set_dt_sec(self, dt_sec: float):
         return self.redis.hset('states', 'dt_sec', dt_sec)
 
-    @timeit
     def get_dt_sec(self) -> float:
         return float(self.redis.hget('states', 'dt_sec'))
 
-    @timeit
     def set_robot_path(self, robot_id: int, path: list):
         robot_key = f'robot:{robot_id}'
         return self.redis.hset(robot_key, 'path', json.dumps(path))
 
-    @timeit
     def update_robots(self, robots: List[Robot], pipeline: 'redis.Pipeline' = None):
         # Execute update if pipeline not defined, else pass to pipeline.
         _pipeline = self.redis.pipeline() if pipeline is None else pipeline
@@ -106,13 +83,11 @@ class WorldDatabaseManager:
         path = json.loads(path_str)
         return [Position(x, y) for x, y in path]  # Create position tuples
 
-    @timeit
     def get_robot(self, robot_id: RobotId) -> Robot:
         robot_key = f'robot:{robot_id}'
         json_data = self.redis.hgetall(robot_key)
         return Robot.from_json(json_data)
 
-    @timeit
     def get_robots(self) -> List[Robot]:
         robot_keys = self.redis.lrange('robots:all', 0, -1)
         pipeline = self.redis.pipeline()
