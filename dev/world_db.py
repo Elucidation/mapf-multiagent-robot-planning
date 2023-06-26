@@ -101,5 +101,4 @@ class WorldDatabaseManager:
 
     def log_world_state(self, data: dict):
         """Add latest world state data to the stream."""
-        self.redis.xadd('world:state', data)
-        self.redis.xtrim('world:state', maxlen=100, approximate=True)
+        self.redis.xadd('world:state', data, maxlen=100, approximate=True)
