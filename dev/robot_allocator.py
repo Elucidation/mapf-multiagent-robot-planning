@@ -75,6 +75,7 @@ class RobotAllocator:
 
         # Get delta time step used by world sim
         self.dt_sec = self.wdb.get_dt_sec()
+        self.world_sim_t = None
 
         # Using world info set up static dynamic obstacles
         self.static_obstacles = self.get_all_static_obstacles()
