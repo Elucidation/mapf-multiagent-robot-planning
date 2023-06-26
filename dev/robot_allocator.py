@@ -557,7 +557,7 @@ class RobotAllocator:
             self.logger.error(
                 f'Robot {job.robot_id} could not pick item for '
                 f'job {job}, already holding {item_in_hand}')
-            job.error = True
+            job.state = JobState.ERROR
             return False
         job.pick_item()
 
@@ -622,13 +622,13 @@ class RobotAllocator:
             self.logger.error(
                 f"Robot {job.robot_id} didn't have item to drop: {job.robot_id} held {item_id}")
             self.set_robot_error(job.robot_id)
-            job.error = True
+            job.state = JobState.ERROR
             return False
         if item_id != job.item_id:
             self.logger.error(
                 f"Robot {job.robot_id} was holding the wrong "
                 f"item: {item_id}, needed {job.item_id}")
-            job.error = True
+            job.state = JobState.ERROR
             return False
 
         job.drop_item()
@@ -689,9 +689,9 @@ class RobotAllocator:
         self.logger.error(
             f'{job} in error for, resetting job and Robot {job.robot_id} etc.')
 
-        # Make robot available and drop any held items
+        # Bring robot out of error state and drop any held items
         robot = self.get_robot(job.robot_id)
-        robot.state = RobotStatus.AVAILABLE
+        robot.state = RobotStatus.IN_PROGRESS
         robot.held_item_id = None
 
         # Reset the job
