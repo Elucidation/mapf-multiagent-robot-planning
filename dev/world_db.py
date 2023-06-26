@@ -18,9 +18,11 @@ class WorldDatabaseManager:
 
     def __init__(self, redis_con: redis.Redis):
         self.redis = redis_con
+        self.robot_keys = []
         logger.debug('Initialized WorldDatabaseManager instance')
 
     def reset(self):
+        self.robot_keys = []
         self.delete_tables()
 
     def delete_tables(self):
@@ -40,6 +42,7 @@ class WorldDatabaseManager:
             pipeline.sadd('robots:free', robot_key)
             # Add robots as free initially
         pipeline.execute()
+        self.robot_keys = self.redis.lrange('robots:all', 0, -1)
 
     def get_timestamp(self) -> int:
         return int(self.redis.hget('states', 'timestamp'))
@@ -92,9 +95,8 @@ class WorldDatabaseManager:
         return Robot.from_json(json_data)
 
     def get_robots(self) -> List[Robot]:
-        robot_keys = self.redis.lrange('robots:all', 0, -1)
         pipeline = self.redis.pipeline()
-        for robot_key in robot_keys:
+        for robot_key in self.robot_keys:
             pipeline.hgetall(robot_key)
         robots_json_data = pipeline.execute()
         return [Robot.from_json(json_data) for json_data in robots_json_data]
