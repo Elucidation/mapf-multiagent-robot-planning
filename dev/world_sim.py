@@ -100,19 +100,12 @@ class World(object):
             'robots': json.dumps([robot.json_data() for robot in self.robots])
         }
 
-    def state_dict(self, time_to_next_step_sec=None):
+    def state_dict(self, robots_json_data, time_to_next_step_sec=None):
         """Returns a dict with the t, and robot jsons"""
         return {
             't': self.t,
             'time_to_next_step_sec': time_to_next_step_sec,
-            'robots': json.dumps([robot.json_data() for robot in self.robots])
-        }
-
-    def get_position_update_data(self):
-        return {
-            'timestamp': str(datetime.now()),
-            't': self.t,
-            'robots': [robot.json_data() for robot in self.robots]
+            'robots': json.dumps(robots_json_data)
         }
 
     def add_robot(self, robot: Robot):
@@ -220,12 +213,18 @@ class World(object):
         self.world_state = self._check_valid_state()
         self.t += 1
 
+        time_to_next_step_sec = self.get_time_to_next_step_s()
+        robots_json_data = [robot.json_data() for robot in self.robots]
+        json_data = self.state_dict(robots_json_data, time_to_next_step_sec)
+
         if any(state_changed):
             changed_robots = [robot for robot, changed in zip(self.robots, state_changed) if changed]
-            self.wdb.update_robots(changed_robots)
+            changed_robots_json_data = [robot_json for robot_json, changed in zip(robots_json_data, state_changed) if changed]
+            self.wdb.update_robots(changed_robots, robots_json_data=changed_robots_json_data)
 
         self.wdb.update_timestamp(self.t)
-
+        # Log state of world (t and robot info) to DB
+        self.wdb.log_world_state(json_data)
         update_duration_ms = (time.perf_counter() - t_start)*1000
 
         self.logger.debug(
@@ -234,11 +233,8 @@ class World(object):
         if update_duration_ms > self.dt_sec*1000:
             self.logger.error(
                 f'update took {update_duration_ms:.2f} > {self.dt_sec*1000} ms')
-        # Log state of world (t and robot info) to DB
-        time_to_next_step_sec = self.get_time_to_next_step_s()
-        self.wdb.log_world_state(self.state_dict(time_to_next_step_sec))
         # Return if any robot has moved or not
-        return state_changed
+        return any(state_changed)
 
     def get_time_to_next_step_s(self) -> float:
         """Returns the estimated time in seconds till the next step."""
