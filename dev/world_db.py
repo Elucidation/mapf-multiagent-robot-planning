@@ -18,7 +18,7 @@ class WorldDatabaseManager:
 
     def __init__(self, redis_con: redis.Redis):
         self.redis = redis_con
-        self.robot_keys = []
+        self.robot_keys = self.redis.lrange('robots:all', 0, -1)
         logger.debug('Initialized WorldDatabaseManager instance')
 
     def reset(self):
