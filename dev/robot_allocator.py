@@ -268,7 +268,7 @@ class RobotAllocator:
                         item_id: ItemId) -> Tuple[bool, Optional[ItemId]]:
         """Robot by id pick the given item if possible, return held item."""
         # Return fail if already holding an item
-        robot = self.get_robot(robot_id)
+        robot: Robot = self.get_robot(robot_id)
         if not robot.hold_item(item_id):
             return (False, robot.held_item_id)
 
@@ -605,7 +605,7 @@ class RobotAllocator:
         robot.state_description = 'Pathing to station'
         job.going_to_station()
         self.logger.info(
-            f'Sending robot {job.robot_id} to station for task {job.task_key}')
+            f'Sending {robot} to station for task {job.task_key}')
         return True
 
     def job_drop_item_at_station(self, job: Job) -> bool:
@@ -772,7 +772,6 @@ class RobotAllocator:
 
         # Get the method for the current state
         method_name = self.state_methods.get(job.state)
-        # print(f'check update for {job.state} : {method_name}')
         if method_name is None:
             return False
         method = getattr(self, method_name)
@@ -795,7 +794,6 @@ class RobotAllocator:
         world_sim_t = int(data['t'])
         if self.world_sim_t and world_sim_t <= self.world_sim_t:
             # Error out of RA since WS restarted, let RA container restart
-            # TODO : Consider just resetting/restarting RA allocator in main loop.
             raise ValueError(
                 'World time step state earlier than previous, world sim restarted.')
         self.world_sim_t = world_sim_t
