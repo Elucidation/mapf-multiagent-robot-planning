@@ -661,5 +661,6 @@ function update_time(t) {
   if (!(tblock instanceof HTMLSpanElement)) {
     throw Error("Missing time paragraph element.");
   }
-  tblock.textContent = t;
+  let time_str = Date().toLocaleString() + " T=" + t;
+  tblock.textContent = time_str;
 }
