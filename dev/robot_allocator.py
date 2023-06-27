@@ -616,7 +616,7 @@ class RobotAllocator:
             if not robot.future_path:
                 self.logger.error(
                     f'Robot {robot.robot_id} path diverged from job drop item, reset state')
-                job.going_to_station = False
+                job.state = JobState.ITEM_PICKED
                 return False
             self.logger.debug(
                 f'Robot {job.robot_id} not yet to station zone {robot.pos} -> {job.station_zone}')
