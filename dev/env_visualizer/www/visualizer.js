@@ -53,7 +53,7 @@ function drawSpecialZone(tileX, tileY, className, label) {
 
 function svg_create_item_zones(zones) {
   return zones.map((zone, idx) => {
-    let item_name = world.item_names[idx%world.item_names.length];
+    let item_name = world.item_names[idx % world.item_names.length];
     if (item_name == undefined) {
       console.error(`undefined item name for item load zone ${idx}`);
     }
@@ -138,12 +138,16 @@ function svg_update_robots(robots, t) {
     // Update held items if it exists
     let item_name = "-";
     if (robot.held_item_id != null) {
-      if (world.item_names[robot.held_item_id%world.item_names.length] == undefined) {
+      if (
+        world.item_names[robot.held_item_id % world.item_names.length] ==
+        undefined
+      ) {
         console.error(
           `undefined item name: ${robot.held_item_id} for ${robot}`
         );
       } else {
-        item_name = world.item_names[robot.held_item_id%world.item_names.length];
+        item_name =
+          world.item_names[robot.held_item_id % world.item_names.length];
       }
     }
 
@@ -383,8 +387,7 @@ function updateStationOrderTable(table, station_orders) {
   tableBody.innerHTML = "";
 
   // Only show first 25 stations
-  station_orders.slice(0,25).forEach((entry, idx) => {
-    
+  station_orders.slice(0, 25).forEach((entry, idx) => {
     const row = document.createElement("tr");
 
     // Station ID
@@ -479,6 +482,7 @@ socket.on("set_world", (/** @type {any} */ msg) => {
   gridSVG.appendChild(paths_svg);
 
   svg_update_robots(world.robots, 0); // Update their initial positions and held items
+  update_world_info_text(world);
 });
 
 var latest_msg;
@@ -506,7 +510,7 @@ socket.on("update", (/** @type {any} */ msg) => {
   latest_msg = msg;
   t_start = Date.now();
   if (msg.t != null) {
-    update_time(msg.t);
+    update_time_text(msg.t);
   }
   update_robot_table(msg.robots);
 });
@@ -556,7 +560,7 @@ socket.on("ims_all_orders", (/** @type {any} */ data) => {
       order.item_ids = Object.keys(order.items);
       order.item_quantities = Object.values(order.items);
       order.item_names = order.item_ids.map(
-        (item_id) => world.item_names[item_id%world.item_names.length]
+        (item_id) => world.item_names[item_id % world.item_names.length]
       );
     });
     stations.forEach((station) => {
@@ -568,14 +572,14 @@ socket.on("ims_all_orders", (/** @type {any} */ data) => {
           station.items_in_station
         );
         station.station_item_names = station.station_item_ids.map(
-          (item_id) => world.item_names[item_id%world.item_names.length]
+          (item_id) => world.item_names[item_id % world.item_names.length]
         );
       }
       if (station.items_in_order) {
         station.order_item_ids = Object.keys(station.items_in_order);
         station.order_item_quantities = Object.values(station.items_in_order);
         station.order_item_names = station.order_item_ids.map(
-          (item_id) => world.item_names[item_id%world.item_names.length]
+          (item_id) => world.item_names[item_id % world.item_names.length]
         );
       }
     });
@@ -613,14 +617,15 @@ function update_robot_table(robots) {
     // Held Item
     let held_item_name = "";
     if (robot.held_item_id != null)
-      held_item_name = world.item_names[robot.held_item_id%world.item_names.length];
+      held_item_name =
+        world.item_names[robot.held_item_id % world.item_names.length];
     addCell(held_item_name);
     // Task
     let task_description = "";
     if (robot.task_key) {
       const taskComponents = robot.task_key.split(":"); // task:station:4:order:104:0:2
       const [_a, _b, stationId, _c, orderId, itemId] = taskComponents;
-      let item_name = world.item_names[itemId%world.item_names.length];
+      let item_name = world.item_names[itemId % world.item_names.length];
       task_description = `Move item ${item_name} to station ${stationId} for order ${orderId}`;
     }
     addCell(task_description);
@@ -656,11 +661,24 @@ var interval = setInterval(() => {
   svg_update_robots(latest_msg.robots, t);
 }, ANIMATION_UPDATE_RATE_MS);
 
-function update_time(t) {
+function update_time_text(t) {
   let tblock = document.getElementById("time");
   if (!(tblock instanceof HTMLSpanElement)) {
     throw Error("Missing time paragraph element.");
   }
   let time_str = Date().toLocaleString() + " T=" + t;
   tblock.textContent = time_str;
+}
+
+function update_world_info_text(world) {
+  /** Updates the world_info text element with world size, # robots, etc. */
+  let infoblock = document.getElementById("world_info");
+  if (!(infoblock instanceof HTMLSpanElement)) {
+    throw Error("Missing world_info element.");
+  }
+  let info_str =
+    `World Size: ${world.grid.length} x ${world.grid[0].length}, ${world.robots.length} Robots, ` +
+    `${world.item_load_positions.length} Item load zones, ` +
+    `${world.station_positions.length} Stations`;
+  infoblock.textContent = info_str;
 }

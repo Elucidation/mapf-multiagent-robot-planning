@@ -5,6 +5,10 @@ body {
     Arial, sans-serif;
 }
 
+h1, p {
+  padding: .25rem;
+}
+
 svg {
   border: 5px solid black;
 }
