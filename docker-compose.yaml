@@ -32,6 +32,7 @@ services:
       - REDIS_HOST=redis-db
       - WAREHOUSE_YAML=${WAREHOUSE_YAML}
     depends_on:
+      - world-sim # To reset db if needed
       - order-processor # To set up tasks etc.
       - redis-db # subscribe to world_t, pull/process tasks, robots etc.
     command: python -m robot_allocator
@@ -87,8 +88,24 @@ services:
       - REDIS_HOST=redis-db
       - WAREHOUSE_YAML=${WAREHOUSE_YAML}
     depends_on:
+      - world-sim # To reset db if needed
+      - order-processor # To reset db if needed
       - redis-db # To subscribe to world_t messages
     command: /bin/sh -c "npm --prefix ./env_visualizer install && node env_visualizer/"
+    logging:
+      options:
+        max-size: 10m
+  # Redis viewer
+  redis-commander:
+    image: ghcr.io/joeferner/redis-commander:latest
+    networks:
+      - aw-net
+    ports:
+      - 8081:8081
+    environment:
+      - REDIS_HOST=redis-db
+    depends_on:
+      - redis-db # To subscribe to world_t messages
     logging:
       options:
         max-size: 10m
