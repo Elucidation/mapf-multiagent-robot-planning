@@ -234,10 +234,10 @@ async function update_robots(robots_data) {
     // @ts-ignore
     robot.pos = { x: pos[0], y: pos[1] };
     // @ts-ignore
-    if (robot.held_item_id != '') {
-      robot.held_item_id = parseInt(robot.held_item_id);
-    } else {
-      robot.held_item_id = null;
+    robot.held_item_id = parseInt(robot.held_item_id); // NaN for empty string / no item
+    if (isNaN(robot.held_item_id)) {
+      // Not strictly necessary since socket.io converts to null, this guarantees it.
+      robot.held_item_id = null; 
     }
     // @ts-ignore
     robot.path = JSON.parse(robot.path);

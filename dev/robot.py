@@ -90,12 +90,14 @@ class Robot(object):
         return True
 
     def __repr__(self):
+        if self.held_item_id is not None:
+            return f'Robot_{self.robot_id}[{self.state} H:{self.held_item_id}] : {self.pos}'
         return f'Robot_{self.robot_id}[{self.state}] : {self.pos}'
 
     def json_data(self):
         return {'robot_id': self.robot_id,
                 'position': json.dumps(self.pos),
-                'held_item_id': self.held_item_id or '',
+                'held_item_id': self.held_item_id if self.held_item_id is not None else '',
                 'state': self.state.value,
                 'task_key': self.task_key or '',
                 'state_description': self.state_description or '',
@@ -105,7 +107,7 @@ class Robot(object):
     @staticmethod
     def from_json(json_data: str):
         future_path = [tuple(pos) for pos in json.loads(json_data['path'])]
-        held_item_id = ItemId(int(json_data['held_item_id'])) if json_data['held_item_id'] else None
+        held_item_id = ItemId(int(json_data['held_item_id'])) if json_data['held_item_id'] != '' else None
         state_description = json_data['state_description'] if json_data['state_description'] else ''
         return Robot(RobotId(int(json_data['robot_id'])),
                      tuple(json.loads(json_data['position'])),
