@@ -377,9 +377,10 @@ class RobotAllocator:
         available_robots = self.get_available_robots()
         available_robots_count = len(available_robots)
         # Get available new tasks
-        all_new_tasks_count = self.redis_db.llen('tasks:new')
-        new_tasks = self.redis_db.lrange(
-            'tasks:new', 0, available_robots_count)
+        pipeline = self.redis_db.pipeline()
+        pipeline.llen('tasks:new')
+        pipeline.lrange('tasks:new', 0, available_robots_count)
+        [all_new_tasks_count, new_tasks] = pipeline.execute()
         new_tasks_count = len(new_tasks)
         # For each available pair of robot and tasks
         for idx in range(min(available_robots_count, new_tasks_count)):
