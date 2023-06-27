@@ -68,8 +68,10 @@ path {
   font-family: monospace;
   vertical-align: top;
 }
-table.outer {
+table.outer, table.robots {
   width: 100%;
+  max-width: 1600px;
+  min-width: 800px;
 }
 table.subgroup {
   width: 100%;
@@ -83,6 +85,7 @@ table.subgroup td {
   border-left: solid 1px gray;
   background-color: lightgray;
   text-align: center;
+  text-wrap: nowrap;
 }
 
 table.subgroup td.incomplete {
@@ -106,12 +109,6 @@ table.subgroup td.failed {
 }
 
 /* Robot Table */
-
-table.robots {
-  margin: 0.25rem;
-  border-collapse: collapse;
-  min-width: 960px;
-}
 table.robots tr {
   padding: 0.25rem;
 }
@@ -124,4 +121,5 @@ table.robots td, th {
   background-color: lightgray;
   padding: 0.25rem;
   text-align: center;
+  text-wrap: nowrap;
 }

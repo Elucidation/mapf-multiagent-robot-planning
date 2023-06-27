@@ -19,14 +19,10 @@
         <!-- IMS Table -->
         <div>
             <table class="outer">
-                <thead>
-                    <th>New Orders (Latest 10 of <span id="new_order_count">-</span>)</th>
-                    <th>Stations Processing Orders (First 25)</th>
-                    <th>Finished Orders (Latest 10 of <span id="finished_order_count">-</span>)</th>
-                </thead>
                 <tbody>
+                    <th>New Orders (Latest 10 of <span id="new_order_count">-</span>)</th>
+                    <!-- Orders -->
                     <tr>
-                        <!-- Orders -->
                         <td>
                             <table id="neworders" class="subgroup">
                                 <thead>
@@ -38,7 +34,10 @@
                                 </tbody>
                             </table>
                         </td>
-                        <!-- Stations -->
+                    </tr>
+                    <!-- Stations -->
+                    <th>Stations Processing Orders (First 25)</th>
+                    <tr>
                         <td>
                             <table id=stations class="subgroup">
                                 <thead>
@@ -51,7 +50,10 @@
                                 </tbody>
                             </table>
                         </td>
-                        <!-- Finished -->
+                    </tr>
+                    <!-- Finished -->
+                    <th>Finished Orders (Latest 10 of <span id="finished_order_count">-</span>)</th>
+                    <tr>
                         <td>
                             <table id="finishedorders" class="subgroup">
                                 <thead>
