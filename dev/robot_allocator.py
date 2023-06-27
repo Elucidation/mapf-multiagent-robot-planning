@@ -346,6 +346,8 @@ class RobotAllocator:
                                 (time.perf_counter() - t_start)*1000, MAX_UPDATE_TIME_SEC * 1000)
             return
         t_load_robots = (time.perf_counter() - t_load_robots)*1000
+        # Track robots modified in this update step, only update those in redis.
+        robot_was_modified: dict[RobotId, bool] = {robot.robot_id: False for robot in self.robots}
 
         # 2 - Check and update any jobs
         t_update_jobs = time.perf_counter()
@@ -364,6 +366,7 @@ class RobotAllocator:
             self.check_and_update_job(job)
             jobs_processed += 1
             processed_jobs.append(job)
+            robot_was_modified[job.robot_id] = True
             if ((time.perf_counter() - t_start) > MAX_TIME_CHECK_JOB_SEC) or update_too_long():
                 break
         t_update_jobs = (time.perf_counter() - t_update_jobs)*1000
@@ -394,6 +397,7 @@ class RobotAllocator:
             new_job = self.assign_task_to_robot(task_key, robot)
             new_jobs.append(new_job)
             robots_assigned += 1
+            robot_was_modified[new_job.robot_id] = True
         t_assign = (time.perf_counter() - t_assign)*1000
 
         # Revert changes if at this point update took too long
@@ -411,7 +415,9 @@ class RobotAllocator:
         # 4 - Batch update robots, jobs, tasks now
         t_update_all = time.perf_counter()
         pipeline = self.redis_db.pipeline()
-        self.wdb.update_robots(self.robots, pipeline=pipeline)
+        # Only update those robots that were modified
+        modified_robots = [robot for robot in self.robots if robot_was_modified[robot.robot_id]]
+        self.wdb.update_robots(modified_robots, pipeline=pipeline)
 
         # replace stored jobs that were processed with the chaanged ones
         for job in processed_jobs:
