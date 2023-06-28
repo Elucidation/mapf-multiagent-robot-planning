@@ -154,16 +154,18 @@ function svg_update_robots(robots, t) {
     // Hard-coded use 3rd child element [circle, robot label, held item label]
     let svg_held_item = svg_robot.children[2];
     svg_held_item.textContent = item_name;
-    
-    // Update path only if it exists.
-    if (robot.robot_id in saved_robot_paths) {
-      // Assumes path index is same as robots
-      let svg_path = paths_svg.children[idx];
-      let curr_path = [[robot_interp_tile_pos.x, robot_interp_tile_pos.y]];
-      curr_path = curr_path.concat(saved_robot_paths[robot.robot_id]);
+
+    // Assumes path index is same as robots
+    let svg_path = paths_svg.children[idx];
+
+    // Update path only if it exists and matches the id of the robot
+    if (robot.robot_id in saved_robot_paths &&
+        svg_path.getAttribute("id") == `robot_${robot.robot_id}-path`) {
+      let curr_path = [
+        [robot_interp_tile_pos.x, robot_interp_tile_pos.y],
+      ].concat(saved_robot_paths[robot.robot_id]);
       updatePath(svg_path, curr_path);
     }
-    
   });
 }
 
