@@ -157,14 +157,12 @@ function svg_update_robots(robots, t) {
 
     // Assumes path index is same as robots
     let svg_path = paths_svg.children[idx];
-    let robot_path = undefined;
-    if (robot.path) {
-      // Add current robot position to head of path
-      robot_path = [[robot_interp_tile_pos.x, robot_interp_tile_pos.y]].concat(
-        robot.path
-      );
+    let curr_path = [[robot_interp_tile_pos.x, robot_interp_tile_pos.y]];
+    // Add the latest saved robot path to it (robot.path is only given on change)
+    if (robot.robot_id in saved_robot_paths) {
+      curr_path = curr_path.concat(saved_robot_paths[robot.robot_id]);
     }
-    updatePath(svg_path, robot_path);
+    updatePath(svg_path, curr_path);
   });
 }
 
@@ -489,6 +487,9 @@ var latest_msg;
 
 var t_start;
 var curr_robots;
+// Keep track of paths of robots, in case update messages don't contain them, we use saved ones
+// popping the head every update step. 
+var saved_robot_paths = {};
 // Tracks if the t between the last and latest msg is incremented by 1
 // so animation knows to tween between the two or not.
 var no_missed_msgs = false;
@@ -512,6 +513,16 @@ socket.on("update", (/** @type {any} */ msg) => {
   if (msg.t != null) {
     update_time_text(msg.t);
   }
+  // Pop the head off of any existing saved robot paths, since we had an update.
+  for (let robot_id in saved_robot_paths) {
+    saved_robot_paths[robot_id] = saved_robot_paths[robot_id].slice(1);
+  }
+  // Update saved robot paths if a robot path exists in the message
+  msg.robots.forEach(robot => {
+    if ('path' in robot) {
+      saved_robot_paths[robot.robot_id] = robot.path;
+    }
+  })
   update_robot_table(msg.robots);
 });
 

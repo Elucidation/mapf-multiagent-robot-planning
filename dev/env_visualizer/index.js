@@ -63,6 +63,8 @@ class Robot {
     this.id = data.id;
     /** @type {Point} Current robot position*/
     this.pos = data.pos;
+    /** @type {Point[]} List of future positions of the robot */
+    this.path = [];
   }
 }
 
@@ -222,6 +224,19 @@ var r_client;
   }
 })();
 
+function point_list_compare(/** @type {Array} */ a, /** @type {Array} */ b) {
+  // Assumes first list has list of lists, each containing two points
+  if (a.length != b.length) {
+    return false;
+  }
+  return a.every((val, idx) => {
+    return (val instanceof Array &&
+            b[idx] instanceof Array &&
+            (val[0] == b[idx][0]) &&
+            (val[1] == b[idx][1]));
+  })
+}
+
 async function update_robots(robots_data) {
   robots_data.forEach((robot, i) => {
     if (!robot) return;
@@ -240,9 +255,19 @@ async function update_robots(robots_data) {
       robot.held_item_id = null; 
     }
     // @ts-ignore
-    robot.path = JSON.parse(robot.path);
+    let robot_next_path = JSON.parse(robot.path);
+    // Check if the current robot path is the same as the previous one with head popped
+    let old_path_part = world.robots[i].path.slice(1);
+    if (robot_next_path.length != 0 && point_list_compare(old_path_part, robot_next_path)) {
+      // If so, we don't need to resend this path since the path is the same (minus head).
+      // This reduces the socket message size dramatically.
+      delete robot.path; // Don't send this in the io message, let visualizer use existing path.
+    } else {
+      robot.path = robot_next_path;
+    }
+    world.robots[i].path = robot_next_path;
+    
   });
-
   let msg = { t: world.t, robots: robots_data, dt_s: world.dt_s };
   io.emit("update", msg);
 }
