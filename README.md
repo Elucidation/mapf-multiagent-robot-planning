@@ -1,6 +1,6 @@
 # Automated Warehouse & Multi-agent path planning
 
-*The [wiki](https://github.com/Elucidation/mapf-multiagent-robot-planning/wiki) contains the most recent information on this project. [Potentially live demo](http://warehouse.tetralark.com/)*
+*The [wiki](https://github.com/Elucidation/mapf-multiagent-robot-planning/wiki) contains the most recent information and videos ([1K robots!](https://github.com/Elucidation/mapf-multiagent-robot-planning/assets/434925/e7c71c64-2af6-4b10-a2c1-b1b9d197078e)) on this project. [Potentially live demo on GCP](http://warehouse.tetralark.com/)*
 
 What all goes into logistics? I explore this by building a simulated automated warehouse and the systems needed to consolidate orders with multiple agents.
 
