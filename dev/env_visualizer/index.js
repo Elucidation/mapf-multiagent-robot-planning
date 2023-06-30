@@ -275,6 +275,7 @@ async function update_robots(robots_data) {
 const REDIS_QUERY_RATE_MS = 1000; // max rate to query redis DB at
 var last_redis_query_ms = null;
 var latest_ims_data = null;
+const STATION_LIMIT = 25; // Limit number of stations emitted to 25
 async function update_ims_table() {
   if (io.engine.clientsCount == 0) return; // No point updating table if no clients.
   const t_start = Date.now();
@@ -301,8 +302,8 @@ async function update_ims_table() {
   r_multi.xRevRange("orders:finished", "+", "-", { COUNT: 10 });
 
   // Get busy/free station info etc.
-  r_multi.lRange("stations:free", 0, -1);
-  r_multi.sMembers("stations:busy");
+  r_multi.lRange("stations:free", 0, STATION_LIMIT);
+  r_multi.sRandMemberCount("stations:busy", STATION_LIMIT);
   r_multi.lLen("orders:new");
   r_multi.get("order:count");
   r_multi.get("station:count");
