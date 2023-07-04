@@ -63,7 +63,7 @@ class Robot {
     this.id = data.id;
     /** @type {Point} Current robot position*/
     this.pos = data.pos;
-    /** @type {Point[]} List of future positions of the robot */
+    /** @type {Number[][]} List of future positions of the robot */
     this.path = [];
   }
 }
@@ -237,6 +237,26 @@ function point_list_compare(/** @type {Array} */ a, /** @type {Array} */ b) {
   })
 }
 
+const MOVE_MAP = {
+  'R': [1, 0],
+  'L': [-1, 0],
+  'U': [0, 1],
+  'D': [0, -1],
+  'W': [0, 0]
+};
+
+function generate_path_from_directions(start_pos, directions) {
+  /** @type {Number[][]} List of future positions of the robot, not including start_pos. */
+  let positions = [];
+  for (let direction of directions) {
+      let dx = MOVE_MAP[direction][0];
+      let dy = MOVE_MAP[direction][1];
+      let lastPosition = positions[positions.length - 1] ||  [start_pos.x, start_pos.y];
+      positions.push([lastPosition[0] + dx, lastPosition[1] + dy]);
+  }
+  return positions;
+}
+
 async function update_robots(robots_data) {
   robots_data.forEach((robot, i) => {
     if (!robot) return;
@@ -255,7 +275,8 @@ async function update_robots(robots_data) {
       robot.held_item_id = null; 
     }
     // @ts-ignore
-    let robot_next_path = JSON.parse(robot.path);
+    // Robot path is char string UDLRW of directions based on robot position
+    let robot_next_path = generate_path_from_directions(robot.pos, robot.path)
     // Check if the current robot path is the same as the previous one with head popped
     let old_path_part = world.robots[i].path.slice(1);
     if (robot_next_path.length != 0 && point_list_compare(old_path_part, robot_next_path)) {

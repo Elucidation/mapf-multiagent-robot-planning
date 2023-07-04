@@ -3,9 +3,9 @@ from __future__ import annotations
 from enum import Enum
 import json
 from typing import Tuple, NewType, Optional  # Python 3.8
-from collections import deque
 
 from inventory_management_system.Item import ItemId
+from path_encoder import PathEncoder
 
 RobotId = NewType('RobotId', int)
 Position = Tuple[int, int]
@@ -36,7 +36,7 @@ class Robot(object):
     def __init__(self, robot_id: RobotId, pos: Position,
                  held_item_id: Optional[ItemId] = None,
                  state: RobotStatus = RobotStatus.AVAILABLE,
-                 path: list = [], task_key = '', state_description = 'Initialized'):
+                 path: list = [], task_key='', state_description='Initialized'):
         self.robot_id = robot_id
         self.pos = (int(pos[0]), int(pos[1]))  # (X col, Y row)
         self.held_item_id = held_item_id
@@ -94,6 +94,15 @@ class Robot(object):
             return f'Robot_{self.robot_id}[{self.state} H:{self.held_item_id}] : {self.pos}'
         return f'Robot_{self.robot_id}[{self.state}] : {self.pos}'
 
+    def encode_path(self, start_pos):
+        return PathEncoder.encode_path(start_pos, self.future_path)
+        # return json.dumps(self.future_path)
+
+    @staticmethod
+    def decode_path(start_pos, encoded_path):
+        return PathEncoder.decode_path(start_pos, encoded_path)
+        # return [tuple(pos) for pos in json.loads(encoded_path)]
+
     def json_data(self):
         return {'robot_id': self.robot_id,
                 'position': json.dumps(self.pos),
@@ -101,16 +110,18 @@ class Robot(object):
                 'state': self.state.value,
                 'task_key': self.task_key or '',
                 'state_description': self.state_description or '',
-                'path': json.dumps(self.future_path),
+                'path': self.encode_path(self.pos),
                 }
 
     @staticmethod
     def from_json(json_data: str):
-        future_path = [tuple(pos) for pos in json.loads(json_data['path'])]
-        held_item_id = ItemId(int(json_data['held_item_id'])) if json_data['held_item_id'] != '' else None
+        robot_pos = tuple(json.loads(json_data['position']))
+        future_path = Robot.decode_path(robot_pos, json_data['path'])
+        held_item_id = ItemId(
+            int(json_data['held_item_id'])) if json_data['held_item_id'] != '' else None
         state_description = json_data['state_description'] if json_data['state_description'] else ''
         return Robot(RobotId(int(json_data['robot_id'])),
-                     tuple(json.loads(json_data['position'])),
+                     robot_pos,
                      held_item_id,
                      RobotStatus.load(json_data['state']),
                      future_path,
@@ -119,8 +130,11 @@ class Robot(object):
 
 
 if __name__ == '__main__':
-    robot = Robot(RobotId(0), pos=(0, 1), path=[(1, 1), (2, 1)])
+    robot = Robot(RobotId(0), pos=(0, 1), path=[
+                  (1, 1), (2, 1), (2, 1), (2, 2), (1, 2)])
     print(robot.json_data())
     robot2 = Robot.from_json(robot.json_data())
     print(robot)
     print(robot2)
+    print(robot.future_path)
+    print(robot2.future_path)
