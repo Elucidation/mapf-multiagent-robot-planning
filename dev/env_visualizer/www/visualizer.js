@@ -159,11 +159,10 @@ function svg_update_robots(robots, t) {
     }
 
     // Assumes path index is same as robots
-    let svg_path = paths_svg.children[idx];
+    let svg_path = svg_path_children[robot.robot_id];
 
     // Update path only if it exists and matches the id of the robot
-    if (robot.robot_id in saved_robot_paths &&
-        svg_path.getAttribute("id") == `robot_${robot.robot_id}-path`) {
+    if (svg_path && (robot.robot_id in saved_robot_paths)) {
       let curr_path = [
         [robot_interp_tile_pos.x, robot_interp_tile_pos.y],
       ].concat(saved_robot_paths[robot.robot_id]);
@@ -199,12 +198,15 @@ function createCircleLabel(tag, text, className) {
 }
 
 // Create paths for each robot, all under a group
+var svg_path_children = {}; // Track paths by robot_id
 function svg_create_paths(robots) {
   const pathGroup = createSVGElement("g");
   pathGroup.setAttribute("id", "robot_paths");
   robots.map((robot) => {
     const circleId = `robot_${robot.id}`;
-    pathGroup.appendChild(createPath(circleId));
+    let new_path = createPath(circleId);
+    svg_path_children[robot.id] = new_path;
+    pathGroup.appendChild(new_path);
   });
   return pathGroup;
 }
