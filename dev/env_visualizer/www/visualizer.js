@@ -135,25 +135,28 @@ function svg_update_robots(robots, t) {
     // Move the circle group
     svg_robot.setAttribute("transform", `translate(${x}, ${y})`);
 
-    // Update held items if it exists
-    let item_name = "-";
-    if (robot.held_item_id != null) {
-      if (
-        world.item_names[robot.held_item_id % world.item_names.length] ==
-        undefined
-      ) {
-        console.error(
-          `undefined item name: ${robot.held_item_id} for ${robot}`
-        );
-      } else {
-        item_name =
-          world.item_names[robot.held_item_id % world.item_names.length];
+    // If robot held item has changed, update
+    if (robot.held_item_id != prev_robot.held_item_id) {
+      // Update held items if it exists
+      let item_name = "-";
+      if (robot.held_item_id != null) {
+        if (
+          world.item_names[robot.held_item_id % world.item_names.length] ==
+          undefined
+        ) {
+          console.error(
+            `undefined item name: ${robot.held_item_id} for ${robot}`
+          );
+        } else {
+          item_name =
+            world.item_names[robot.held_item_id % world.item_names.length];
+        }
       }
-    }
 
-    // Hard-coded use 3rd child element [circle, robot label, held item label]
-    let svg_held_item = svg_robot.children[2];
-    svg_held_item.textContent = item_name;
+      // Hard-coded use 3rd child element [circle, robot label, held item label]
+      let svg_held_item = svg_robot.children[2];
+      svg_held_item.textContent = item_name;
+    }
 
     // Assumes path index is same as robots
     let svg_path = paths_svg.children[idx];
