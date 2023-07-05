@@ -111,6 +111,7 @@ function svg_create_robots(robots) {
     circleGroup.appendChild(circle);
     circleGroup.appendChild(labelText);
     circleGroup.appendChild(heldItemText);
+    circleGroup.setAttribute("transform", `translate(0,0)`);  // Init transform for future use.
     return circleGroup;
   });
 }
@@ -133,7 +134,7 @@ function svg_update_robots(robots, t) {
     const y = robot_interp_tile_pos.y * TILE_SIZE + TILE_SIZE / 2;
 
     // Move the circle group
-    svg_robot.setAttribute("transform", `translate(${x}, ${y})`);
+    svg_robot.transform.baseVal[0].setTranslate(x, y);
 
     // If robot held item has changed, update
     if (robot.held_item_id != prev_robot.held_item_id) {
