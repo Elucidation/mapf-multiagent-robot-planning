@@ -226,24 +226,18 @@ class RobotAllocator:
                                ] = set()  # set{(row,col,t), ...}
 
         for robot in self.robots:
-            if not robot.future_path:
-                # Robot will be added as a static obstacle separately
-                continue
-            # Add all positions along future path
-            for t_step, pos in enumerate(robot.future_path):
-                dynamic_obstacles.add((pos[0], pos[1], t_step))
-                # Also add it at future and past time to keep robots from slipping nearby
-                dynamic_obstacles.add((pos[0], pos[1], t_step+1))
-                # TODO : This is hacky, get more precise on when robots go along paths.
-                dynamic_obstacles.add((pos[0], pos[1], t_step-1))
-
-            path_len_t = len(robot.future_path)
-            # Add final position a few times to give space for robot to move
-            last_pos = robot.future_path[path_len_t-1]
-            for t_step in range(path_len_t, path_len_t+5):
-                dynamic_obstacles.add((last_pos[0], last_pos[1], t_step))
+            self.add_path_as_obstacle(dynamic_obstacles, robot.future_path)
 
         return dynamic_obstacles
+
+    def add_path_as_obstacle(self, dynamic_obstacles, robot_future_path):
+        """Add dynamic obstacles for a given robots future path."""
+        for t_step, pos in enumerate(robot_future_path):
+            dynamic_obstacles.add((pos[0], pos[1], t_step))
+            # Have other robots avoid entering cell this robot just left. Stops edge collisions.
+            dynamic_obstacles.add((pos[0], pos[1], t_step-1))
+            # Add a bit more space between robots to avoid rubbing shoulders
+            dynamic_obstacles.add((pos[0], pos[1], t_step+1))
 
     def get_current_static_obstacles(self) -> set[Position]:
         """Return static obstacles with stationary robots too
@@ -492,14 +486,7 @@ class RobotAllocator:
         """Sets robot path, and also updates latest dynamic obstacles with this"""
         robot.set_path(path)
         if self.latest_dynamic_obstacles is not None:
-            # TODO : Avoid repeating this.
-            # Add all positions along future path
-            for t_step, pos in enumerate(path):
-                self.latest_dynamic_obstacles.add((pos[0], pos[1], t_step))
-                # Also add it at future and past time to keep robots from slipping nearby
-                self.latest_dynamic_obstacles.add((pos[0], pos[1], t_step+1))
-                # TODO : This is hacky, get more precise on when robots go along paths.
-                self.latest_dynamic_obstacles.add((pos[0], pos[1], t_step-1))
+            self.add_path_as_obstacle(self.latest_dynamic_obstacles, path)
 
 
     def job_start(self, job: Job) -> bool:
