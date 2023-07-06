@@ -174,3 +174,6 @@ npm_cache/
 
 # Ignore profiler dumps
 *.prof
+
+# Ignore local dev folder
+local_dev/
