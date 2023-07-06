@@ -76,7 +76,7 @@ services:
         max-size: 10m
   # Node Web Server
   web-node:
-    image: node:alpine
+    image: elucidation/aw_node:latest
     volumes:
       - ./dev:/home/app/mapf/dev
     networks:
@@ -91,7 +91,7 @@ services:
       - world-sim # To reset db if needed
       - order-processor # To reset db if needed
       - redis-db # To subscribe to world_t messages
-    command: /bin/sh -c "npm --prefix ./env_visualizer install && node env_visualizer/"
+    command: ["node", "env_visualizer/"]
     logging:
       options:
         max-size: 10m
