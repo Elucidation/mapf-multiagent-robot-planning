@@ -501,12 +501,6 @@ class RobotAllocator:
                 # TODO : This is hacky, get more precise on when robots go along paths.
                 self.latest_dynamic_obstacles.add((pos[0], pos[1], t_step-1))
 
-            path_len_t = len(path)
-            # Add final position a few times to give space for robot to move
-            last_pos = path[path_len_t-1]
-            for t_step in range(path_len_t, path_len_t+5):
-                self.latest_dynamic_obstacles.add(
-                    (last_pos[0], last_pos[1], t_step))
 
     def job_start(self, job: Job) -> bool:
         """Start job, pathing robot to item zone, or home."""
