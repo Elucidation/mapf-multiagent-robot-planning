@@ -30,13 +30,9 @@ from warehouses.warehouse_loader import WorldInfo
 
 # Max number of steps to search with A*, should be ~worst case distance in grid
 MAX_PATH_STEPS = int(os.getenv("MAX_PATH_STEPS", default="500"))
-MAX_TIME_CHECK_JOB_SEC = float(
-    os.getenv("MAX_TIME_CHECK_JOB_SEC", default="0.100"))
-MAX_TIME_ASSIGN_JOB_SEC = float(
-    os.getenv("MAX_TIME_ASSIGN_JOB_SEC", default="0.100"))
-MAX_UPDATE_TIME_SEC = float(
-    os.getenv("MAX_UPDATE_TIME_SEC", default="0.500"))
-
+# How much time robot allocator should leave before end of its update and world sim next step
+SAFETY_FACTOR_SEC = float(
+    os.getenv("SAFETY_FACTOR_SEC", default="0.200"))
 
 class RobotAllocator:
     """Robot Allocator, manages robots, assigning them jobs from tasks, 
@@ -322,11 +318,14 @@ class RobotAllocator:
         self.logger.info(f'Created Job: {job}')
         return job
 
-    def update(self, robots=None, time_read=None):
+    def update(self, robots, t_start, time_left):
         """Process jobs and assign robots tasks.
            If update takes longer than a threshold, the step is skipped and redis is not updated."""
-        t_start = time.perf_counter() if time_read is None else time_read
         self.logger.debug('update start')
+
+        # Split amount of time in update for [2] check+update jobs and [3] assign jobs-robots
+        time_allotted_for_jobs = time_left * 0.8
+        time_allotted_for_assigns = time_left  - time_allotted_for_jobs
 
         # 1 - Update to latest robots from WDB if not passed in
         t_load_robots = time.perf_counter()
@@ -334,10 +333,10 @@ class RobotAllocator:
 
         def update_too_long():
             """Check if time since t_start > MAX_UPDATE_TIME_SEC"""
-            return (time.perf_counter() - t_start) > MAX_UPDATE_TIME_SEC
+            return (time.perf_counter() - t_start) > time_left
         if update_too_long():
             self.logger.warning('update started too late at %.2f ms > %.2f ms threshold, skipping',
-                                (time.perf_counter() - t_start)*1000, MAX_UPDATE_TIME_SEC * 1000)
+                                (time.perf_counter() - t_start)*1000, time_left * 1000)
             return
         t_load_robots = (time.perf_counter() - t_load_robots)*1000
         # Track robots modified in this update step, only update those in redis.
@@ -351,22 +350,22 @@ class RobotAllocator:
 
         # Get the dynamic obstacles for this timestep
         self.latest_dynamic_obstacles = self.get_all_current_dynamic_obstacles()
-        # Only process jobs for up to MAX_TIME_CHECK_JOB_SEC locally and MAX_UPDATE_TIME_SEC total
+        # Only process jobs for up to time_allotted_for_jobs locally and time_left total
         jobs_processed = 0
         processed_jobs: list[Job] = []
         for job_key in shuffled_job_keys:
+            if ((time.perf_counter() - t_start) > time_allotted_for_jobs) or update_too_long():
+                break
             # Create a copy of the job to be changed
             job = self.jobs[job_key].copy()
             self.check_and_update_job(job)
             jobs_processed += 1
             processed_jobs.append(job)
             robot_was_modified[job.robot_id] = True
-            if ((time.perf_counter() - t_start) > MAX_TIME_CHECK_JOB_SEC) or update_too_long():
-                break
         t_update_jobs = (time.perf_counter() - t_update_jobs)*1000
 
         # 3 - Now check for any available robots and tasks for
-        # up to MAX_TIME_ASSIGN_JOB_SEC locally and MAX_UPDATE_TIME_SEC total
+        # up to MAX_TIME_ASSIGN_JOB_SEC locally and time_left total
         t_assign = time.perf_counter()
         new_jobs: list[Job] = []
         # Get available robots
@@ -381,9 +380,7 @@ class RobotAllocator:
         new_tasks_count = len(new_tasks)
         # For each available pair of robot and tasks
         for idx in range(min(available_robots_count, new_tasks_count)):
-            if (time.perf_counter() - t_assign) > MAX_TIME_ASSIGN_JOB_SEC:
-                break
-            if update_too_long():
+            if (time.perf_counter() - t_assign) > time_allotted_for_assigns or update_too_long():
                 break
             # Assign new task to available robot, creating a new job
             task_key = new_tasks[idx]
@@ -400,7 +397,7 @@ class RobotAllocator:
             update_duration_ms = (time.perf_counter() - t_start)*1000
             self.logger.error(
                 f'update end, reverted due to over threshold, '
-                f'took {update_duration_ms:.3f} ms > {MAX_UPDATE_TIME_SEC*1000} ms threshold, '
+                f'took {update_duration_ms:.3f} ms > {time_left*1000} ms threshold, '
                 f'reverting processed {jobs_processed}/{len(shuffled_job_keys)} jobs, '
                 f'reverting assigned {robots_assigned}/{available_robots_count} available robots '
                 f'to {new_tasks_count}/{all_new_tasks_count} available tasks')
@@ -447,8 +444,10 @@ class RobotAllocator:
         t_update_all = (time.perf_counter() - t_update_all)*1000
 
         update_duration_ms = (time.perf_counter() - t_start)*1000
+        time_used_ratio = update_duration_ms / (time_left*1000)
         self.logger.info(
-            f'update end, took {update_duration_ms:.3f} ms, '
+            f'update end, took {update_duration_ms:.3f} ms of {time_left*1000:.3f} allotted '
+            f'({time_used_ratio*100:.1f}% usage), '
             f'processed {jobs_processed}/{len(shuffled_job_keys)} jobs, '
             f'assigned {robots_assigned}/{available_robots_count} available robots '
             f'to {new_tasks_count}/{all_new_tasks_count} available tasks '
@@ -773,6 +772,7 @@ class RobotAllocator:
         #  Parse robot data from update message
         timestamp, data = response[0][1][0]
         world_sim_t = int(data['t'])
+        time_to_next_step_sec = float(data['time_to_next_step_sec'])
         if self.world_sim_t and world_sim_t <= self.world_sim_t:
             # Error out of RA since WS restarted, let RA container restart
             raise ValueError(
@@ -782,9 +782,9 @@ class RobotAllocator:
                   for json_data in json.loads(data['robots'])]
 
         self.logger.info(
-            'Step start T=%d timestamp=%s ---------------------------------'
-            '--------------------------------------------------------', self.world_sim_t, timestamp)
-        self.update(robots, time_read=time_read)
+            f'Step start T={self.world_sim_t} timestamp={timestamp}, {time_to_next_step_sec} sec till next {"-"*100}')
+        safe_time_left = time_to_next_step_sec - SAFETY_FACTOR_SEC
+        self.update(robots, time_read, safe_time_left)
         self.logger.debug('Step end')
 
 
