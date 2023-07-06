@@ -5,21 +5,23 @@
 // REDIS_HOST & REDIS_PORT = url and port for redis server
 
 // TODO: Serve a web page that shows a live view of the robots
-
+console.log('Starting up, loading requires...');
 const express = require("express");
-const app = express();
 const http = require("http");
 const path = require("path");
+const yaml = require("js-yaml");
+const fs = require("fs");
+const redis = require("redis");
+console.log('Finished loading requires...');
+
+const app = express();
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 const port = process.env.PORT || 3000;
-const yaml = require("js-yaml");
-const fs = require("fs");
 
 app.use(express.static(path.join(__dirname, "www")));
 
-// @ts-ignore
 // @ts-ignore
 app.get("/", (req, res) => {
   res.sendFile("/index.html");
@@ -166,63 +168,9 @@ var world = World.from_yaml(
   process.env.WAREHOUSE_YAML || "./warehouses/main_warehouse.yaml"
 );
 
-// Set up Redis
-const REDIS_HOST = process.env.REDIS_HOST || "localhost";
-const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379");
-const redis = require("redis");
+console.log('World loaded...');
 
-/** @type{redis.RedisClientType} */
-var r_client;
 
-(async () => {
-  console.log(`Trying to connect to redis server ${REDIS_HOST}:${REDIS_PORT}`);
-  // Set up redis client
-  r_client = redis.createClient({
-    socket: {
-      host: REDIS_HOST,
-      port: REDIS_PORT,
-      reconnectStrategy() {
-        console.debug("Waiting for redis server...");
-        return 5000; // 5 seconds
-      },
-    },
-  });
-  r_client.on("error", (err) => {
-    if (err.code != "ECONNREFUSED") console.warn("Redis error:", err);
-  });
-  await r_client.connect(); // Wait for connection
-
-  let dt_s = await r_client.hGet("states", "dt_sec");
-  if (dt_s) {
-    world.dt_s = parseFloat(dt_s);
-    console.info(`Loaded world dt_s = ${world.dt_s} from redis`);
-  }
-
-  console.log(
-    `Redis listening to world:state stream on ${REDIS_HOST}:${REDIS_PORT}`
-  );
-
-  while (true) {
-    let stream = await r_client.xRead(
-      redis.commandOptions({ isolated: true }),
-      [
-        {
-          key: "world:state",
-          id: "$",
-        },
-      ],
-      { BLOCK: 0, COUNT: 1 }
-    );
-    if (!stream) continue;
-    if (io.engine.clientsCount == 0) continue; // No point processing if no clients
-    let msg = stream[0].messages[0]; // Get first and only message
-    // let msg_timestamp = msg.id;
-    world.t = parseInt(msg.message.t);
-    let robots_data = JSON.parse(msg.message.robots);
-    update_robots(robots_data);
-    update_ims_table();
-  }
-})();
 
 function point_list_compare(/** @type {Array} */ a, /** @type {Array} */ b) {
   // Assumes first list has list of lists, each containing two points
@@ -416,3 +364,62 @@ async function update_ims_table() {
   latest_ims_data = ims_data;
   io.emit("ims_all_orders", ims_data);
 }
+
+// Set up Redis
+console.log('Setting up redis...');
+const REDIS_HOST = process.env.REDIS_HOST || "localhost";
+const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379");
+
+/** @type{redis.RedisClientType} */
+var r_client;
+
+// Start the main loop listening to a redis stream and pushing out on socket to clients.
+(async () => {
+  console.log(`Trying to connect to redis server ${REDIS_HOST}:${REDIS_PORT}`);
+  // Set up redis client
+  r_client = redis.createClient({
+    socket: {
+      host: REDIS_HOST,
+      port: REDIS_PORT,
+      reconnectStrategy() {
+        console.debug("Waiting for redis server...");
+        return 5000; // 5 seconds
+      },
+    },
+  });
+  r_client.on("error", (err) => {
+    if (err.code != "ECONNREFUSED") console.warn("Redis error:", err);
+  });
+  await r_client.connect(); // Wait for connection
+
+  let dt_s = await r_client.hGet("states", "dt_sec");
+  if (dt_s) {
+    world.dt_s = parseFloat(dt_s);
+    console.info(`Loaded world dt_s = ${world.dt_s} from redis`);
+  }
+
+  console.log(
+    `Redis listening to world:state stream on ${REDIS_HOST}:${REDIS_PORT}`
+  );
+
+  while (true) {
+    let stream = await r_client.xRead(
+      redis.commandOptions({ isolated: true }),
+      [
+        {
+          key: "world:state",
+          id: "$",
+        },
+      ],
+      { BLOCK: 0, COUNT: 1 }
+    );
+    if (!stream) continue;
+    if (io.engine.clientsCount == 0) continue; // No point processing if no clients
+    let msg = stream[0].messages[0]; // Get first and only message
+    // let msg_timestamp = msg.id;
+    world.t = parseInt(msg.message.t);
+    let robots_data = JSON.parse(msg.message.robots);
+    update_robots(robots_data);
+    update_ims_table();
+  }
+})();
