@@ -318,6 +318,17 @@ class RobotAllocator:
         self.logger.info(f'Created Job: {job}')
         return job
 
+    def find_closest_robot_to_position(self, pos: Position, robots: list[Robot]) -> Robot:
+        """Returns closest robot to a given position or None if no robots given."""
+        closest_robot = None
+        closest_dist = None
+        for robot in robots:
+            dist = abs(pos[0] - robot.pos[0]) + abs(pos[1] - robot.pos[1])
+            if not closest_dist or dist < closest_dist:
+                closest_dist = dist
+                closest_robot = robot
+        return closest_robot
+
     def update(self, robots, t_start, time_left):
         """Process jobs and assign robots tasks.
            If update takes longer than a threshold, the step is skipped and redis is not updated."""
@@ -325,7 +336,7 @@ class RobotAllocator:
 
         # Split amount of time in update for [2] check+update jobs and [3] assign jobs-robots
         time_allotted_for_jobs = time_left * 0.8
-        time_allotted_for_assigns = time_left  - time_allotted_for_jobs
+        time_allotted_for_assigns = time_left - time_allotted_for_jobs
 
         # 1 - Update to latest robots from WDB if not passed in
         t_load_robots = time.perf_counter()
@@ -370,7 +381,7 @@ class RobotAllocator:
         new_jobs: list[Job] = []
         # Get available robots
         robots_assigned = 0
-        available_robots = self.get_available_robots()
+        available_robots = set(self.get_available_robots())
         available_robots_count = len(available_robots)
         # Get available new tasks
         pipeline = self.redis_db.pipeline()
@@ -384,7 +395,13 @@ class RobotAllocator:
                 break
             # Assign new task to available robot, creating a new job
             task_key = new_tasks[idx]
-            robot = available_robots[idx]
+            task_ids = parse_task_key_to_ids(task_key)
+
+            # Get item zone for task, then find robot closest to it
+            item_zone = self.item_load_zones[task_ids.item_id]
+            robot = self.find_closest_robot_to_position(
+                item_zone, available_robots)
+            available_robots.remove(robot)
             new_job = self.assign_task_to_robot(task_key, robot)
             new_jobs.append(new_job)
             robots_assigned += 1
