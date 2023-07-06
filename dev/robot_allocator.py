@@ -799,7 +799,8 @@ class RobotAllocator:
                   for json_data in json.loads(data['robots'])]
 
         self.logger.info(
-            f'Step start T={self.world_sim_t} timestamp={timestamp}, {time_to_next_step_sec} sec till next {"-"*100}')
+            f'Step start T={self.world_sim_t} timestamp={timestamp}, '
+            f'{time_to_next_step_sec:.1f} sec till next {"-"*100}')
         safe_time_left = time_to_next_step_sec - SAFETY_FACTOR_SEC
         self.update(robots, time_read, safe_time_left)
         self.logger.debug('Step end')
