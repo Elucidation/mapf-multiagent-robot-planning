@@ -73,6 +73,9 @@ class RobotAllocator:
         self.dt_sec = self.wdb.get_dt_sec()
         self.world_sim_t = None
 
+        # Ratio of an update alloted time to spend on jobs vs assigning robots
+        self.job_assign_time_ratio = 0.8
+
         # Using world info set up static dynamic obstacles
         self.static_obstacles = self.get_all_static_obstacles()
 
@@ -335,7 +338,7 @@ class RobotAllocator:
         self.logger.debug('update start')
 
         # Split amount of time in update for [2] check+update jobs and [3] assign jobs-robots
-        time_allotted_for_jobs = time_left * 0.8
+        time_allotted_for_jobs = time_left * self.job_assign_time_ratio
         time_allotted_for_assigns = time_left - time_allotted_for_jobs
 
         # 1 - Update to latest robots from WDB if not passed in

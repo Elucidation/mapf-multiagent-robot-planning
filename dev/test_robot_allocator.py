@@ -192,65 +192,73 @@ class TestRobotAllocator(unittest.TestCase):
             [Position([1, 2]), Position([2, 2])]))
 
         pipeline = mock_redis.pipeline.return_value
-        pipeline.execute.return_value = [1,[task_key]]
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        # Expect one job assigned, for the first robot and only task
-        robot = robots[0]
-        self.assertEqual(len(robot_mgr.jobs), 1)
-        self.assertEqual(robot_mgr.jobs[0].robot_id, robot.robot_id)
-        self.assertEqual(robot_mgr.jobs[0].task_key, task_key)
-        self.assertEqual(robot_mgr.jobs[0].state, JobState.WAITING_TO_START)
+        pipeline.execute.return_value = [1, [task_key]]
 
-        # After first update, no more new task keys available
-        pipeline.execute.return_value = [0,[]]
-        # No more tasks, now expect job to update
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        self.assertEqual(robot_mgr.jobs[0].state, JobState.PICKING_ITEM)
+        # Make time.perf_counter always return 0 / start time
+        with mock.patch('time.perf_counter') as mock_perf_counter:
+            mock_perf_counter.return_value = 0  # Always have time
 
-        # Expect still picking state while robot not in zone
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        self.assertEqual(robot_mgr.jobs[0].state, JobState.PICKING_ITEM)
-        self.assertIsNone(robot.held_item_id)
+            robot_mgr.update(robots, t_start=0, time_left=1)
+            # Expect one job assigned, for the first robot and only task
+            robot = robots[0]
+            self.assertEqual(len(robot_mgr.jobs), 1)
+            self.assertEqual(robot_mgr.jobs[0].robot_id, robot.robot_id)
+            self.assertEqual(robot_mgr.jobs[0].task_key, task_key)
+            self.assertEqual(
+                robot_mgr.jobs[0].state, JobState.WAITING_TO_START)
 
-        # Move robot to item zone, now expect state transition
-        robot.pos = robot_mgr.jobs[0].item_zone
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        self.assertEqual(robot_mgr.jobs[0].state, JobState.ITEM_PICKED)
-        self.assertIsNotNone(robot.held_item_id)
+            # After first update, no more new task keys available
+            pipeline.execute.return_value = [0, []]
+            # No more tasks, now expect job to update
+            robot_mgr.update(robots, t_start=0, time_left=1)
+            self.assertEqual(robot_mgr.jobs[0].state, JobState.PICKING_ITEM)
 
-        # Expect transition
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        self.assertEqual(robot_mgr.jobs[0].state, JobState.GOING_TO_STATION)
+            # Expect still picking state while robot not in zone
+            robot_mgr.update(robots, t_start=0, time_left=1)
+            self.assertEqual(robot_mgr.jobs[0].state, JobState.PICKING_ITEM)
+            self.assertIsNone(robot.held_item_id)
 
-        # Expect still going to station since not there
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        self.assertEqual(robot_mgr.jobs[0].state, JobState.GOING_TO_STATION)
+            # Move robot to item zone, now expect state transition
+            robot.pos = robot_mgr.jobs[0].item_zone
+            robot_mgr.update(robots, t_start=0, time_left=1)
+            self.assertEqual(robot_mgr.jobs[0].state, JobState.ITEM_PICKED)
+            self.assertIsNotNone(robot.held_item_id)
 
-        # Expect transition since at station
-        robot.pos = robot_mgr.jobs[0].station_zone
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        self.assertEqual(robot_mgr.jobs[0].state, JobState.ITEM_DROPPED)
-        self.assertIsNone(robot.held_item_id)
+            # Expect transition
+            robot_mgr.update(robots, t_start=0, time_left=1)
+            self.assertEqual(
+                robot_mgr.jobs[0].state, JobState.GOING_TO_STATION)
 
-        # Expect transition
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        self.assertEqual(robot_mgr.jobs[0].state, JobState.RETURNING_HOME)
+            # Expect still going to station since not there
+            robot_mgr.update(robots, t_start=0, time_left=1)
+            self.assertEqual(
+                robot_mgr.jobs[0].state, JobState.GOING_TO_STATION)
 
-        # Expect no transition till home
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        self.assertEqual(robot_mgr.jobs[0].state, JobState.RETURNING_HOME)
+            # Expect transition since at station
+            robot.pos = robot_mgr.jobs[0].station_zone
+            robot_mgr.update(robots, t_start=0, time_left=1)
+            self.assertEqual(robot_mgr.jobs[0].state, JobState.ITEM_DROPPED)
+            self.assertIsNone(robot.held_item_id)
 
-        # Expect job complete and removed
-        robot.pos = robot_mgr.jobs[0].robot_home
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        # Note: Allocations not yet managed
-        self.assertIsNone(robot_mgr.allocations[robot.robot_id])
-        self.assertEqual(len(robot_mgr.jobs), 0)
+            # Expect transition
+            robot_mgr.update(robots, t_start=0, time_left=1)
+            self.assertEqual(robot_mgr.jobs[0].state, JobState.RETURNING_HOME)
 
-        # Expect no change on next update
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        self.assertIsNone(robot_mgr.allocations[robot.robot_id])
-        self.assertEqual(len(robot_mgr.jobs), 0)
+            # Expect no transition till home
+            robot_mgr.update(robots, t_start=0, time_left=1)
+            self.assertEqual(robot_mgr.jobs[0].state, JobState.RETURNING_HOME)
+
+            # Expect job complete and removed
+            robot.pos = robot_mgr.jobs[0].robot_home
+            robot_mgr.update(robots, t_start=0, time_left=1)
+            # Note: Allocations not yet managed
+            self.assertIsNone(robot_mgr.allocations[robot.robot_id])
+            self.assertEqual(len(robot_mgr.jobs), 0)
+
+            # Expect no change on next update
+            robot_mgr.update(robots, t_start=0, time_left=1)
+            self.assertIsNone(robot_mgr.allocations[robot.robot_id])
+            self.assertEqual(len(robot_mgr.jobs), 0)
 
     def test_allocate_revert_too_long(self):
         """Expect assigns a task to robot, too-long update reverts change"""
@@ -272,7 +280,7 @@ class TestRobotAllocator(unittest.TestCase):
         # redis lpop tasks returns task_key once, then None thereafter
         # mock_redis.lpop.side_effect = itertools.chain([task_key], itertools.cycle([None]))
         pipeline = mock_redis.pipeline.return_value
-        pipeline.execute.return_value = [1,[task_key]]
+        pipeline.execute.return_value = [1, [task_key]]
 
         # TODO : If on first update before any job created, after creating a job but before finishing
         # the update, if time runs over, expect revert new jobs and task calls.
@@ -280,18 +288,26 @@ class TestRobotAllocator(unittest.TestCase):
         with mock.patch('time.perf_counter') as mock_perf_counter:
             mock_perf_counter.return_value = MAX_UPDATE_TIME_SEC+0.00001  # Just over threshold
             robot_mgr.update(robots, t_start=0, time_left=MAX_UPDATE_TIME_SEC)
+            # Expect no jobs assigned since we're over time.
+            self.assertEqual(len(robot_mgr.jobs), 0)
 
-        # Update once. Expect one job assigned, for the first robot and only task
-        robot_mgr.update(robots, t_start=0, time_left=1)
-        robot = robots[0]
-        self.assertEqual(len(robot_mgr.jobs), 1)
-        self.assertEqual(robot_mgr.jobs[0].robot_id, robot.robot_id)
-        self.assertEqual(robot_mgr.jobs[0].task_key, task_key)
-        self.assertEqual(robot_mgr.jobs[0].state, JobState.WAITING_TO_START)
-        self.assertIsNone(robot_mgr.allocations[robot.robot_id])
+            # Update once. Expect one job assigned, for the first robot and only task
+            mock_perf_counter.return_value = 0  # Have time now
+            robot_mgr.update(robots, t_start=0, time_left=1)
 
-        # After first update, no more new task keys available
-        pipeline.execute.return_value = [0,[]]
-        # No more tasks, now expect job with passed too-long update will cause no changes
-        robot_mgr.update(robots, t_start=time.perf_counter() - MAX_UPDATE_TIME_SEC, time_left=MAX_UPDATE_TIME_SEC)
-        self.assertEqual(robot_mgr.jobs[0].state, JobState.WAITING_TO_START)
+            robot = robots[0]
+            self.assertEqual(len(robot_mgr.jobs), 1)
+            self.assertEqual(robot_mgr.jobs[0].robot_id, robot.robot_id)
+            self.assertEqual(robot_mgr.jobs[0].task_key, task_key)
+            self.assertEqual(
+                robot_mgr.jobs[0].state, JobState.WAITING_TO_START)
+            self.assertIsNone(robot_mgr.allocations[robot.robot_id])
+
+            # After first update, no more new task keys available
+            pipeline.execute.return_value = [0, []]
+            # Set time passed for assigning jobs, expect no job change
+            mock_perf_counter.return_value = robot_mgr.job_assign_time_ratio * \
+                MAX_UPDATE_TIME_SEC + 0.001
+            robot_mgr.update(robots, t_start=0, time_left=MAX_UPDATE_TIME_SEC)
+            self.assertEqual(
+                robot_mgr.jobs[0].state, JobState.WAITING_TO_START)
