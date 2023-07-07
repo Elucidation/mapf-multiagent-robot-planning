@@ -1,5 +1,6 @@
 """Simulate world grid and robots, updating DB that web server sees."""
 from enum import Enum
+from collections import Counter
 import functools
 import json
 import sys
@@ -333,12 +334,12 @@ if __name__ == '__main__':
         t_start = time.perf_counter()
         world.step()
         step_duration_ms = (time.perf_counter() - t_start)*1000
-        logger.info(f'Step {world.t} - took {step_duration_ms:.3f} ms')
-
-        ROBOT_STR = '|'.join(
-            [f'{robot.pos[0]},{robot.pos[1]}' for robot in world.robots])
-        logger.debug(f'Step {world.t} {ROBOT_STR}')
+        state_counts = Counter([robot.state for robot in world.robots])
+        state_counts_str = ','.join(f'{state}:{count}' for state, count in state_counts.items())
+        logger.info(
+            f'Step {world.t} - took {step_duration_ms:.3f} ms - States: [{state_counts_str}]')
         if not world.get_current_state():
             logger.error(
-                f'World State invalid, {len(world.collisions)} collision(s): {world.collisions}')
+                f'World State invalid {len(world.collisions)} collisions. '
+                f'first 10 collision(s): {world.collisions[:10]}')
         world.sleep()

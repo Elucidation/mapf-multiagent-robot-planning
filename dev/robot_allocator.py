@@ -707,7 +707,6 @@ class RobotAllocator:
             self.station_locks[robot.pos] = None
 
         # Try going home instead to leave space at station
-        robot = self.get_robot(job.robot_id)
         current_pos = robot.pos
         static_obstacles = self.get_current_static_obstacles()
         path_to_home = self.generate_path(
