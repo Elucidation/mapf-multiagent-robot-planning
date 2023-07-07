@@ -7,7 +7,7 @@ function Point(/** @type {number} */ x, /** @type {number} */ y) {
 // const grid_dims = new Point(8, 8);
 var grid = null;
 var world = null;
-const TILE_SIZE = 60;
+const TILE_SIZE = 50;
 
 // ---------------------------------------------------
 // SVG Visualizations
@@ -160,15 +160,15 @@ function svg_update_robots(robots, t) {
     }
 
     // Assumes path index is same as robots
-    let svg_path = svg_path_children[robot.robot_id];
+    // let svg_path = svg_path_children[robot.robot_id];
 
-    // Update path only if it exists and matches the id of the robot
-    if (svg_path && (robot.robot_id in saved_robot_paths)) {
-      let curr_path = [
-        [robot_interp_tile_pos.x, robot_interp_tile_pos.y],
-      ].concat(saved_robot_paths[robot.robot_id]);
-      updatePath(svg_path, curr_path);
-    }
+    // // Update path only if it exists and matches the id of the robot
+    // if (svg_path && (robot.robot_id in saved_robot_paths)) {
+    //   let curr_path = [
+    //     [robot_interp_tile_pos.x, robot_interp_tile_pos.y],
+    //   ].concat(saved_robot_paths[robot.robot_id]);
+    //   updatePath(svg_path, curr_path);
+    // }
   });
 }
 
