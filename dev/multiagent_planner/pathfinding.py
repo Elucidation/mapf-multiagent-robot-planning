@@ -212,10 +212,10 @@ def st_astar(graph, pos_a: Position, pos_b: Position, dynamic_obstacles: set = s
                                        (row+1, col, t+1),
                                        (row, col-1, t+1),
                                        (row, col+1, t+1)]
-        for neighbor in neighbors:
+        neighbor_scores = [0.9, 1, 1, 1, 1] # Waiting costs slightly less than moving.
+        for neighbor, neighbor_score in zip(neighbors, neighbor_scores):
             # cost from start to current to neighbor
-            # stepping a grid cell counts as 1
-            potential_g_score = g_scores[curr] + 1
+            potential_g_score = g_scores[curr] + neighbor_score
             # If neighbor available, and tentative g score better than existing if available.
             if (check_valid(neighbor) and
                     ((neighbor not in g_scores) or potential_g_score < g_scores[neighbor])):
