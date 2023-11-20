@@ -16,8 +16,8 @@ if __name__ == '__main__':
     from .visualizer import Visualizer
     from . import pathfinding
     grid, goals, starts = get_scenario(
-        'multiagent_planner/scenarios/scenario4.yaml')
-
+        'multiagent_planner/scenarios/scenario5.yaml')
+    
     paths = pathfinding.mapf1(grid, starts, goals, maxiter=100, max_time=40)
     collisions = pathfinding.find_all_collisions(paths)
     if not collisions:
@@ -25,8 +25,18 @@ if __name__ == '__main__':
     else:
         print(f'MAPF1 Collisions: {collisions}')
 
-    for i, path in enumerate(paths):
-        print(f'Path {i} : {path}')
+    # for i, path in enumerate(paths):
+    #     print(f'Path {i} : {path}')
+
+    paths = pathfinding.mapf2(grid, starts, goals, maxiter=100, max_time=40)
+    collisions = pathfinding.find_all_collisions(paths)
+    if not collisions:
+        print('MAPF2 Found paths without collisions')
+    else:
+        print(f'MAPF2 Collisions: {collisions}')
+
+    # for i, path in enumerate(paths):
+    #     print(f'Path {i} : {path}')
 
     visualizer = Visualizer(grid, starts, goals, paths)
     visualizer.show()

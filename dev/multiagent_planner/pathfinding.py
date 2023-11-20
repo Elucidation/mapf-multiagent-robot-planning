@@ -254,6 +254,20 @@ def find_all_collisions(paths: list[list[Position]]):
             collisions.extend(find_collisions(path_i, paths[j], label=j))
     return collisions
 
+def find_given_collisions(paths: list[list[Position]], selected_idxs: list[int]):
+    # selected_idxs are the indices of paths that should be compared to other paths
+    collisions = []
+    checked = set()
+    for i in selected_idxs:
+        for j, paths_j in enumerate(paths):
+            if i == j:
+                continue
+            if (i,j) in checked or (j,i) in checked:
+                continue
+            checked.add((i,j))
+            collisions.extend(find_collisions(paths[i], paths_j, label=j))
+    return collisions
+
 
 def find_collisions(path1: list[Position],
                     path2: list[Position], label: int = 1) -> list[Collision]:
@@ -345,5 +359,75 @@ def mapf1(grid, starts, goals, maxiter=5, max_time=20):
         for collision in collisions:
             path_idx, row, col, t = collision
             path_collisions[path_idx].add((row, col, t))
+    print(f'Iterated {i} times')
+    return paths
 
+def mapf2(grid, starts, goals, maxiter=5, max_time=20):
+    # For several robots with given start/goal locations and a grid
+    # Attempt 2:
+    #  - independent A-star for each as initial paths
+    #  - All paths w/o collisions are locked and considered dynamic obstacles
+    #  - For paths with collisions
+    #    - st_astar for paths (priority ordering) that collide until no collisions
+    assert len(starts) == len(goals)
+    paths: list[Path] = []
+    for i, start in enumerate(starts):
+        paths.append(astar(grid, start, goals[i]))
+
+    collisions = find_all_collisions(paths)
+    # dict of collisions per path
+    path_collisions = defaultdict(set)
+    for collision in collisions:
+        path_idx, row, col, t = collision
+        path_collisions[path_idx].add((row, col, t))
+
+    # print(f'Initial paths have {len(path_collisions.keys())} / {len(paths)} colliding paths: {path_collisions.keys()}')
+
+    if not collisions:
+        return paths
+
+
+    # list of (path_idx, row, col, t)
+    for i in range(maxiter):
+        # print(f'{i} | Trying to remove collisions: {collisions}')
+        path_idx, row, col, t = collisions[0]
+        # print(f'Checking collision for {path_idx}')
+
+        # Add all collisions associated with this path
+        # dynamic_obstacles = {(row,col,t) : True}
+        dynamic_obstacles = path_collisions[path_idx]
+
+        # Add all other legal paths as dynamic obstacles too
+        for other_path_idx, path in enumerate(paths):
+            if other_path_idx == path_idx:
+                continue
+            for t, pos in enumerate(path):
+                dynamic_obstacles.add((pos[0], pos[1],t))
+
+        # Update given path with new one avoiding collisions and other legal paths
+        paths[path_idx] = st_astar(
+            grid, starts[path_idx], goals[path_idx], dynamic_obstacles, max_time=max_time)
+        
+        # Check to see if any colliding paths remain, break if not
+        # collisions = find_given_collisions(paths, path_collisions.keys())
+        # We only need to check the colliding paths since we the non-colliding paths are unchanged 
+        # and the colliding ones avoid existing paths.
+        collisions = find_given_collisions(paths, path_collisions.keys())
+        # if not collisions:
+        #     break
+
+        # Clear collisions for path just updated and replace with new ones
+        # del path_collisions[path_idx]
+        path_collisions.clear()
+        for collision in collisions:
+            _path_idx, row, col, t = collision
+            path_collisions[_path_idx].add((row, col, t))
+
+        # print(f'[I={i}] - After updating path for {path_idx} we have {len(path_collisions.keys())} / {len(paths)} colliding paths: {path_collisions.keys()}')
+        # print(path_collisions)
+        # print('--')
+        if not collisions:
+            break
+
+    print(f'Iterated {i} times')
     return paths
